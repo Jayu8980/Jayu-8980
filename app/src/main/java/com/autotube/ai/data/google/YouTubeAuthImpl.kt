@@ -129,7 +129,9 @@ class YouTubeAuthImpl @Inject constructor(
     private suspend fun silentTokenOrNull(): String? {
         if (playServicesProblem() != null) return null
         return try {
-            val result = authorizationClient.authorize(buildRequest()).await()
+            val result = withTimeoutOrNull(SILENT_TOKEN_TIMEOUT_MS) {
+                authorizationClient.authorize(buildRequest()).await()
+            } ?: return null
             if (result.hasResolution()) null else result.accessToken?.takeIf { it.isNotBlank() }
         } catch (e: CancellationException) {
             throw e
@@ -170,12 +172,15 @@ class YouTubeAuthImpl @Inject constructor(
                 .url(REVOKE_URL)
                 .post(FormBody.Builder().add("token", token).build())
                 .build()
-            http.client.newCall(request).await().use { response ->
-                // 400 means the token was already invalid or revoked, which is fine for a sign-out.
-                if (!response.isSuccessful && response.code != 400) {
-                    Log.w(TAG, "Google token revocation returned HTTP ${response.code}")
+            val completed = withTimeoutOrNull(REVOKE_TIMEOUT_MS) {
+                http.client.newCall(request).await().use { response ->
+                    // 400 means the token was already invalid or revoked, which is fine for a sign-out.
+                    if (!response.isSuccessful && response.code != 400) {
+                        Log.w(TAG, "Google token revocation returned HTTP ${response.code}")
+                    }
                 }
             }
+            if (completed == null) Log.w(TAG, "Google token revocation timed out")
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -235,6 +240,8 @@ class YouTubeAuthImpl @Inject constructor(
         const val USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
         const val REVOKE_URL = "https://oauth2.googleapis.com/revoke"
         const val USERINFO_TIMEOUT_MS = 10_000L
+        const val SILENT_TOKEN_TIMEOUT_MS = 15_000L
+        const val REVOKE_TIMEOUT_MS = 15_000L
 
         /** GoogleSignInStatusCodes values (kept as literals to avoid the deprecated class). */
         const val SIGN_IN_FAILED = 12500

@@ -95,13 +95,15 @@ class DeviceStatusImpl @Inject constructor(
         }
     }
 
-    private fun activeCapabilities(): NetworkCapabilities? = try {
+    private fun activeCapabilities(): NetworkCapabilities? {
         val cm = connectivity ?: return null
-        val network = cm.activeNetwork ?: return null
-        cm.getNetworkCapabilities(network)
-    } catch (e: SecurityException) {
-        Log.w(TAG, "Network state not readable", e)
-        null
+        return try {
+            val network = cm.activeNetwork ?: return null
+            cm.getNetworkCapabilities(network)
+        } catch (e: SecurityException) {
+            Log.w(TAG, "Network state not readable", e)
+            null
+        }
     }
 
     private companion object {

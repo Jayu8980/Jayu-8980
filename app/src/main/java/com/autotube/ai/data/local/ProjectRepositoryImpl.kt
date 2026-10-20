@@ -36,7 +36,7 @@ class ProjectRepositoryImpl @Inject constructor(
     private val writeLock = Mutex()
 
     /** Ids of rows already reported as unreadable, so a corrupt row is logged once, not on every emission. */
-    private val reportedCorruptRows: MutableSet<Long> = ConcurrentHashMap.newKeySet()
+    private val reportedCorruptRows: MutableSet<Long> = ConcurrentHashMap.newKeySet<Long>()
 
     override fun observeProjects(): Flow<List<Project>> =
         dao.observeAll()

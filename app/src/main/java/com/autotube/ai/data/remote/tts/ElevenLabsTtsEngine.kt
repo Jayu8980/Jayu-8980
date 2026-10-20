@@ -81,7 +81,10 @@ class ElevenLabsTtsEngine @Inject constructor(
             .addQueryParameter("output_format", OUTPUT_FORMAT)
             .build()
 
-        val maxChars = if (modelId.contains("v3", ignoreCase = true)) MAX_CHARS_V3 else MAX_CHARS
+        val isV3 = modelId.contains("v3", ignoreCase = true)
+        val maxChars = if (isV3) MAX_CHARS_V3 else MAX_CHARS
+        // Request stitching (previous/next text) keeps prosody continuous; v3 models do not accept it.
+        val stitch = !isV3
         val pieces = TextChunker.split(text, maxChars)
         val audioParts = ArrayList<ByteArray>(pieces.size)
         val words = mutableListOf<WordTiming>()
@@ -93,8 +96,8 @@ class ElevenLabsTtsEngine @Inject constructor(
                 modelId = modelId,
                 languageCode = languageCode,
                 voiceSettings = voiceSettings,
-                previousText = pieces.getOrNull(index - 1)?.takeLast(CONTEXT_CHARS),
-                nextText = pieces.getOrNull(index + 1)?.take(CONTEXT_CHARS),
+                previousText = if (stitch) pieces.getOrNull(index - 1)?.takeLast(CONTEXT_CHARS) else null,
+                nextText = if (stitch) pieces.getOrNull(index + 1)?.take(CONTEXT_CHARS) else null,
             )
             val httpRequest = Request.Builder()
                 .url(url)
