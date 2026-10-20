@@ -53,7 +53,7 @@ android {
             signingConfig = if (release.storeFile != null) release else signingConfigs.getByName("debug")
         }
         debug {
-            applicationIdSuffix = ".debug"
+            // Same package name as release so one Google OAuth Android client covers both builds.
             versionNameSuffix = "-debug"
         }
     }

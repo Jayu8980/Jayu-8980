@@ -79,6 +79,12 @@ jobs:
           cp app/build/outputs/apk/release/*.apk dist/AutoTubeAI-release.apk
           ls -la dist
 
+      - name: Print signing certificate SHA-1 (register it in Google Cloud for YouTube sign-in)
+        run: |
+          APKSIGNER="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner"
+          echo "### Release APK signing certificate" >> "$GITHUB_STEP_SUMMARY"
+          "$APKSIGNER" verify --print-certs dist/AutoTubeAI-release.apk | grep -E "SHA-1|SHA-256" | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
