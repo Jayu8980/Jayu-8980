@@ -15,10 +15,24 @@ class CoreTest {
 
     @Test
     fun sampleBankParses() {
-        assertEquals(30, bank.questions.size)
+        assertEquals(38, bank.questions.size)
         assertTrue(bank.questions.all { it.answer.isNotBlank() && it.solution.isNotBlank() })
         GateJson.decodeFromString<MockSeries>(File(dataDir, "mock_series.json").readText()).also { assertEquals(40, it.tests.size) }
         GateJson.decodeFromString<FormulaSheets>(File(dataDir, "formula_sheets.json").readText()).also { assertTrue(it.sheets.size >= 10) }
+    }
+
+    @Test
+    fun figuresCarryDrawableDisplayLists() {
+        val figs = bank.questions.mapNotNull { it.figure }
+        assertEquals(8, figs.size)
+        assertEquals(setOf("plot", "phasor", "circuit", "block_diagram", "bar_chart", "pole_zero"), figs.map { it.type }.toSet())
+        for (f in figs) {
+            val r = f.render!!
+            assertTrue(r.w > 0 && r.h > 0 && r.items.isNotEmpty())
+            assertTrue(r.items.all { it.k in setOf("path", "circle", "text") })
+            assertTrue(r.items.filter { it.k == "path" }.all { it.p.size >= 4 && it.p.size % 2 == 0 })
+            assertTrue(f.description.isNotBlank())
+        }
     }
 
     @Test

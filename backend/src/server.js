@@ -10,6 +10,7 @@ import { analysePyqs } from "./analysis.js";
 import { runPipeline } from "./pipeline.js";
 import { createRunStore, loadJson, loadGeneratedBank } from "./store.js";
 import { SUBJECT_IDS } from "./pattern.js";
+import { toSvg } from "./figures/index.js";
 
 export async function loadData(dataDir) {
   const syllabus = await loadJson(path.join(dataDir, "syllabus.json"), null);
@@ -30,6 +31,7 @@ export function validateRequest(body) {
   if (r.mode === "topic" && !r.topics?.length) return { error: "topic mode needs topics" };
   if (r.mode === "subject" && !r.subjects?.length) return { error: "subject mode needs subjects" };
   for (const k of ["topics", "weak_topics", "avoid_summaries"]) if (r[k] != null && !Array.isArray(r[k])) return { error: `${k} must be an array` };
+  if (r.figures != null && !["none", "some", "many"].includes(r.figures)) return { error: "figures must be none, some or many" };
   if (r.avoid_summaries) r.avoid_summaries = r.avoid_summaries.slice(-200).map((s) => String(s).slice(0, 300));
   return { request: r };
 }
@@ -108,6 +110,15 @@ export function createApp({ llm, data, cfg = config }) {
     res.json(paper);
   });
 
+  // Printable HTML preview of a paper with its figures, for reviewing AI papers in a browser.
+  // Browsers can't send the bearer header, so the token may be passed as ?token=.
+  app.get("/preview/:id", async (req, res) => {
+    if (cfg.clientToken && req.query.token !== cfg.clientToken) return res.status(401).send("unauthorized");
+    const paper = jobs.get(req.params.id)?.paper ?? (await loadJson(path.join(cfg.runsDir, path.basename(req.params.id), "final_paper.json"), null));
+    if (!paper) return res.status(404).send("paper not found");
+    res.type("html").send(previewHtml(paper));
+  });
+
   // "Report wrong question": the question is blocked from the generated bank on the server too
   app.post("/api/report-question", async (req, res) => {
     const { question_id, reason } = req.body ?? {};
@@ -121,6 +132,22 @@ export function createApp({ llm, data, cfg = config }) {
   });
 
   return app;
+}
+
+const esc = (t) => String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+export function previewHtml(paper) {
+  const qs = paper.questions
+    .map(
+      (q) => `<section><h3>Q${q.qno} <small>${esc(q.subject)} - ${q.type} - ${q.marks} mark(s) - ${esc(q.difficulty)}</small></h3>
+<p>${esc(q.question)}</p>${q.figure?.render ? `<figure>${toSvg(q.figure.render)}</figure>` : ""}
+${q.options?.length ? `<ol type="A">${q.options.map((o) => `<li>${esc(o)}</li>`).join("")}</ol>` : ""}
+<details><summary>Answer ${esc(q.answer)}${q.verification_report ? ` - verified: ${esc(q.verification_report.method)} (${esc(q.verification_report.support)})` : ""}</summary><p>${esc(q.solution)}</p>${q.figure ? `<pre>${esc(q.figure.description)}</pre>` : ""}</details></section>`,
+    )
+    .join("\n");
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(paper.title)}</title>
+<style>body{font-family:sans-serif;max-width:820px;margin:auto;padding:16px;color:#1d2433}section{border-bottom:1px solid #e3e7ee;padding:8px 0}figure{margin:8px 0}figure svg{max-width:100%;height:auto}pre{white-space:pre-wrap;background:#f4f6fa;padding:8px}small{color:#5f6b7a;font-weight:normal}</style></head>
+<body><h1>${esc(paper.title)}</h1><p>${paper.questions.length} questions - ${paper.paper_report?.total_marks ?? ""} marks - ${paper.duration_min} min - ${paper.paper_report?.figures ?? 0} figures</p>${qs}</body></html>`;
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

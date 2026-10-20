@@ -14,7 +14,7 @@ backend/            Node.js server: holds the LLM API key and runs the multi-age
   src/pipeline.js   Blueprint -> Setter committee -> Review -> Solver ensemble -> Consensus/Adjudicator -> Moderator -> Validation
 data/               shared JSON used by both the app (as assets) and the backend
   syllabus.json             official GATE EE syllabus: subjects -> topics -> subtopics
-  sample_questions.json     30 original GATE EE questions showing the bank format (MCQ/MSQ/NAT, all subjects)
+  sample_questions.json     38 original GATE EE questions showing the bank format (MCQ/MSQ/NAT, all subjects, 8 with figures)
   pyq_tags_demo.json        SYNTHETIC PYQ tags 2010-2026 (placeholder: replace with real tagged PYQs)
   mock_series.json          fixed series: 20 topic-wise, 10 subject-wise, 10 full-length tests
   formula_sheets.json       formula sheet for every subject
@@ -37,6 +37,7 @@ docs/               architecture, database schema, APK build steps, PYQ data for
 | GATE test interface (palette states, mark for review, scientific calculator, countdown, sections, auto-submit, NAT keypad, MSQ checkboxes) | `TestScreen.kt`, `TestViewModel.kt`, `CalculatorDialog.kt`, `core/Calculator.kt` |
 | Results: negative marking, rank/percentile estimate, accuracy, time per question, subject/topic strengths, silly vs concept vs time-pressure errors, revise-next vs PYQ weightage, progress graph | `core/Scoring.kt`, `ResultScreen.kt`, `ProgressScreen.kt` |
 | Offline mode, bookmarks, notes, wrong-answer list, formula sheets, streak + reminders, dark mode | Room DB, `RevisionScreen.kt`, `FormulaScreen.kt`, `reminders/Reminders.kt`, `SettingsScreen.kt` |
+| **Figure questions**: circuit diagrams, waveforms and graphs, phasor diagrams, Bode / pole-zero plots, block and logic diagrams, bar / pie charts and tables | `backend/src/figures/` (validate, describe, lay out), `FIGURE_GUIDE` in `prompts.js`, `FigureView.kt`; see [docs/FIGURES.md](docs/FIGURES.md) |
 | API key never in the APK | the key lives only in the backend's environment; the app sends an optional `APP_CLIENT_TOKEN` |
 
 ## Multi-agent question design and answer verification
@@ -81,6 +82,17 @@ Claude Sonnet 5.5 side by side, so the setters and solvers are not all the same 
 provider interface (`completeJson`) in `backend/src/llm.js` is small, so a second vendor can be added
 as another committee member.
 
+## Questions with figures
+
+The setters can attach a **figure** to a question: a circuit, a waveform or characteristic graph, a
+phasor diagram, a Bode or pole-zero plot, a block or logic diagram, or a chart or table. About 30%
+of a full mock has figures by default (`figures: none | some | many`). Agents write figures as
+structured JSON, not images. The backend validates each figure: for example, a circuit with an
+unconnected pin is rejected. It then turns the figure into exact text for the solver agents (a
+netlist, curve points, phasor values) and into drawing primitives that the app renders natively,
+offline and in dark mode. Because solvers work from that description, a figure that contradicts the
+question text fails the answer vote. Details and the figure language: [docs/FIGURES.md](docs/FIGURES.md).
+
 ## Quick start
 
 **Backend** (needs Node 20+):
@@ -90,7 +102,7 @@ cd backend
 npm install
 cp .env.example .env          # put ANTHROPIC_API_KEY and APP_CLIENT_TOKEN in .env
 npm start                     # http://localhost:8080
-npm test                      # 13 tests: pattern, consensus, adjudication, regeneration, API
+npm test                      # 20 tests: pattern, consensus, adjudication, regeneration, figures, API
 ```
 
 If no `ANTHROPIC_API_KEY` is set, the server runs an offline **mock** generator. It produces

@@ -64,6 +64,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.gateee.app.AppContainer
 import com.gateee.app.ui.components.EmptyState
+import com.gateee.app.ui.components.FigureView
 import com.gateee.app.ui.components.formatSec
 import com.gateee.app.ui.theme.PaletteColors
 import com.gateee.core.QStatus
@@ -134,6 +135,7 @@ fun TestScreen(container: AppContainer, testId: String, onBack: () -> Unit, onSu
                 val neg = if (q.type == QType.MCQ) "-${if (q.marks == 1) "1/3" else "2/3"}" else "no negative"
                 Text("Question ${vm.current + 1} of ${l.questions.size}  |  ${q.type}  |  +${q.marks}, $neg", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 Text(q.question, style = MaterialTheme.typography.bodyLarge)
+                q.figure?.let { FigureView(it) }
                 HorizontalDivider()
                 val draft = vm.drafts[q.id]
                 when (q.type) {

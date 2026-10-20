@@ -9,7 +9,7 @@ NEG = {("MCQ", 1): 0.33, ("MCQ", 2): 0.67}
 Q = []
 
 def q(subject, topic, subtopic, typ, marks, diff, cog, question, answer, solution, concept, trap,
-      options=None, answer_range=None, distractor="", importance="Medium", verification=None):
+      options=None, answer_range=None, distractor="", importance="Medium", verification=None, figure=None):
     sec = "GA" if subject == "GA" else "Technical"
     n = len(Q) + 1
     Q.append({
@@ -38,6 +38,7 @@ def q(subject, topic, subtopic, typ, marks, diff, cog, question, answer, solutio
         "predicted_importance": importance,
         "time_estimate_sec": 90 if marks == 1 else 180,
         "verification": verification,
+        "figure": figure,
         "source": "sample",
     })
 
@@ -257,9 +258,104 @@ q("PE", ("PE.RECT", "Rectifiers"), "Line-commutated thyristor rectifiers", "MCQ"
   options=["103.5 V", "155.3 V", "207.1 V", "51.8 V"], importance="High",
   distractor="B: semi-converter formula; C: alpha = 0; D: half-wave converter.")
 
+# ---------------- Questions with figures (render + description are added by tools/build_figures.mjs) ----------------
+q("MEAS", ("MEAS.INSTR", "Measuring Instruments"), "Measurement of voltage, current, power, energy and power factor", "NAT", 2, "Medium", "Application",
+  "The periodic voltage waveform shown in the figure is applied across a 5 ohm resistor. The average power dissipated in the resistor is ______ W (round off to 2 decimal places).",
+  "8.00", "Over one 10 ms period the voltage is 10 V for 4 ms and 0 V for 6 ms. Vrms^2 = (10^2 x 4 + 0 x 6)/10 = 40 V^2. Average power = Vrms^2/R = 40/5 = 8 W.",
+  "RMS value of a pulse waveform and average power", "Using the average voltage (4 V) instead of the RMS value, which gives 3.2 W.",
+  answer_range={"min": 7.95, "max": 8.05}, verification={"expression": "10^2*(4/10)/5", "variables": {}},
+  figure={"type": "plot", "caption": "Periodic voltage applied to the resistor",
+          "x": {"label": "t", "unit": "ms", "min": 0, "max": 20, "ticks": [0, 4, 10, 14, 20]},
+          "y": {"label": "v(t)", "unit": "V", "min": 0, "max": 12, "ticks": [0, 5, 10]},
+          "series": [{"label": "v(t)", "points": [[0, 0], [0, 10], [4, 10], [4, 0], [10, 0], [10, 10], [14, 10], [14, 0], [20, 0]]}]})
+
+q("EC", ("EC.SINUSOIDAL", "Sinusoidal Steady State"), "Complex power and power factor", "MCQ", 1, "Easy", "Application",
+  "The phasor diagram shows the RMS voltage V across a load and the RMS current I drawn by it. The active power and the reactive power of the load are",
+  "A", "S = V I* = 230 x 10 at +36.87 deg = 2300(0.8 + j0.6). P = 1840 W and Q = +1380 var. I lags V, so the load is inductive and absorbs reactive power.",
+  "Complex power from a phasor diagram", "Taking a lagging current as a load that delivers reactive power.",
+  options=["1840 W, 1380 var absorbed", "1840 W, 1380 var delivered", "1380 W, 1840 var absorbed", "2300 W, 0 var"],
+  distractor="B: sign convention reversed; C: sin and cos swapped; D: apparent power taken as active power.",
+  figure={"type": "phasor", "caption": "V = 230 V (reference), I = 10 A (I drawn to a larger scale)", "reference_label": "reference",
+          "phasors": [{"label": "V", "text": "V = 230 V", "magnitude": 230, "angle_deg": 0, "unit": "V"},
+                      {"label": "I", "text": "I = 10 A", "magnitude": 10, "angle_deg": -36.87, "unit": "A", "scale": 16}],
+          "angles": [{"from": "I", "to": "V", "label": "36.87°"}]})
+
+q("EC", ("EC.ANALYSIS", "Network Solution Methods"), "Node and mesh analysis", "NAT", 1, "Easy", "Application",
+  "In the circuit shown, the voltage of node a with respect to the ground is ______ V (round off to 2 decimal places).",
+  "6.00", "The 6 ohm and 12 ohm resistors are both between node a and ground: 6 || 12 = 4 ohm. Voltage division: Va = 12 x 4/(4 + 4) = 6 V.",
+  "Parallel combination and voltage division", "Ignoring the 12 ohm branch and computing 12 x 6/10 = 7.2 V.",
+  answer_range={"min": 5.99, "max": 6.01}, verification={"expression": "12*(R2*R3/(R2+R3))/(R1 + R2*R3/(R2+R3))", "variables": {"R1": 4, "R2": 6, "R3": 12}},
+  figure={"type": "circuit",
+          "elements": [{"kind": "V", "from": [0, 2], "to": [0, 0], "label": "12 V"},
+                       {"kind": "R", "from": [0, 0], "to": [2, 0], "label": "4 Ω"},
+                       {"kind": "R", "from": [2, 0], "to": [2, 2], "label": "6 Ω"},
+                       {"kind": "wire", "from": [2, 0], "to": [4, 0]},
+                       {"kind": "R", "from": [4, 0], "to": [4, 2], "label": "12 Ω"},
+                       {"kind": "wire", "from": [0, 2], "to": [4, 2]},
+                       {"kind": "ground", "at": [0, 2]}],
+          "nodes": [{"at": [2, 0], "label": "a"}]})
+
+q("CS", ("CS.MODEL", "Mathematical Modelling"), "Block diagrams and signal flow graphs", "MCQ", 2, "Medium", "Analysis",
+  "For the block diagram shown, the closed-loop transfer function C(s)/R(s) is",
+  "A", "Inner loop: G2 with negative feedback H1 gives G2/(1 + G2 H1). In series with G1 the forward path is G1 G2/(1 + G2 H1). The outer unity negative feedback gives C/R = G1 G2/(1 + G2 H1 + G1 G2).",
+  "Block diagram reduction with nested loops", "Treating H1 as if it fed back around G1 as well, giving 1 + G1 G2 H1 in the denominator.",
+  options=["G1 G2 / (1 + G2 H1 + G1 G2)", "G1 G2 / (1 + G1 G2 H1)", "G1 G2 / (1 + G1 H1 + G1 G2)", "G1 G2 / (1 - G2 H1 + G1 G2)"],
+  distractor="B: inner loop placed around both blocks; C: H1 attached to G1; D: sign of the inner loop reversed.", importance="High",
+  figure={"type": "block_diagram",
+          "blocks": [{"id": "S1", "shape": "sum", "at": [0, 0]}, {"id": "G1", "label": "G1(s)", "at": [1.6, 0]},
+                     {"id": "S2", "shape": "sum", "at": [3.2, 0]}, {"id": "G2", "label": "G2(s)", "at": [4.8, 0]},
+                     {"id": "P", "shape": "point", "at": [6.4, 0]}, {"id": "H1", "label": "H1(s)", "at": [4.8, 1.2]}],
+          "links": [{"from": "S1", "to": "G1"}, {"from": "G1", "to": "S2", "sign": "+"}, {"from": "S2", "to": "G2"},
+                    {"from": "G2", "to": "P"}, {"from": "P", "to": "H1", "via": [[6.4, 1.2]]},
+                    {"from": "H1", "to": "S2", "via": [[3.2, 1.2]], "sign": "-"},
+                    {"from": "P", "to": "S1", "via": [[6.4, 2.2], [0, 2.2]], "sign": "-"}],
+          "inputs": [{"to": "S1", "label": "R(s)", "sign": "+"}], "outputs": [{"from": "P", "label": "C(s)"}]})
+
+q("CS", ("CS.FREQ", "Frequency Response"), "Gain and phase margins", "NAT", 2, "Hard", "Analysis",
+  "The asymptotic Bode magnitude plot of the minimum-phase open-loop transfer function G(s) of a unity-feedback system is shown. The phase margin of the system is ______ degrees (round off to 2 decimal places).",
+  "51.83", "From the plot, the -20 dB/decade line passes 20 dB at w = 1, so K = 10, and the slope changes to -40 dB/decade at the corner w = 10: G(s) = 10/(s(1 + s/10)) = 100/(s(s + 10)). Exact gain crossover: w^2(w^2 + 100) = 10^4, so w^2 = 61.80 and w = 7.86 rad/s. PM = 180 - 90 - atan(7.86/10) = 90 - 38.17 = 51.83 degrees.",
+  "Transfer function from an asymptotic Bode plot, then the exact phase margin", "Using the asymptotic crossover w = 10 rad/s, which gives 45 degrees.",
+  answer_range={"min": 51.5, "max": 52.2}, importance="High",
+  verification={"expression": "90 - deg(atan(sqrt((-100 + sqrt(100^2 + 4*10^4))/2)/10))", "variables": {}},
+  figure={"type": "plot", "caption": "Asymptotic magnitude plot of G(jω)",
+          "x": {"label": "ω", "unit": "rad/s", "scale": "log", "min": 0.1, "max": 1000},
+          "y": {"label": "|G(jω)|", "unit": "dB", "min": -80, "max": 40, "ticks": [-80, -60, -40, -20, 0, 20, 40]},
+          "series": [{"label": "asymptote", "points": [[0.1, 40], [10, 0], [1000, -80]]}],
+          "annotations": [{"x": 1, "y": 20, "text": "−20 dB/dec"}, {"x": 100, "y": -40, "text": "−40 dB/dec"}],
+          "vlines": [{"x": 10, "label": "ω = 10"}]})
+
+q("PE", ("PE.RECT", "Rectifiers"), "Line-commutated thyristor rectifiers", "NAT", 2, "Medium", "Application",
+  "A single-phase half-wave thyristor rectifier supplies a resistive load from a 230 V (rms), 50 Hz source. The supply voltage vs (dashed) and the load voltage vo are shown. The average load voltage is ______ V (round off to 2 decimal places).",
+  "77.65", "The figure shows conduction from wt = 60 deg to 180 deg, so alpha = 60 deg. Vo = (Vm/(2 pi))(1 + cos alpha) = (325.27/(2 pi)) x 1.5 = 77.65 V.",
+  "Average output of a half-wave controlled rectifier read from its waveform", "Using the full-wave expression (Vm/pi)(1 + cos alpha), which doubles the answer to 155.3 V.",
+  answer_range={"min": 77.4, "max": 77.9}, verification={"expression": "230*sqrt(2)/(2*pi)*(1 + cosd(60))", "variables": {}},
+  figure={"type": "plot",
+          "x": {"label": "ωt", "unit": "deg", "min": 0, "max": 720, "ticks": [0, 60, 180, 360, 420, 540, 720]},
+          "y": {"label": "v", "unit": "V", "min": -350, "max": 350, "ticks": [-325, 0, 325]},
+          "series": [{"label": "vs", "expression": "325.27*sind(x)", "domain": [0, 720], "style": "dashed", "color_index": 0},
+                     {"label": "vo", "expression": "325.27*sind(x)", "domains": [[60, 180], [420, 540]], "color_index": 1},
+                     {"points": [[0, 0], [60, 0]], "color_index": 1}, {"points": [[180, 0], [420, 0]], "color_index": 1},
+                     {"points": [[540, 0], [720, 0]], "color_index": 1}]})
+
+q("GA", ("GA.QUANT", "Quantitative Aptitude"), "Data interpretation", "NAT", 2, "Easy", "Application",
+  "The bar chart shows the annual production of a factory. The average annual production over the five years exceeds the 2019 production by ______ % (round off to 1 decimal place).",
+  "32.5", "Average = (120 + 150 + 135 + 180 + 210)/5 = 795/5 = 159 thousand units. Excess over 2019 = (159 - 120)/120 x 100 = 32.5%.",
+  "Averages and percentage change from a chart", "Dividing by the average instead of the 2019 value, giving 24.5%.",
+  answer_range={"min": 32.45, "max": 32.55}, verification={"expression": "((120+150+135+180+210)/5 - 120)/120*100", "variables": {}},
+  figure={"type": "bar_chart", "categories": ["2019", "2020", "2021", "2022", "2023"],
+          "series": [{"label": "Production", "values": [120, 150, 135, 180, 210]}],
+          "y": {"label": "Production", "unit": "thousand units"}, "x": {"label": "Year"}})
+
+q("SS", ("SS.LAPLACE", "Laplace Transform"), "Laplace transform and ROC", "MSQ", 2, "Medium", "Analysis",
+  "The pole-zero plot of a causal LTI system H(s) is shown. Which of the following statements is/are TRUE?",
+  "A,B,C", "The poles are at -1 +/- j2 (left half plane), so the causal system is BIBO stable (A true). Complex poles with real part -1 and imaginary part 2 give an impulse response like e^(-t) cos(2t + phi): a decaying oscillation at 2 rad/s (B true). The zero at s = 0 makes H(0) = 0 (C true). A zero at the origin and a complex pole pair give a band-pass response, not low-pass (D false).",
+  "Reading stability, damped frequency and filter type from a pole-zero plot", "Calling it low-pass because both poles are stable, ignoring the zero at the origin.",
+  options=["The system is BIBO stable", "The impulse response is a decaying oscillation with damped frequency 2 rad/s", "The DC gain of the system is zero", "The system behaves as a low-pass filter"],
+  figure={"type": "pole_zero", "poles": [[-1, 2], [-1, -2]], "zeros": [[0, 0]], "label_points": True})
+
 out = os.path.join(os.path.dirname(__file__), "..", "data", "sample_questions.json")
 with open(out, "w") as f:
-    json.dump({"version": 1, "description": "Sample GATE EE question bank (30 original questions) showing the bank format", "questions": Q}, f, indent=2)
+    json.dump({"version": 1, "description": "Sample GATE EE question bank (38 original questions, 8 with figures) showing the bank format", "questions": Q}, f, indent=2)
 print(len(Q), "questions ->", out)
 from collections import Counter
 print(Counter(x["type"] for x in Q), Counter(x["subject_id"] for x in Q))

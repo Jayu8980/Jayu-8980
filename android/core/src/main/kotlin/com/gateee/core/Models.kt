@@ -36,6 +36,41 @@ data class VerificationReport(
     val moderator: String = "",
 )
 
+/**
+ * One drawing primitive of a figure's display list (made by backend/src/figures/layout.js):
+ * path (p = x0,y0,x1,y1,...; close = polygon), circle (c = centre, r), text (p = x, vertical
+ * centre; t, a = "s"|"m"|"e" anchor, z = size, b = bold). s/f are colour tokens such as "fg", "s0".
+ */
+@Serializable
+data class RenderItem(
+    val k: String,
+    val p: List<Double> = emptyList(),
+    val c: List<Double> = emptyList(),
+    val r: Double = 0.0,
+    val s: String = "fg",
+    val w: Double = 1.5,
+    val d: Int = 0,
+    val f: String? = null,
+    val close: Int = 0,
+    val t: String = "",
+    val a: String = "m",
+    val z: Double = 12.0,
+    val b: Int = 0,
+)
+
+@Serializable
+data class FigureRender(val w: Double, val h: Double, val items: List<RenderItem> = emptyList())
+
+/** Figure attached to a question: circuit, waveform/graph, phasor, Bode, pole-zero, block diagram or chart. */
+@Serializable
+data class Figure(
+    val type: String,
+    val title: String = "",
+    val caption: String = "",
+    val description: String = "",
+    val render: FigureRender? = null,
+)
+
 @Serializable
 data class Question(
     val id: String,
@@ -64,6 +99,7 @@ data class Question(
     @SerialName("time_estimate_sec") val timeEstimateSec: Int = 90,
     val verification: Verification? = null,
     @SerialName("verification_report") val verificationReport: VerificationReport? = null,
+    val figure: Figure? = null,
     val source: String = "",
     val year: Int? = null,
 )
@@ -82,11 +118,13 @@ data class BlueprintSlot(
     val marks: Int = 1,
     @SerialName("cognitive_level") val cognitiveLevel: String = "",
     val difficulty: String = "",
+    val figure: String? = null,
 )
 
 @Serializable
 data class PaperReport(
     @SerialName("total_marks") val totalMarks: Int = 0,
+    val figures: Int = 0,
     @SerialName("marks_by_subject") val marksBySubject: Map<String, Int> = emptyMap(),
     @SerialName("type_mix") val typeMix: Map<String, Int> = emptyMap(),
     @SerialName("difficulty_mix") val difficultyMix: Map<String, Int> = emptyMap(),
@@ -175,6 +213,8 @@ data class GenerateRequest(
     val title: String? = null,
     val seed: Int? = null,
     @SerialName("duration_min") val durationMin: Int? = null,
+    /** share of questions with figures: none | some | many */
+    val figures: String? = null,
 )
 
 @Serializable

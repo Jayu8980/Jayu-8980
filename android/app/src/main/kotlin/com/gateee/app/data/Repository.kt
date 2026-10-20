@@ -233,7 +233,7 @@ class Repository(private val context: Context, val db: AppDatabase, val backend:
     }
 
     companion object {
-        const val SEED_VERSION = 1
+        const val SEED_VERSION = 2
     }
 }
 

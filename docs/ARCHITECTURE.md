@@ -33,7 +33,8 @@
 | `similarity.js` | Word 3-gram Jaccard + token cosine duplicate detection |
 | `llm.js` | Anthropic SDK client: streaming, adaptive thinking, effort per role, server-side refusal fallback, JSON parsing with one retry |
 | `mockLlm.js` | Deterministic offline provider used by tests and when no key is set |
-| `server.js` | REST API and job tracking |
+| `figures/` | Figure language: `spec.js` validation (incl. circuit connectivity), `describe.js` text for solvers, `layout.js` display list, `svg.js` preview renderer, `math.js` ticks / sampling / Bode |
+| `server.js` | REST API, job tracking, `/preview/:id` HTML paper preview |
 
 ### Agents and how they check each other
 
@@ -56,7 +57,9 @@
    average and cutoff. A fix that changes the question or its answer goes back through the solver
    ensemble.
 7. **Validation layer** (code): schema, totals, type mix, duplicates against the PYQ bank, earlier
-   generated papers and the current paper.
+   generated papers and the current paper, and figure validation. Figure slots must carry a valid
+   figure. Solvers, the adjudicator and the moderator see the code-generated figure description.
+   See [FIGURES.md](FIGURES.md).
 
 Rejected slots are regenerated, up to `MAX_REGEN_ROUNDS`. The paper status is `complete` or
 `completed_with_gaps` (with `missing_qnos`).
@@ -89,6 +92,7 @@ app/src/main/kotlin/com/gateee/app/
   data/SettingsStore.kt              DataStore settings
   reminders/Reminders.kt             WorkManager daily reminder
   ui/AppNav.kt                       navigation graph
+  ui/components/FigureView.kt        draws question figures from their display list (zoomable)
   ui/screens/*                       Home, PYQ Analysis, PYQ Practice, Series, AI Mock, Paper Report,
                                      Test (+ViewModel, calculator), Result, Progress, Revision,
                                      Question detail, Formula sheets, Settings

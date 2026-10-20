@@ -14,6 +14,7 @@ import { analysisForPrompt } from "./analysis.js";
 import { makeAgents } from "./agents.js";
 import { tally, decide, normalizeAnswer, natTolerance } from "./consensus.js";
 import { schemaErrors, codeCheck, duplicateCheck, finalizeQuestion, paperChecks } from "./validation.js";
+import { figureText } from "./prompts.js";
 
 export async function runPipeline(request, ctx, onProgress = () => {}) {
   const { llm, config, syllabus, analysis, pyqBank = [], generatedBank = [], store } = ctx;
@@ -87,7 +88,7 @@ export async function runPipeline(request, ctx, onProgress = () => {}) {
     duration_min: request.duration_min ?? durationFor(request),
     status: missing.length ? "completed_with_gaps" : "complete",
     missing_qnos: missing,
-    blueprint: blueprint.map(({ qno, section, subject_id, topic_id, subtopic, type, marks, cognitive_level, difficulty }) => ({
+    blueprint: blueprint.map(({ qno, section, subject_id, topic_id, subtopic, type, marks, cognitive_level, difficulty, figure }) => ({
       qno,
       section,
       subject_id,
@@ -97,6 +98,7 @@ export async function runPipeline(request, ctx, onProgress = () => {}) {
       marks,
       cognitive_level,
       difficulty,
+      figure: figure ?? null,
     })),
     questions,
     paper_report: paperReport(questions, ctx.moderatorEstimates, checks),
@@ -177,6 +179,7 @@ async function produceBatch(slots, { round, request, agents, config, quorum, avo
         setter_answer: t.setter_answer,
         setter_solution: d.q.solution,
         answer_range: d.q.answer_range,
+        ...(d.q.figure ? { figure: figureText(d.q.figure) } : {}),
         code_recomputed_value: cc.computed ?? null,
         solvers: votes.map((v) => ({ agent: v.agent, answer: v.answer, working: v.working, issues: v.issues })),
       });
@@ -257,7 +260,9 @@ async function moderateAndReverify(questions, { request, agents, config, quorum,
   for (const group of chunk(questions, 20)) {
     let out;
     try {
-      out = await agents.moderate({ questions: group.map(({ verification_report, _round, ...q }) => q), request, avoid });
+      // moderator sees the figure spec and its description, not the bulky display list
+      const view = group.map(({ verification_report, _round, figure, ...q }) => ({ ...q, ...(figure ? { figure: specOnly(figure), figure_description: figure.description } : {}) }));
+      out = await agents.moderate({ questions: view, request, avoid });
     } catch (e) {
       note(`moderator failed, keeping verified questions: ${e.message}`);
       continue;
@@ -276,7 +281,8 @@ async function moderateAndReverify(questions, { request, agents, config, quorum,
       if (dec.difficulty_actual) q.difficulty = dec.difficulty_actual;
       if (dec.action === "reject") rejected.push({ qno: q.qno, reason: dec.reasons || "rejected" });
       else if (dec.action === "fix" && dec.fixed_question) {
-        const fixed = { ...dec.fixed_question, type: q.type, marks: q.marks, qno: q.qno };
+        // a fix that leaves out the figure keeps the verified one
+        const fixed = { ...dec.fixed_question, type: q.type, marks: q.marks, qno: q.qno, figure: dec.fixed_question.figure ?? (q.figure ? specOnly(q.figure) : null) };
         if (schemaErrors(fixed, q).length) {
           note(`moderator fix for Q${q.qno} failed validation; keeping the verified version`);
           continue;
@@ -301,6 +307,10 @@ async function moderateAndReverify(questions, { request, agents, config, quorum,
     }
   }
   return { rejected, estimates };
+}
+
+function specOnly(fig) {
+  return Object.fromEntries(Object.entries(fig).filter(([k]) => k !== "render" && k !== "description"));
 }
 
 function mergeBlueprint(skeleton, planned, syllabus) {
@@ -334,6 +344,8 @@ function paperReport(questions, est, checks) {
   const share = (p) => Math.round(questions.reduce((s, q) => s + q.marks * p[q.difficulty], 0));
   return {
     total_marks: total,
+    figures: questions.filter((q) => q.figure).length,
+    figure_types: questions.filter((q) => q.figure).reduce((m, q) => ({ ...m, [q.figure.type]: (m[q.figure.type] ?? 0) + 1 }), {}),
     totals: paperTotals(questions),
     marks_by_subject: marksBySubject,
     type_mix: typeMix,

@@ -35,5 +35,8 @@ The question format is the same everywhere: the sample bank, AI papers and the b
 
 Answer encoding: MCQ `"B"`, MSQ `"A,C"`, NAT `"12.5"` with `answer_range`.
 
+Questions with a figure also carry `"figure": {"type": "circuit", ...spec, "description": "...", "render": {"w": 480, "h": 300, "items": [...]}}`.
+The app draws `render`; see [FIGURES.md](FIGURES.md).
+
 To add more questions later, append them to `data/sample_questions.json`, or drop generated papers
 into `data/generated/`. Then bump `SEED_VERSION` in `Repository.kt` so existing installs re-import.

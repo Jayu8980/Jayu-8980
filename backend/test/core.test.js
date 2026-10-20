@@ -47,9 +47,10 @@ test("consensus: unanimous, disputed, corrected", () => {
   assert.equal(decide(q, split, { verdict: "corrected", final_answer: "9" }, 2).accepted, false);
 });
 
-test("sample bank: all 30 questions pass schema and NAT recomputation", () => {
+test("sample bank: all questions pass schema and NAT recomputation", () => {
   const qs = data.sample.questions;
-  assert.equal(qs.length, 30);
+  assert.equal(qs.length, 38);
+  assert.equal(qs.filter((q) => q.figure).length, 8);
   for (const q of qs) {
     assert.deepEqual(schemaErrors(q), [], `${q.id}`);
     const cc = codeCheck(q);

@@ -35,6 +35,23 @@ export const COGNITIVE_MIX = { Recall: 0.2, Application: 0.45, Analysis: 0.35 };
 const NAT_AFFINITY = { EM: 3, PS: 3, PE: 3, EC: 3, MATH: 2, CS: 2, EMF: 2, SS: 1, MEAS: 2, AE: 1 };
 const MSQ_AFFINITY = { CS: 3, AE: 3, SS: 2, MATH: 2, EM: 2, PS: 2, PE: 2, MEAS: 2, EC: 1, EMF: 1 };
 
+// Figure types that suit each subject (the setter may pick another valid type).
+export const FIGURE_KINDS = {
+  GA: ["bar_chart", "pie_chart", "table"],
+  MATH: ["plot"],
+  EC: ["circuit", "phasor", "plot"],
+  EMF: ["plot", "circuit"],
+  SS: ["plot", "pole_zero"],
+  EM: ["phasor", "plot", "circuit"],
+  PS: ["phasor", "circuit", "plot"],
+  CS: ["block_diagram", "bode", "plot", "pole_zero"],
+  MEAS: ["circuit", "plot"],
+  AE: ["circuit", "block_diagram", "table"],
+  PE: ["plot", "circuit"],
+};
+// Share of questions with a figure: "some" is close to recent GATE EE papers.
+export const FIGURE_SHARE = { none: 0, some: 0.3, many: 0.6 };
+
 export const MODE_DEFAULTS = {
   full_mock: { questions: 65, durationMin: 180 },
   subject: { questions: 25, one: 10, two: 15, durationMin: 75 },
@@ -244,12 +261,38 @@ export function buildSkeleton(req, syllabus, analysis) {
     for (const s of slots) s.difficulty = req.difficulty;
   }
   pickTopics(slots, syllabus, analysis, rand);
+  assignFigures(slots, req.figures ?? "some", rand);
   spreadHard(slots);
   return slots.map((s, i) => ({
     qno: i + 1,
     ...s,
     negative_marks: negativeMarks(s.type, s.marks),
   }));
+}
+
+// Mark a share of slots as figure questions, spread across subjects (subjects whose questions
+// are naturally visual first), and suggest a figure type for each.
+function assignFigures(slots, level, rand) {
+  const share = FIGURE_SHARE[level] ?? FIGURE_SHARE.some;
+  const n = Math.round(slots.length * share);
+  if (!n) return;
+  const visual = { CS: 3, EC: 3, PE: 3, SS: 2, EM: 2, PS: 2, MEAS: 2, AE: 2, GA: 1, MATH: 1, EMF: 1 };
+  const order = shuffle(slots, rand).sort((a, b) => (visual[b.subject_id] ?? 0) - (visual[a.subject_id] ?? 0));
+  // round-robin over subjects so figures are not all in one subject
+  const bySubject = new Map();
+  for (const s of order) {
+    if (!bySubject.has(s.subject_id)) bySubject.set(s.subject_id, []);
+    bySubject.get(s.subject_id).push(s);
+  }
+  const picked = [];
+  while (picked.length < n && [...bySubject.values()].some((l) => l.length)) {
+    for (const list of bySubject.values()) if (list.length && picked.length < n) picked.push(list.shift());
+  }
+  const used = {};
+  for (const s of picked) {
+    const kinds = FIGURE_KINDS[s.subject_id] ?? ["plot"];
+    s.figure = kinds[(used[s.subject_id] = (used[s.subject_id] ?? -1) + 1) % kinds.length];
+  }
 }
 
 // GA first, then technical; within a section avoid two Hard questions back-to-back.

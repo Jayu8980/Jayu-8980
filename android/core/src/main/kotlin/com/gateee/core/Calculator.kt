@@ -126,7 +126,7 @@ class Calculator(var degrees: Boolean = true) {
         private fun toRad(x: Double) = if (degrees) Math.toRadians(x) else x
         private fun fromRad(x: Double) = if (degrees) Math.toDegrees(x) else x
 
-        private val FUNCTIONS = setOf("sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh", "ln", "log", "log10", "sqrt", "cbrt", "exp", "abs", "deg", "rad")
+        private val FUNCTIONS = setOf("sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh", "ln", "log", "log10", "sqrt", "cbrt", "exp", "abs", "deg", "rad", "sind", "cosd", "tand")
 
         private fun call(name: String, a: List<Double>): Double {
             val x = a[0]
@@ -146,6 +146,9 @@ class Calculator(var degrees: Boolean = true) {
                 "cbrt" -> cbrt(x)
                 "exp" -> exp(x)
                 "abs" -> abs(x)
+                "sind" -> sin(Math.toRadians(x))
+                "cosd" -> cos(Math.toRadians(x))
+                "tand" -> tan(Math.toRadians(x))
                 "deg" -> Math.toDegrees(x)
                 "rad" -> Math.toRadians(x)
                 "pow" -> x.pow(a[1])

@@ -41,6 +41,20 @@ function makeQuestion(slot, setterIdx, round = 0) {
     answer_range: null,
   };
   const p = (V * V) / R;
+  // figure slots get a schematic of the same source-and-resistor circuit
+  if (slot.figure) {
+    base.figure = {
+      type: "circuit",
+      caption: `Circuit for question ${slot.qno}`,
+      elements: [
+        { kind: "V", from: [0, 2], to: [0, 0], label: `${V} V` },
+        { kind: "wire", from: [0, 0], to: [2, 0] },
+        { kind: "R", from: [2, 0], to: [2, 2], label: `${R} Ω` },
+        { kind: "wire", from: [0, 2], to: [2, 2] },
+        { kind: "ground", at: [0, 2] },
+      ],
+    };
+  }
   if (slot.type === "NAT") {
     const q = `${tag} A ${R} ohm resistor is connected across an ideal ${V} V DC source. The power dissipated is ______ W (round off to 1 decimal place).`;
     const ans = Math.round(p * 10) / 10;

@@ -77,12 +77,13 @@ fun AiMockScreen(container: AppContainer, initialMode: String, onBack: () -> Uni
     var natShare by remember { mutableFloatStateOf(0.28f) }
     var msqShare by remember { mutableFloatStateOf(0.14f) }
     var weak by remember { mutableStateOf<List<String>>(emptyList()) }
+    var figures by remember { mutableStateOf("some") }
     var status by remember { mutableStateOf<JobStatus?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var job by remember { mutableStateOf<Job?>(null) }
     LaunchedEffect(Unit) { weak = repo.weakTopics() }
 
-    fun request(): GenerateRequest = when (mode) {
+    fun baseRequest(): GenerateRequest = when (mode) {
         "full_mock" -> GenerateRequest(mode = "full_mock")
         "subject" -> GenerateRequest(mode = "subject", subjects = subjects.value.toList(), questionCount = count.toInt())
         "topic" -> GenerateRequest(mode = "topic", topics = topics.value.toList(), questionCount = count.toInt())
@@ -96,6 +97,8 @@ fun AiMockScreen(container: AppContainer, initialMode: String, onBack: () -> Uni
             typeMix = mapOf("MCQ" to (1.0 - natShare - msqShare).coerceAtLeast(0.0), "MSQ" to msqShare.toDouble(), "NAT" to natShare.toDouble()),
         )
     }
+
+    fun request(): GenerateRequest = baseRequest().copy(figures = figures)
 
     fun kindFor(m: String) = if (m == "full_mock") "full" else m
 
@@ -147,7 +150,8 @@ fun AiMockScreen(container: AppContainer, initialMode: String, onBack: () -> Uni
                 Text(
                     "Blueprint agent plans the paper -> 2 setter agents draft every question independently -> a review agent picks and improves the best draft -> " +
                         "3 solver agents solve it blind (different models and methods) -> answers must agree, or an adjudicator re-solves the dispute -> " +
-                        "moderator checks syllabus, ambiguity and balance -> code re-checks NAT values, duplicates and the GATE pattern.",
+                        "moderator checks syllabus, ambiguity and balance -> code re-checks NAT values, figures, duplicates and the GATE pattern. " +
+                        "Figures are checked in code (e.g. no unconnected circuit pins) and solvers work from the drawn figure's exact description.",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
@@ -170,6 +174,8 @@ fun AiMockScreen(container: AppContainer, initialMode: String, onBack: () -> Uni
                 Slider(natShare, { natShare = it.coerceAtMost(1f - msqShare) }, valueRange = 0f..1f)
                 Slider(msqShare, { msqShare = it.coerceAtMost(1f - natShare) }, valueRange = 0f..1f)
             }
+            Text("Questions with figures (circuits, waveforms, phasors, Bode plots, block diagrams, charts)")
+            ChipRow(listOf("none", "some", "many"), figures, { mapOf("none" to "None", "some" to "Some (~30%)", "many" to "Many (~60%)")[it]!! }) { figures = it }
             val ready = when (mode) {
                 "subject" -> subjects.value.isNotEmpty()
                 "topic" -> topics.value.isNotEmpty()

@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.gateee.app.AppContainer
 import com.gateee.app.ui.components.EmptyState
+import com.gateee.app.ui.components.FigureView
 import com.gateee.app.ui.components.InfoBanner
 import com.gateee.app.ui.components.ScreenScaffold
 import com.gateee.app.ui.components.SectionCard
@@ -65,6 +66,7 @@ fun QuestionDetailScreen(container: AppContainer, questionId: String, onBack: ()
             Text("${qq.year?.let { "GATE $it - " } ?: ""}${qq.subject.ifBlank { qq.subjectId }} - ${qq.topic} - ${qq.subtopic}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
             Text("${qq.type} - ${qq.marks} mark(s) - ${qq.difficulty} - ${qq.cognitiveLevel}", style = MaterialTheme.typography.labelSmall)
             Text(qq.question, style = MaterialTheme.typography.bodyLarge)
+            qq.figure?.let { FigureView(it) }
             qq.options.forEachIndexed { i, o -> Text("(${"ABCD"[i]}) $o") }
             reportMsg?.let { InfoBanner(it) }
             if (!reveal) Button(onClick = { reveal = true }, modifier = Modifier.fillMaxWidth()) { Text("Show answer and solution") }

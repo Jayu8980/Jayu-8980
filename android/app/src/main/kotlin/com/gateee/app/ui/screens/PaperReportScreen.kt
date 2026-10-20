@@ -78,6 +78,8 @@ fun PaperReportScreen(container: AppContainer, testId: String, onBack: () -> Uni
             item {
                 SectionCard("Type mix") {
                     Text(qs.groupingBy { it.type }.eachCount().entries.joinToString("   ") { "${it.key}: ${it.value}" })
+                    val figs = qs.mapNotNull { it.figure?.type }
+                    if (figs.isNotEmpty()) Text("Questions with figures: ${figs.size} (" + figs.groupingBy { it.replace('_', ' ') }.eachCount().entries.joinToString { "${it.key} ${it.value}" } + ")", style = MaterialTheme.typography.bodySmall)
                     Text(qs.groupingBy { it.cognitiveLevel.ifBlank { "-" } }.eachCount().entries.joinToString("   ") { "${it.key}: ${it.value}" }, style = MaterialTheme.typography.bodySmall)
                 }
             }

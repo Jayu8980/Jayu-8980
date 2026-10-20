@@ -4,6 +4,7 @@ import { evaluate } from "./expr.js";
 import { normalizeAnswer } from "./consensus.js";
 import { findDuplicate } from "./similarity.js";
 import { negativeMarks, paperTotals, FULL_PATTERN } from "./pattern.js";
+import { figureErrors, prepareFigure } from "./figures/index.js";
 
 const TYPES = ["MCQ", "MSQ", "NAT"];
 const LEVELS = ["Recall", "Application", "Analysis"];
@@ -34,6 +35,8 @@ export function schemaErrors(q, slot) {
     else if (Number(q.answer_range.max) - Number(q.answer_range.min) > Math.max(Math.abs(ans) * 0.05, 0.05)) e.push("NAT range is too wide (would accept conceptual errors)");
   }
   if (typeof q.solution !== "string" || q.solution.trim().length < 15) e.push("solution missing");
+  if (slot?.figure && !q.figure) e.push(`blueprint slot needs a figure (suggested type: ${slot.figure})`);
+  if (q.figure) e.push(...figureErrors(q.figure).map((m) => `figure: ${m}`));
   if (q.cognitive_level && !LEVELS.includes(q.cognitive_level)) e.push(`bad cognitive_level ${q.cognitive_level}`);
   if (q.difficulty && !DIFFS.includes(q.difficulty)) e.push(`bad difficulty ${q.difficulty}`);
   return e;
@@ -92,6 +95,8 @@ export function finalizeQuestion(q, slot, extra = {}) {
     predicted_importance: q.predicted_importance ?? "Medium",
     time_estimate_sec: Number(q.time_estimate_sec) || (slot.marks === 1 ? 90 : 180),
     verification: q.verification ?? null,
+    // the app draws `figure.render`; solvers read `figure.description`
+    figure: q.figure ? prepareFigure(q.figure) : null,
     ...extra,
   };
   return out;
