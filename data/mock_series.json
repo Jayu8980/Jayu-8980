@@ -1,0 +1,656 @@
+{
+  "version": 1,
+  "description": "Fixed GATE EE mock series: 20 topic-wise, 10 subject-wise and 10 full-length tests. Questions come from the AI paper-setter pipeline (backend/scripts/build-series.js) or are generated on demand in the app.",
+  "tests": [
+    {
+      "id": "TT01",
+      "kind": "topic",
+      "title": "Topic Test 1: Single-Phase Transformer",
+      "subject_id": "EM",
+      "questions": 15,
+      "marks": 23,
+      "duration_min": 45,
+      "request": {
+        "mode": "topic",
+        "topics": [
+          "EM.SPTX"
+        ],
+        "question_count": 15,
+        "title": "Topic Test 1: Single-Phase Transformer"
+      }
+    },
+    {
+      "id": "TT02",
+      "kind": "topic",
+      "title": "Topic Test 2: Three-Phase Induction Machines",
+      "subject_id": "EM",
+      "questions": 15,
+      "marks": 23,
+      "duration_min": 45,
+      "request": {
+        "mode": "topic",
+        "topics": [
+          "EM.IM"
+        ],
+        "question_count": 15,
+        "title": "Topic Test 2: Three-Phase Induction Machines"
+      }
+    },
+    {
+      "id": "TT03",
+      "kind": "topic",
+      "title": "Topic Test 3: DC Machines",
+      "subject_id": "EM",
+      "questions": 15,
+      "marks": 23,
+      "duration_min": 45,
+      "request": {
+        "mode": "topic",
+        "topics": [
+          "EM.DC"
+        ],
+        "question_count": 15,
+        "title": "Topic Test 3: DC Machines"
+      }
+    },
+    {
+      "id": "TT04",
+      "kind": "topic",
+      "title": "Topic Test 4: Synchronous Machines",
+      "subject_id": "EM",
+      "questions": 15,
+      "marks": 23,
+      "duration_min": 45,
+      "request": {
+        "mode": "topic",
+        "topics": [
+          "EM.SYNC"
+        ],
+        "question_count": 15,
+        "title": "Topic Test 4: Synchronous Machines"
+      }
+    },
+    {
+      "id": "TT05",
+      "kind": "topic",
+      "title": "Topic Test 5: Fault Analysis",
+      "subject_id": "PS",
+      "questions": 15,
+      "marks": 23,
+      "duration_min": 45,
+      "request": {
+        "mode": "topic",
+        "topics": [
+          "PS.FAULT"
+        ],
+        "question_count": 15,
+        "title": "Topic Test 5: Fault Analysis"
+      }
+    },
+    {
+      "id": "TT06",
+      "kind": "topic",
+      "title": "Topic Test 6: Load Flow",
+      "subject_id": "PS",
+      "questions": 15,
+      "marks": 23,
+      "duration_min": 45,
+      "request": {
+        "mode": "topic",
+        "topics": [
+          "PS.LOADFLOW"
+        ],
+        "question_count": 15,
+        "title": "Topic Test 6: Load Flow"
+      }
+    },
+    {
+      "id": "TT07",
+      "kind": "topic",
+      "title": "Topic Test 7: Stability",
+      "subject_id": "PS",
+      "questions": 15,
+      "marks": 23,
+      "duration_min": 45,
+      "request": {
+        "mode": "topic",
+        "topics": [
+          "PS.STABILITY"
+        ],
+        "question_count": 15,
+        "title": "Topic Test 7: Stability"
+      }
+    },
+    {
+      "id": "TT08",
+      "kind": "topic",
+      "title": "Topic Test 8: Transmission Lines",
+      "subject_id": "PS",
+      "questions": 15,
+      "marks": 23,
+      "duration_min": 45,
+      "request": {
+        "mode": "topic",
+        "topics": [
+          "PS.LINES"
+        ],
+        "question_count": 15,
+        "title": "Topic Test 8: Transmission Lines"
+      }
+    },
+    {
+      "id": "TT09",
+      "kind": "topic",
+      "title": "Topic Test 9: Stability Analysis",
+      "subject_id": "CS",
+      "questions": 15,
+      "marks": 23,
+      "duration_min": 45,
+      "request": {
+        "mode": "topic",
+        "topics": [
+          "CS.STABILITY"
+        ],
+        "question_count": 15,
+        "title": "Topic Test 9: Stability Analysis"
+      }
+    },
+    {
+      "id": "TT10",
+      "kind": "topic",
+      "title": "Topic Test 10: Frequency Response",
+      "subject_id": "CS",
+      "questions": 15,
+      "marks": 23,
+      "duration_min": 45,
+      "request": {
+        "mode": "topic",
+        "topics": [
+          "CS.FREQ"
+        ],
+        "question_count": 15,
+        "title": "Topic Test 10: Frequency Response"
+      }
+    },
+    {
+      "id": "TT11",
+      "kind": "topic",
+      "title": "Topic Test 11: Time Response",
+      "subject_id": "CS",
+      "questions": 15,
+      "marks": 23,
+      "duration_min": 45,
+      "request": {
+        "mode": "topic",
+        "topics": [
+          "CS.TIME"
+        ],
+        "question_count": 15,
+        "title": "Topic Test 11: Time Response"
+      }
+    },
+    {
+      "id": "TT12",
+      "kind": "topic",
+      "title": "Topic Test 12: Network Theorems",
+      "subject_id": "EC",
+      "questions": 15,
+      "marks": 23,
+      "duration_min": 45,
+      "request": {
+        "mode": "topic",
+        "topics": [
+          "EC.THEOREMS"
+        ],
+        "question_count": 15,
+        "title": "Topic Test 12: Network Theorems"
+      }
+    },
+    {
+      "id": "TT13",
+      "kind": "topic",
+      "title": "Topic Test 13: Transient Response",
+      "subject_id": "EC",
+      "questions": 15,
+      "marks": 23,
+      "duration_min": 45,
+      "request": {
+        "mode": "topic",
+        "topics": [
+          "EC.TRANSIENT"
+        ],
+        "question_count": 15,
+        "title": "Topic Test 13: Transient Response"
+      }
+    },
+    {
+      "id": "TT14",
+      "kind": "topic",
+      "title": "Topic Test 14: Sinusoidal Steady State",
+      "subject_id": "EC",
+      "questions": 15,
+      "marks": 23,
+      "duration_min": 45,
+      "request": {
+        "mode": "topic",
+        "topics": [
+          "EC.SINUSOIDAL"
+        ],
+        "question_count": 15,
+        "title": "Topic Test 14: Sinusoidal Steady State"
+      }
+    },
+    {
+      "id": "TT15",
+      "kind": "topic",
+      "title": "Topic Test 15: Rectifiers",
+      "subject_id": "PE",
+      "questions": 15,
+      "marks": 23,
+      "duration_min": 45,
+      "request": {
+        "mode": "topic",
+        "topics": [
+          "PE.RECT"
+        ],
+        "question_count": 15,
+        "title": "Topic Test 15: Rectifiers"
+      }
+    },
+    {
+      "id": "TT16",
+      "kind": "topic",
+      "title": "Topic Test 16: DC-DC Converters",
+      "subject_id": "PE",
+      "questions": 15,
+      "marks": 23,
+      "duration_min": 45,
+      "request": {
+        "mode": "topic",
+        "topics": [
+          "PE.DCDC"
+        ],
+        "question_count": 15,
+        "title": "Topic Test 16: DC-DC Converters"
+      }
+    },
+    {
+      "id": "TT17",
+      "kind": "topic",
+      "title": "Topic Test 17: Inverters",
+      "subject_id": "PE",
+      "questions": 15,
+      "marks": 23,
+      "duration_min": 45,
+      "request": {
+        "mode": "topic",
+        "topics": [
+          "PE.INV"
+        ],
+        "question_count": 15,
+        "title": "Topic Test 17: Inverters"
+      }
+    },
+    {
+      "id": "TT18",
+      "kind": "topic",
+      "title": "Topic Test 18: Operational Amplifiers",
+      "subject_id": "AE",
+      "questions": 15,
+      "marks": 23,
+      "duration_min": 45,
+      "request": {
+        "mode": "topic",
+        "topics": [
+          "AE.OPAMP"
+        ],
+        "question_count": 15,
+        "title": "Topic Test 18: Operational Amplifiers"
+      }
+    },
+    {
+      "id": "TT19",
+      "kind": "topic",
+      "title": "Topic Test 19: Fourier Analysis",
+      "subject_id": "SS",
+      "questions": 15,
+      "marks": 23,
+      "duration_min": 45,
+      "request": {
+        "mode": "topic",
+        "topics": [
+          "SS.FOURIER"
+        ],
+        "question_count": 15,
+        "title": "Topic Test 19: Fourier Analysis"
+      }
+    },
+    {
+      "id": "TT20",
+      "kind": "topic",
+      "title": "Topic Test 20: Linear Algebra",
+      "subject_id": "MATH",
+      "questions": 15,
+      "marks": 23,
+      "duration_min": 45,
+      "request": {
+        "mode": "topic",
+        "topics": [
+          "MATH.LA"
+        ],
+        "question_count": 15,
+        "title": "Topic Test 20: Linear Algebra"
+      }
+    },
+    {
+      "id": "ST01",
+      "kind": "subject",
+      "title": "Subject Test 1: Engineering Mathematics",
+      "subject_id": "MATH",
+      "questions": 25,
+      "marks": 40,
+      "duration_min": 75,
+      "request": {
+        "mode": "subject",
+        "subjects": [
+          "MATH"
+        ],
+        "question_count": 25,
+        "title": "Subject Test 1: Engineering Mathematics"
+      }
+    },
+    {
+      "id": "ST02",
+      "kind": "subject",
+      "title": "Subject Test 2: Electric Circuits",
+      "subject_id": "EC",
+      "questions": 25,
+      "marks": 40,
+      "duration_min": 75,
+      "request": {
+        "mode": "subject",
+        "subjects": [
+          "EC"
+        ],
+        "question_count": 25,
+        "title": "Subject Test 2: Electric Circuits"
+      }
+    },
+    {
+      "id": "ST03",
+      "kind": "subject",
+      "title": "Subject Test 3: Electromagnetic Fields",
+      "subject_id": "EMF",
+      "questions": 25,
+      "marks": 40,
+      "duration_min": 75,
+      "request": {
+        "mode": "subject",
+        "subjects": [
+          "EMF"
+        ],
+        "question_count": 25,
+        "title": "Subject Test 3: Electromagnetic Fields"
+      }
+    },
+    {
+      "id": "ST04",
+      "kind": "subject",
+      "title": "Subject Test 4: Signals and Systems",
+      "subject_id": "SS",
+      "questions": 25,
+      "marks": 40,
+      "duration_min": 75,
+      "request": {
+        "mode": "subject",
+        "subjects": [
+          "SS"
+        ],
+        "question_count": 25,
+        "title": "Subject Test 4: Signals and Systems"
+      }
+    },
+    {
+      "id": "ST05",
+      "kind": "subject",
+      "title": "Subject Test 5: Electrical Machines",
+      "subject_id": "EM",
+      "questions": 25,
+      "marks": 40,
+      "duration_min": 75,
+      "request": {
+        "mode": "subject",
+        "subjects": [
+          "EM"
+        ],
+        "question_count": 25,
+        "title": "Subject Test 5: Electrical Machines"
+      }
+    },
+    {
+      "id": "ST06",
+      "kind": "subject",
+      "title": "Subject Test 6: Power Systems",
+      "subject_id": "PS",
+      "questions": 25,
+      "marks": 40,
+      "duration_min": 75,
+      "request": {
+        "mode": "subject",
+        "subjects": [
+          "PS"
+        ],
+        "question_count": 25,
+        "title": "Subject Test 6: Power Systems"
+      }
+    },
+    {
+      "id": "ST07",
+      "kind": "subject",
+      "title": "Subject Test 7: Control Systems",
+      "subject_id": "CS",
+      "questions": 25,
+      "marks": 40,
+      "duration_min": 75,
+      "request": {
+        "mode": "subject",
+        "subjects": [
+          "CS"
+        ],
+        "question_count": 25,
+        "title": "Subject Test 7: Control Systems"
+      }
+    },
+    {
+      "id": "ST08",
+      "kind": "subject",
+      "title": "Subject Test 8: Electrical and Electronic Measurements",
+      "subject_id": "MEAS",
+      "questions": 25,
+      "marks": 40,
+      "duration_min": 75,
+      "request": {
+        "mode": "subject",
+        "subjects": [
+          "MEAS"
+        ],
+        "question_count": 25,
+        "title": "Subject Test 8: Electrical and Electronic Measurements"
+      }
+    },
+    {
+      "id": "ST09",
+      "kind": "subject",
+      "title": "Subject Test 9: Analog and Digital Electronics",
+      "subject_id": "AE",
+      "questions": 25,
+      "marks": 40,
+      "duration_min": 75,
+      "request": {
+        "mode": "subject",
+        "subjects": [
+          "AE"
+        ],
+        "question_count": 25,
+        "title": "Subject Test 9: Analog and Digital Electronics"
+      }
+    },
+    {
+      "id": "ST10",
+      "kind": "subject",
+      "title": "Subject Test 10: Power Electronics",
+      "subject_id": "PE",
+      "questions": 25,
+      "marks": 40,
+      "duration_min": 75,
+      "request": {
+        "mode": "subject",
+        "subjects": [
+          "PE"
+        ],
+        "question_count": 25,
+        "title": "Subject Test 10: Power Electronics"
+      }
+    },
+    {
+      "id": "FM01",
+      "kind": "full",
+      "title": "Full-Length Mock 1",
+      "subject_id": null,
+      "questions": 65,
+      "marks": 100,
+      "duration_min": 180,
+      "request": {
+        "mode": "full_mock",
+        "seed": 1001,
+        "title": "Full-Length Mock 1"
+      }
+    },
+    {
+      "id": "FM02",
+      "kind": "full",
+      "title": "Full-Length Mock 2",
+      "subject_id": null,
+      "questions": 65,
+      "marks": 100,
+      "duration_min": 180,
+      "request": {
+        "mode": "full_mock",
+        "seed": 1002,
+        "title": "Full-Length Mock 2"
+      }
+    },
+    {
+      "id": "FM03",
+      "kind": "full",
+      "title": "Full-Length Mock 3",
+      "subject_id": null,
+      "questions": 65,
+      "marks": 100,
+      "duration_min": 180,
+      "request": {
+        "mode": "full_mock",
+        "seed": 1003,
+        "title": "Full-Length Mock 3"
+      }
+    },
+    {
+      "id": "FM04",
+      "kind": "full",
+      "title": "Full-Length Mock 4",
+      "subject_id": null,
+      "questions": 65,
+      "marks": 100,
+      "duration_min": 180,
+      "request": {
+        "mode": "full_mock",
+        "seed": 1004,
+        "title": "Full-Length Mock 4"
+      }
+    },
+    {
+      "id": "FM05",
+      "kind": "full",
+      "title": "Full-Length Mock 5",
+      "subject_id": null,
+      "questions": 65,
+      "marks": 100,
+      "duration_min": 180,
+      "request": {
+        "mode": "full_mock",
+        "seed": 1005,
+        "title": "Full-Length Mock 5"
+      }
+    },
+    {
+      "id": "FM06",
+      "kind": "full",
+      "title": "Full-Length Mock 6",
+      "subject_id": null,
+      "questions": 65,
+      "marks": 100,
+      "duration_min": 180,
+      "request": {
+        "mode": "full_mock",
+        "seed": 1006,
+        "title": "Full-Length Mock 6"
+      }
+    },
+    {
+      "id": "FM07",
+      "kind": "full",
+      "title": "Full-Length Mock 7",
+      "subject_id": null,
+      "questions": 65,
+      "marks": 100,
+      "duration_min": 180,
+      "request": {
+        "mode": "full_mock",
+        "seed": 1007,
+        "title": "Full-Length Mock 7"
+      }
+    },
+    {
+      "id": "FM08",
+      "kind": "full",
+      "title": "Full-Length Mock 8",
+      "subject_id": null,
+      "questions": 65,
+      "marks": 100,
+      "duration_min": 180,
+      "request": {
+        "mode": "full_mock",
+        "seed": 1008,
+        "title": "Full-Length Mock 8"
+      }
+    },
+    {
+      "id": "FM09",
+      "kind": "full",
+      "title": "Full-Length Mock 9",
+      "subject_id": null,
+      "questions": 65,
+      "marks": 100,
+      "duration_min": 180,
+      "request": {
+        "mode": "full_mock",
+        "seed": 1009,
+        "title": "Full-Length Mock 9"
+      }
+    },
+    {
+      "id": "FM10",
+      "kind": "full",
+      "title": "Full-Length Mock 10",
+      "subject_id": null,
+      "questions": 65,
+      "marks": 100,
+      "duration_min": 180,
+      "request": {
+        "mode": "full_mock",
+        "seed": 1010,
+        "title": "Full-Length Mock 10"
+      }
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "exam": "GATE Electrical Engineering (EE)",
+  "version": "GATE 2026 official syllabus",
+  "subjects": [
+    {
+      "id": "GA",
+      "name": "General Aptitude",
+      "section": "GA",
+      "topics": [
+        { "id": "GA.VERBAL", "name": "Verbal Aptitude", "subtopics": ["Grammar and usage", "Vocabulary", "Reading comprehension", "Verbal analogies", "Critical reasoning"] },
+        { "id": "GA.QUANT", "name": "Quantitative Aptitude", "subtopics": ["Arithmetic (ratio, percentage, profit-loss)", "Time, speed and work", "Data interpretation", "Permutations and probability", "Number system and series", "Mensuration"] },
+        { "id": "GA.ANALYTICAL", "name": "Analytical Aptitude", "subtopics": ["Logical deduction", "Seating and arrangement", "Direction and blood relation", "Statements and conclusions"] },
+        { "id": "GA.SPATIAL", "name": "Spatial Aptitude", "subtopics": ["Paper folding and cutting", "Pattern completion", "Rotation and mirror images", "Counting figures"] }
+      ]
+    },
+    {
+      "id": "MATH",
+      "name": "Engineering Mathematics",
+      "section": "Technical",
+      "topics": [
+        { "id": "MATH.LA", "name": "Linear Algebra", "subtopics": ["Matrix algebra and rank", "Systems of linear equations", "Eigenvalues and eigenvectors", "Cayley-Hamilton theorem"] },
+        { "id": "MATH.CALC", "name": "Calculus", "subtopics": ["Mean value theorems", "Limits, continuity, differentiability", "Maxima and minima", "Definite and improper integrals", "Partial derivatives", "Multiple integrals", "Taylor and Fourier series"] },
+        { "id": "MATH.VEC", "name": "Vector Calculus", "subtopics": ["Gradient, divergence and curl", "Line, surface and volume integrals", "Gauss, Stokes and Green theorems"] },
+        { "id": "MATH.DE", "name": "Differential Equations", "subtopics": ["First-order equations", "Higher-order linear ODEs with constant coefficients", "Cauchy-Euler equation", "Initial and boundary value problems", "Partial differential equations and separation of variables"] },
+        { "id": "MATH.CV", "name": "Complex Variables", "subtopics": ["Analytic functions", "Cauchy integral theorem and formula", "Taylor and Laurent series", "Residue theorem"] },
+        { "id": "MATH.PROB", "name": "Probability and Statistics", "subtopics": ["Mean, median, mode, standard deviation", "Conditional probability and Bayes theorem", "Random variables", "Discrete and continuous distributions", "Correlation and regression"] },
+        { "id": "MATH.NUM", "name": "Numerical Methods", "subtopics": ["Solution of nonlinear equations", "Numerical integration", "Numerical solution of ODEs"] }
+      ]
+    },
+    {
+      "id": "EC",
+      "name": "Electric Circuits",
+      "section": "Technical",
+      "topics": [
+        { "id": "EC.ELEM", "name": "Network Elements and Sources", "subtopics": ["Ideal voltage and current sources", "Dependent sources", "R, L, C, M elements"] },
+        { "id": "EC.ANALYSIS", "name": "Network Solution Methods", "subtopics": ["KCL, KVL", "Node and mesh analysis"] },
+        { "id": "EC.THEOREMS", "name": "Network Theorems", "subtopics": ["Thevenin and Norton", "Superposition", "Maximum power transfer", "Tellegen and reciprocity"] },
+        { "id": "EC.TRANSIENT", "name": "Transient Response", "subtopics": ["DC transients", "AC transients", "Initial and final conditions"] },
+        { "id": "EC.SINUSOIDAL", "name": "Sinusoidal Steady State", "subtopics": ["Phasors and impedance", "Complex power and power factor", "Resonance", "Two-port networks"] },
+        { "id": "EC.THREEPHASE", "name": "Three-Phase Circuits", "subtopics": ["Balanced three-phase circuits", "Unbalanced loads", "Power measurement (two-wattmeter)"] },
+        { "id": "EC.MAGNETIC", "name": "Magnetically Coupled Circuits", "subtopics": ["Mutual inductance and dot convention", "Ideal transformer in circuits"] }
+      ]
+    },
+    {
+      "id": "EMF",
+      "name": "Electromagnetic Fields",
+      "section": "Technical",
+      "topics": [
+        { "id": "EMF.ELECTROSTATICS", "name": "Electrostatics", "subtopics": ["Coulomb's law", "Electric field intensity", "Electric flux density and Gauss's law", "Divergence", "Electric potential", "Capacitance of simple configurations"] },
+        { "id": "EMF.DIELECTRIC", "name": "Dielectrics", "subtopics": ["Effect of dielectric medium", "Boundary conditions"] },
+        { "id": "EMF.MAGNETOSTATICS", "name": "Magnetostatics", "subtopics": ["Biot-Savart law", "Ampere's law", "Curl", "Faraday's law", "Lorentz force", "Inductance", "Magnetomotive force, reluctance, magnetic circuits", "Self and mutual inductance of simple configurations"] }
+      ]
+    },
+    {
+      "id": "SS",
+      "name": "Signals and Systems",
+      "section": "Technical",
+      "topics": [
+        { "id": "SS.BASICS", "name": "Signal and System Properties", "subtopics": ["Continuous and discrete signals", "Shifting and scaling", "LTI systems and convolution", "Causality, stability, linearity, time invariance"] },
+        { "id": "SS.SAMPLING", "name": "Sampling", "subtopics": ["Sampling theorem", "Aliasing"] },
+        { "id": "SS.FOURIER", "name": "Fourier Analysis", "subtopics": ["Fourier series", "Continuous-time Fourier transform", "Discrete-time Fourier transform", "Parseval's theorem"] },
+        { "id": "SS.LAPLACE", "name": "Laplace Transform", "subtopics": ["Laplace transform and ROC", "Inverse Laplace", "Initial and final value theorems"] },
+        { "id": "SS.Z", "name": "z-Transform", "subtopics": ["z-transform and ROC", "Inverse z-transform", "Difference equations"] }
+      ]
+    },
+    {
+      "id": "EM",
+      "name": "Electrical Machines",
+      "section": "Technical",
+      "topics": [
+        { "id": "EM.SPTX", "name": "Single-Phase Transformer", "subtopics": ["Equivalent circuit", "Phasor diagram", "Open-circuit and short-circuit tests", "Regulation and efficiency"] },
+        { "id": "EM.3PTX", "name": "Three-Phase Transformers", "subtopics": ["Connections and vector groups", "Parallel operation", "Auto-transformer"] },
+        { "id": "EM.EMEC", "name": "Electromechanical Energy Conversion", "subtopics": ["Energy and co-energy", "Force and torque from co-energy"] },
+        { "id": "EM.DC", "name": "DC Machines", "subtopics": ["Separately excited, series and shunt motors and generators", "Performance characteristics", "Starting and speed control", "Armature reaction and commutation"] },
+        { "id": "EM.IM", "name": "Three-Phase Induction Machines", "subtopics": ["Principle of operation", "Types and equivalent circuit", "Torque-slip characteristics", "No-load and blocked-rotor tests", "Starting and speed control"] },
+        { "id": "EM.SPIM", "name": "Single-Phase Induction Motors", "subtopics": ["Operating principle", "Double revolving field theory"] },
+        { "id": "EM.SYNC", "name": "Synchronous Machines", "subtopics": ["Cylindrical and salient pole machines", "Performance and regulation", "Parallel operation of generators", "Starting of synchronous motors", "V-curves and power factor control"] },
+        { "id": "EM.LOSSES", "name": "Losses and Efficiency", "subtopics": ["Types of losses", "Efficiency calculations"] }
+      ]
+    },
+    {
+      "id": "PS",
+      "name": "Power Systems",
+      "section": "Technical",
+      "topics": [
+        { "id": "PS.BASICS", "name": "Power Generation and Basics", "subtopics": ["Basic concepts of electrical power generation", "AC and DC transmission concepts", "HVDC basics"] },
+        { "id": "PS.LINES", "name": "Transmission Lines", "subtopics": ["Line parameters (R, L, C)", "Short, medium and long line models", "ABCD parameters", "Ferranti effect and surge impedance loading"] },
+        { "id": "PS.CABLES", "name": "Cables and Insulators", "subtopics": ["Cable capacitance and grading", "String efficiency of insulators"] },
+        { "id": "PS.DISTRIBUTION", "name": "Distribution and Compensation", "subtopics": ["Distribution systems", "Per-unit quantities", "Bus admittance matrix", "Voltage control and power factor correction"] },
+        { "id": "PS.LOADFLOW", "name": "Load Flow", "subtopics": ["Gauss-Seidel method", "Newton-Raphson method", "Real and reactive power flow"] },
+        { "id": "PS.FAULT", "name": "Fault Analysis", "subtopics": ["Symmetrical components", "Symmetrical fault analysis", "Unsymmetrical fault analysis (LG, LL, LLG)"] },
+        { "id": "PS.PROTECTION", "name": "Protection", "subtopics": ["Principles of overcurrent, differential, directional and distance protection", "Circuit breakers"] },
+        { "id": "PS.STABILITY", "name": "Stability", "subtopics": ["System stability concepts", "Swing equation", "Equal area criterion"] },
+        { "id": "PS.ECONOMIC", "name": "Economic Load Dispatch", "subtopics": ["Economic dispatch with and without losses"] }
+      ]
+    },
+    {
+      "id": "CS",
+      "name": "Control Systems",
+      "section": "Technical",
+      "topics": [
+        { "id": "CS.MODEL", "name": "Mathematical Modelling", "subtopics": ["Feedback principles", "Transfer function", "Block diagrams and signal flow graphs", "Mason's gain formula"] },
+        { "id": "CS.TIME", "name": "Time Response", "subtopics": ["Transient and steady-state analysis of LTI systems", "Steady-state error and error constants", "Second-order system specifications"] },
+        { "id": "CS.STABILITY", "name": "Stability Analysis", "subtopics": ["Routh-Hurwitz criterion", "Root locus", "Nyquist criterion"] },
+        { "id": "CS.FREQ", "name": "Frequency Response", "subtopics": ["Bode plots", "Gain and phase margins", "Polar plots"] },
+        { "id": "CS.COMP", "name": "Compensators and Controllers", "subtopics": ["Lag, lead and lead-lag compensators", "P, PI and PID controllers"] },
+        { "id": "CS.STATE", "name": "State Space", "subtopics": ["State-space model", "Solution of state equations", "Controllability and observability"] }
+      ]
+    },
+    {
+      "id": "MEAS",
+      "name": "Electrical and Electronic Measurements",
+      "section": "Technical",
+      "topics": [
+        { "id": "MEAS.BRIDGES", "name": "Bridges and Potentiometers", "subtopics": ["DC bridges", "AC bridges", "Potentiometers"] },
+        { "id": "MEAS.INSTR", "name": "Measuring Instruments", "subtopics": ["PMMC, moving iron, dynamometer instruments", "Measurement of voltage, current, power, energy and power factor", "Instrument transformers", "Digital voltmeters and multimeters"] },
+        { "id": "MEAS.PHASE", "name": "Phase, Time and Frequency Measurement", "subtopics": ["Oscilloscopes and Lissajous patterns", "Phase, time and frequency measurement"] },
+        { "id": "MEAS.ERROR", "name": "Error Analysis", "subtopics": ["Types of errors", "Limiting and probable errors"] }
+      ]
+    },
+    {
+      "id": "AE",
+      "name": "Analog and Digital Electronics",
+      "section": "Technical",
+      "topics": [
+        { "id": "AE.DIODE", "name": "Diode Circuits", "subtopics": ["Rectifiers", "Clippers and clampers", "Zener regulators"] },
+        { "id": "AE.AMP", "name": "Amplifiers", "subtopics": ["Biasing of BJT and MOSFET", "Small-signal models", "Frequency response of amplifiers"] },
+        { "id": "AE.OPAMP", "name": "Operational Amplifiers", "subtopics": ["Characteristics and applications", "Active filters", "Oscillators and timers", "Comparators and Schmitt trigger"] },
+        { "id": "AE.DIGITAL", "name": "Digital Electronics", "subtopics": ["Combinational logic circuits", "Minimization of Boolean functions", "IC families (TTL, CMOS)", "Sequential circuits", "Counters and shift registers", "Multiplexers and decoders"] },
+        { "id": "AE.CONV", "name": "Data Converters and Processors", "subtopics": ["Sample and hold", "ADC and DAC", "8085 microprocessor basics"] }
+      ]
+    },
+    {
+      "id": "PE",
+      "name": "Power Electronics",
+      "section": "Technical",
+      "topics": [
+        { "id": "PE.DEVICES", "name": "Power Semiconductor Devices", "subtopics": ["Static V-I characteristics of diode, thyristor, MOSFET, IGBT", "Gate drive circuits"] },
+        { "id": "PE.DCDC", "name": "DC-DC Converters", "subtopics": ["Buck converter", "Boost converter", "Buck-boost converter", "Continuous vs discontinuous conduction"] },
+        { "id": "PE.RECT", "name": "Rectifiers", "subtopics": ["Single and three-phase uncontrolled rectifiers", "Line-commutated thyristor rectifiers", "Power factor and distortion factor of rectifiers"] },
+        { "id": "PE.INV", "name": "Inverters", "subtopics": ["Single-phase and three-phase voltage source inverters", "Sinusoidal PWM", "Harmonics"] },
+        { "id": "PE.DRIVES", "name": "Electric Drives", "subtopics": ["Speed control of DC motors using converters", "V/f control of induction motors"] }
+      ]
+    }
+  ]
+}
