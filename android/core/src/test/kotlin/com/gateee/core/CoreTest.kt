@@ -50,7 +50,7 @@ class CoreTest {
 
     @Test
     fun errorClassification() {
-        val nat = bank.questions.first { it.id == "SAMPLE-016" } // 1.00 ohm
+        val nat = bank.questions.first { it.id == "SAMPLE-017" } // DC motor, answer 1.00 ohm
         assertEquals(ErrorType.TIME_PRESSURE, Scoring.classify(resp(nat, "3", at = 3500), 3600, null))
         assertEquals(ErrorType.SILLY_MISTAKE, Scoring.classify(resp(nat, "1.05", t = 150), 3600, null))
         assertEquals(ErrorType.CONCEPT_GAP, Scoring.classify(resp(nat, "4", t = 150), 3600, 0.2))

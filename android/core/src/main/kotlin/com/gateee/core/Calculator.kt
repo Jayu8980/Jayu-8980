@@ -14,7 +14,7 @@ class Calculator(var degrees: Boolean = true) {
         private set
 
     fun evaluate(expr: String, variables: Map<String, Double> = emptyMap()): Double {
-        val p = Parser(tokenize(expr.replace('×', '*').replace('÷', '/').replace('−', '-').replace("√", "sqrt").replace("π", "pi")), variables)
+        val p = Parser(tokenize(expr.replace('×', '*').replace('÷', '/').replace('−', '-').replace("√", "sqrt ").replace("π", "pi")), variables)
         val v = p.parseExpression()
         if (!p.done()) throw IllegalArgumentException("Syntax error")
         if (v.isNaN() || v.isInfinite()) throw ArithmeticException("Math error")
@@ -103,7 +103,10 @@ class Calculator(var degrees: Boolean = true) {
                 is Tok.Op -> { eat('('); val v = parseExpression(); eat(')'); v }
                 is Tok.Id -> {
                     p++
-                    if (peekOp('(')) {
+                    if (tok.name in FUNCTIONS && !peekOp('(')) {
+                        // calculator-style prefix use without brackets: √3, sin30
+                        call(tok.name, listOf(postfix()))
+                    } else if (peekOp('(')) {
                         eat('(')
                         val args = mutableListOf(parseExpression())
                         while (peekOp(',')) { p++; args += parseExpression() }
@@ -122,6 +125,8 @@ class Calculator(var degrees: Boolean = true) {
 
         private fun toRad(x: Double) = if (degrees) Math.toRadians(x) else x
         private fun fromRad(x: Double) = if (degrees) Math.toDegrees(x) else x
+
+        private val FUNCTIONS = setOf("sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh", "ln", "log", "log10", "sqrt", "cbrt", "exp", "abs", "deg", "rad")
 
         private fun call(name: String, a: List<Double>): Double {
             val x = a[0]
