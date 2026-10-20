@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>GATE EE Old Papers</title>
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--ink:#1c1b19;--muted:#6b675f;--line:#e3dfd6;--accent:#b4441c;--accent-ink:#fff;--ok:#2f7a4a;--warn:#a86a00;--chip:#ece8df}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#151412;--card:#1f1e1b;--ink:#eeeae2;--muted:#a19c92;--line:#34322d;--accent:#e2703f;--accent-ink:#151412;--ok:#5fb37d;--warn:#e0a23a;--chip:#2a2925}}
+:root[data-theme="dark"]{--bg:#151412;--card:#1f1e1b;--ink:#eeeae2;--muted:#a19c92;--line:#34322d;--accent:#e2703f;--accent-ink:#151412;--ok:#5fb37d;--warn:#e0a23a;--chip:#2a2925}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button{font:inherit;color:inherit;cursor:pointer}
+.wrap{max-width:980px;margin:0 auto;padding:16px}
+header.top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:12px 0 8px;border-bottom:2px solid var(--ink)}
+h1{margin:0;font:700 26px/1.1 Georgia,"Times New Roman",serif;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:13px;margin-top:4px}
+.iconbtn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:6px 10px;min-height:36px}
+.tabs{display:flex;gap:6px;margin:14px 0 10px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--chip);border-radius:999px;padding:6px 12px;font-size:13px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.search{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:inherit;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.yr{font:700 30px/1 Georgia,serif}
+.meta{color:var(--muted);font-size:13px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.badge{font-size:11px;padding:2px 7px;border-radius:999px;border:1px solid var(--line)}
+.badge.done{color:var(--ok);border-color:var(--ok)}.badge.prog{color:var(--warn);border-color:var(--warn)}
+.acts{display:flex;gap:6px;margin-top:auto}
+.btn{flex:1;border:1px solid var(--line);background:transparent;border-radius:8px;padding:8px 6px;font-size:13px;text-align:center;text-decoration:none;color:var(--ink)}
+a.iconbtn{color:var(--ink)}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.card.missing{background:transparent;border-style:dashed;color:var(--muted)}
+.card.missing .yr{opacity:.45}
+h2{font:700 18px Georgia,serif;margin:26px 0 10px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:500;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.empty{color:var(--muted);font-size:14px;padding:8px 0}
+/* viewer */
+#viewer{position:fixed;inset:0;background:var(--bg);display:none;flex-direction:column;z-index:10}
+#viewer.open{display:flex}
+.vbar{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line);background:var(--card);flex-wrap:wrap}
+.vbar .t{font-weight:600;flex:1;min-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pg{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+.timer{font:700 16px ui-monospace,Menlo,monospace;padding:4px 10px;border-radius:8px;background:var(--chip)}
+.timer.low{background:var(--accent);color:var(--accent-ink)}
+.vbody{flex:1;display:flex;min-height:0}
+#pages{flex:1;overflow:auto;padding:12px;-webkit-overflow-scrolling:touch}
+#pages img{display:block;margin:0 auto 12px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.15);max-width:none}
+.pnum{text-align:center;color:var(--muted);font-size:12px;margin:-6px 0 14px;display:flex;gap:10px;justify-content:center;align-items:center}
+.solvep{border:1px solid var(--accent);color:var(--accent);background:transparent;border-radius:99px;padding:5px 12px;font-size:13px;font-weight:600}
+#viewer.testing .solvep{display:none}
+#sheet{width:300px;border-left:1px solid var(--line);background:var(--card);display:none;flex-direction:column}
+#sheet.open{display:flex}
+#sheet .sh{padding:10px;border-bottom:1px solid var(--line);font-weight:600;display:flex;justify-content:space-between;align-items:center}
+#rows{flex:1;overflow:auto;padding:6px 10px}
+.row{display:flex;gap:6px;align-items:center;margin:4px 0}
+.row span{width:38px;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.row input{flex:1;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit;min-width:0}
+@media (max-width:700px){#sheet{position:absolute;right:0;top:0;bottom:0;width:86%;z-index:2;box-shadow:-4px 0 16px rgba(0,0,0,.2)}.vbody{position:relative}}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);max-width:380px;width:calc(100% - 32px)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+dialog input{width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+.drow{display:flex;gap:8px;margin-top:14px}
+</style>
+<link rel="stylesheet" href="mock.css">
+</head>
+<body>
+<div class="wrap" id="home">
+  <header class="top">
+    <div><h1>GATE EE · Old Papers</h1><div class="sub" id="stats"></div></div>
+    <button class="iconbtn" id="themeBtn" aria-label="Toggle theme">Theme</button>
+  </header>
+  <div class="tabs" id="filters"></div>
+  <input class="search" id="q" type="search" placeholder="Search year, e.g. 2005" inputmode="numeric">
+  <div class="grid" id="grid"></div>
+  <h2>My practice history</h2>
+  <div id="hist"></div>
+</div>
+
+<div id="viewer">
+  <div class="vbar">
+    <button class="iconbtn" id="back">←</button>
+    <div class="t" id="vt"></div>
+    <span class="pg" id="pg"></span>
+    <span class="timer" id="timer" hidden></span>
+    <button class="iconbtn" id="zo">−</button><button class="iconbtn" id="zi">+</button>
+    <button class="iconbtn" id="mark" title="Mark paper done">✓ Done</button>
+    <button class="iconbtn" id="sheetBtn" hidden>Answer sheet</button>
+    <button class="iconbtn" id="finish" hidden>Finish</button>
+    <a class="iconbtn" id="pdf" target="_blank" rel="noopener" style="text-decoration:none">PDF</a>
+  </div>
+  <div class="vbody">
+    <div id="pages"></div>
+    <aside id="sheet"><div class="sh">Answer sheet <button class="iconbtn" id="addRows">+10</button></div><div id="rows"></div></aside>
+  </div>
+</div>
+
+<dialog id="startDlg"><form method="dialog">
+  <strong id="sdTitle">Timed practice</strong>
+  <label for="mins">Time (minutes)</label><input id="mins" type="number" min="5" value="180">
+  <div class="drow"><button class="btn" value="cancel">Cancel</button><button class="btn pri" value="go">Start</button></div>
+</form></dialog>
+
+<dialog id="endDlg"><form method="dialog">
+  <strong>Test finished</strong>
+  <div class="sub" id="edInfo"></div>
+  <label for="score">Your marks (check with the answer key)</label><input id="score" type="number" step="0.01" placeholder="e.g. 54.33">
+  <label for="outof">Out of</label><input id="outof" type="number" value="100">
+  <div class="drow"><button class="btn" value="skip">Skip</button><button class="btn pri" value="save">Save</button></div>
+</form></dialog>
+
+<script src="papers.js"></script>
+<script>
+const S={get(k,d){try{const v=localStorage.getItem('gee_'+k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem('gee_'+k,JSON.stringify(v))}catch(e){}}};
+const P=window.PAPERS, $=id=>document.getElementById(id);
+let state=S.get('state',{}), hist=S.get('hist',[]), filter='All', cur=null, zoom=S.get('zoom',1), test=null, tick=null;
+
+// theme
+const th=S.get('theme',null); if(th) document.documentElement.dataset.theme=th;
+$('themeBtn').onclick=()=>{const dark=matchMedia('(prefers-color-scheme: dark)').matches;const c=document.documentElement.dataset.theme||(dark?'dark':'light');const n=c==='dark'?'light':'dark';document.documentElement.dataset.theme=n;S.set('theme',n)};
+
+const have=new Set(P.map(p=>p.year));
+$('stats').textContent=`${P.length} papers · ${P.reduce((a,p)=>a+p.pages,0)} pages · works offline`;
+const F=['All','1990s','2000s','2010s+','In progress','Done'];
+$('filters').innerHTML=F.map(f=>`<button class="chip" data-f="${f}" aria-pressed="${f===filter}">${f}</button>`).join('');
+$('filters').onclick=e=>{const f=e.target.dataset.f;if(!f)return;filter=f;[...$('filters').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.f===f));render()};
+$('q').oninput=render;
+
+function status(id){const s=state[id];return s?.done?'done':s?.page>1?'prog':''}
+function match(y,id){
+  const q=$('q').value.trim(); if(q&&!String(y).includes(q))return false;
+  if(filter==='1990s')return y<2000; if(filter==='2000s')return y>=2000&&y<2010; if(filter==='2010s+')return y>=2010;
+  if(filter==='In progress')return id&&status(id)==='prog'; if(filter==='Done')return id&&status(id)==='done'; return true}
+function render(){
+  let h='';
+  for(const p of P){ if(!match(p.year,p.id))continue; const st=status(p.id);
+    h+=`<div class="card"><div class="yr">${p.year}</div><div>${p.title}</div>
+    <div class="meta">${p.pages} pages <span class="badge">${p.scanned?'Scanned':'Text'}</span>${st?`<span class="badge ${st}">${st==='done'?'Done':'Page '+state[p.id].page}</span>`:''}</div>
+    <div class="acts"><button class="btn pri" data-open="${p.id}">Read</button><button class="btn" data-test="${p.id}">Timed test</button><a class="btn" href="${p.pdf}" target="_blank" rel="noopener">PDF</a></div></div>`}
+  if(filter==='All'||/s/.test(filter)&&!/In|Done/.test(filter)) for(let y=1991;y<=2026;y++){ if(have.has(y)||!match(y))continue;
+    h+=`<div class="card missing"><div class="yr">${y}</div><div>Not added yet</div><div class="meta">Add the PDF to the papers folder</div></div>`}
+  $('grid').innerHTML=h||'<div class="empty">No papers match.</div>';
+  $('hist').innerHTML=hist.length?`<table><tr><th>Date</th><th>Paper</th><th>Time</th><th>Marks</th></tr>${hist.slice().reverse().map(r=>`<tr><td>${r.date}</td><td>${r.title}</td><td>${r.time}</td><td>${r.score??'—'}${r.score!=null?' / '+r.outof:''}</td></tr>`).join('')}</table>`:'<div class="empty">No timed tests yet. Tap “Timed test” on any paper.</div>';
+}
+$('grid').onclick=e=>{const o=e.target.dataset.open,t=e.target.dataset.test; if(o)openPaper(o); if(t){$('sdTitle').textContent='Timed test · '+P.find(p=>p.id===t).title;$('startDlg').dataset.id=t;$('startDlg').showModal()}};
+$('startDlg').onclose=()=>{if($('startDlg').returnValue==='go'){const m=Math.max(5,+$('mins').value||180);openPaper($('startDlg').dataset.id,m)}};
+
+// viewer
+let io=null;
+function openPaper(id,mins){
+  cur=P.find(p=>p.id===id); $('vt').textContent=cur.title; $('pdf').href=cur.pdf;
+  let h=''; for(let i=1;i<=cur.pages;i++) h+=`<img loading="lazy" width="${cur.w}" height="${cur.h}" data-p="${i}" src="pages/${cur.id}/${i}.jpg" alt="Page ${i}"><div class="pnum">${i} / ${cur.pages} <button class="solvep" data-sp="${i}">🧠 Solve this page</button></div>`;
+  $('pages').innerHTML=h; applyZoom(); $('viewer').classList.add('open'); document.body.style.overflow='hidden';
+  updMark();
+  io?.disconnect(); io=new IntersectionObserver(es=>{for(const e of es) if(e.isIntersecting){const p=+e.target.dataset.p;$('pg').textContent=`Page ${p}/${cur.pages}`;if(!test){state[cur.id]={...state[cur.id],page:p};S.set('state',state)}}},{root:$('pages'),threshold:.35});
+  $('pages').querySelectorAll('img').forEach(i=>io.observe(i));
+  const last=state[id]?.page; if(!mins&&last>1) setTimeout(()=>$('pages').querySelector(`img[data-p="${last}"]`)?.scrollIntoView(),60); else $('pages').scrollTop=0;
+  $('viewer').classList.toggle('testing',!!mins);
+  test=null; clearInterval(tick); $('timer').hidden=$('finish').hidden=$('sheetBtn').hidden=true; $('sheet').classList.remove('open');
+  if(mins){ test={id,start:Date.now(),end:Date.now()+mins*60000,ans:[]}; $('rows').innerHTML=''; addRows(65);
+    $('timer').hidden=$('finish').hidden=$('sheetBtn').hidden=false; tick=setInterval(upd,1000); upd() }
+}
+function applyZoom(){const w=Math.min($('pages').clientWidth||innerWidth,900)-24;$('pages').querySelectorAll('img').forEach(i=>{i.style.width=Math.round(w*zoom)+'px';i.style.height='auto'});S.set('zoom',zoom)}
+$('zi').onclick=()=>{zoom=Math.min(3,zoom+.25);applyZoom()}; $('zo').onclick=()=>{zoom=Math.max(.5,zoom-.25);applyZoom()};
+addEventListener('resize',()=>cur&&applyZoom());
+function updMark(){const d=state[cur.id]?.done;$('mark').textContent=d?'✓ Done':'Mark done';$('mark').style.color=d?'var(--ok)':''}
+$('mark').onclick=()=>{state[cur.id]={...state[cur.id],done:!state[cur.id]?.done};S.set('state',state);updMark()};
+function close(){if(test&&!confirm('Leave the test? Your time will not be saved.'))return;test=null;clearInterval(tick);$('viewer').classList.remove('open');document.body.style.overflow='';render()}
+$('back').onclick=close;
+function fmt(ms){ms=Math.max(0,ms);const s=Math.floor(ms/1000);return `${Math.floor(s/3600)}:${String(Math.floor(s/60)%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`}
+function upd(){const left=test.end-Date.now();$('timer').textContent=fmt(left);$('timer').classList.toggle('low',left<600000);if(left<=0)finish()}
+function addRows(n){const c=$('rows').children.length;let h='';for(let i=c+1;i<=c+n;i++)h+=`<div class="row"><span>Q${i}</span><input aria-label="Answer ${i}" placeholder="A / AC / 4.52"></div>`;$('rows').insertAdjacentHTML('beforeend',h)}
+$('addRows').onclick=()=>addRows(10);
+$('sheetBtn').onclick=()=>$('sheet').classList.toggle('open');
+function finish(){ if(!test)return; clearInterval(tick); const used=Math.min(Date.now(),test.end)-test.start;
+  test.answers=[...$('rows').querySelectorAll('input')].map(i=>i.value.trim()); test.used=used;
+  $('edInfo').textContent=`Time used: ${fmt(used)} · Answered: ${test.answers.filter(Boolean).length}`; $('endDlg').showModal()}
+$('finish').onclick=()=>{if(confirm('Finish the test now?'))finish()};
+$('endDlg').onclose=()=>{const t=test; if(!t)return; const sc=$('score').value;
+  hist.push({date:new Date().toLocaleDateString(),title:cur.title,time:fmt(t.used),score:$('endDlg').returnValue==='save'&&sc!==''?+sc:null,outof:+$('outof').value||100,answers:t.answers});
+  S.set('hist',hist); $('score').value=''; test=null; $('timer').hidden=$('finish').hidden=true; close()};
+render();
+</script>
+<script src="fig.js"></script>
+<script src="mock.js"></script>
+<script src="solver.js"></script>
+<script src="books.js"></script>
+<script src="notes/n1_math.js"></script>
+<script src="notes/n2_circuits.js"></script>
+<script src="notes/n3_emf.js"></script>
+<script src="notes/n4_signals.js"></script>
+<script src="notes/n5_machines.js"></script>
+<script src="notes/n6_power.js"></script>
+<script src="notes/n7_control.js"></script>
+<script src="notes/n8_meas.js"></script>
+<script src="notes/n9_electronics.js"></script>
+<script src="notes/n10_pe.js"></script>
+<script src="notes/n11_ga.js"></script>
+<script src="notesui.js"></script>
+<script src="book.js"></script>
+</body>
+</html>
