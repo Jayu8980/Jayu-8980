@@ -34,7 +34,7 @@ val SeriesColors = listOf(
 
 /** Horizontal bars: label, bar, value. Works well on narrow phone screens. */
 @Composable
-fun HBarChart(rows: List<Pair<String, Double>>, valueLabel: (Double) -> String = { "%.1f".format(it) }, color: Color = MaterialTheme.colorScheme.primary) {
+fun HBarChart(rows: List<Pair<String, Double>>, color: Color = MaterialTheme.colorScheme.primary, valueLabel: (Double) -> String = { "%.1f".format(it) }) {
     val max = rows.maxOfOrNull { it.second }?.takeIf { it > 0 } ?: 1.0
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         rows.forEach { (label, v) ->
