@@ -44,5 +44,5 @@ object OfflineAssembler {
 
     /** Suggested duration: ~1.5 min per 1-mark and ~3 min per 2-mark question. */
     fun durationMin(questions: List<Question>): Int =
-        maxOf(10, questions.sumOf { if (it.marks == 1) 90 else 180 } / 60)
+        maxOf(10, questions.map { if (it.marks == 1) 90 else 180 }.sum() / 60)
 }
