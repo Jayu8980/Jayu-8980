@@ -65,11 +65,11 @@ flowchart TB
     Orch --> Pipe
     Orch --> Repo
     Orch --> Infra
-    Data -.implements.-> Repo
-    Data -.implements.-> Infra
-    Data -.implements.-> Remote
-    Steps -.implements.-> Pipe
-    WORK -.implements WorkScheduler.-> Infra
+    Data -.->|implements| Repo
+    Data -.->|implements| Infra
+    Data -.->|implements| Remote
+    Steps -.->|implements| Pipe
+    WS -.->|implements WorkScheduler| Infra
 ```
 
 Rules that keep the layers clean:
