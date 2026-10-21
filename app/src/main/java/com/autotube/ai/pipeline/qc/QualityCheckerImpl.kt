@@ -354,7 +354,7 @@ class QualityCheckerImpl @Inject constructor(
             var first: Long? = null
             for (chunk in captions.chunks) {
                 val startFrame = (chunk.startMs / 10).toInt()
-                val endFrame = (startFrame + SILENCE_LIMIT_MS / 10).coerceAtMost(frames)
+                val endFrame = (startFrame + (SILENCE_LIMIT_MS / 10).toInt()).coerceAtMost(frames)
                 if (startFrame >= frames) continue
                 val voiced = (startFrame until endFrame).any { db[it] > threshold }
                 if (!voiced) {
