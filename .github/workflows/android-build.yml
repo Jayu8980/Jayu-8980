@@ -70,7 +70,15 @@ jobs:
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
           VERSION_CODE: ${{ github.run_number }}
-        run: ./gradlew --no-daemon --stacktrace assembleDebug assembleRelease
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon --continue assembleDebug assembleRelease 2>&1 | tee build.log
+
+      - name: Show compile errors (on failure)
+        if: failure()
+        run: |
+          echo "### Build errors" >> "$GITHUB_STEP_SUMMARY"
+          grep -E "^(e: |ERROR:|.*error:|\[ksp\].*(error|Error))" build.log | sed 's#file:///home/runner/work/[^ ]*/app/src/main/java/com/autotube/ai/##' | sort -u | head -400 | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Rename APKs
         run: |
