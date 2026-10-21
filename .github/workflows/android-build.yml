@@ -17,6 +17,11 @@ on:
     paths-ignore: ["**.md", "docs/**"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Publish a GitHub Release with the APKs under this tag (e.g. v1.0.0). Leave empty to only build."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -105,10 +110,14 @@ jobs:
           name: AutoTubeAI-release-apk
           path: dist/AutoTubeAI-release.apk
 
-      - name: Publish GitHub Release (tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Publish GitHub Release (tags or manual release_tag)
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          name: AutoTube AI ${{ inputs.release_tag || github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
           files: |
             dist/AutoTubeAI-release.apk
             dist/AutoTubeAI-debug.apk
