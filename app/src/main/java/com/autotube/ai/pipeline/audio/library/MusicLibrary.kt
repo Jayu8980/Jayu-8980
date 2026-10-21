@@ -195,7 +195,7 @@ class MusicLibrary @Inject constructor(
     companion object {
         val AUDIO_EXTENSIONS = setOf("mp3", "m4a", "aac", "wav", "ogg", "oga", "opus", "flac")
         /** Longest piece of a track that is decoded (memory guard); longer beds loop this part. */
-        const val MAX_TRACK_MS = 6 * 60_000L
+        const val MAX_TRACK_MS = 3 * 60_000L
         const val LOOP_CROSSFADE_SEC = 2f
     }
 }
