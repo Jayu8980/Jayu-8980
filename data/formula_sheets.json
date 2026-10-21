@@ -1,0 +1,259 @@
+{
+  "version": 1,
+  "sheets": [
+    {
+      "subject_id": "MATH",
+      "title": "Engineering Mathematics",
+      "sections": [
+        { "heading": "Linear Algebra", "formulas": [
+          "Sum of eigenvalues = trace(A); product of eigenvalues = det(A)",
+          "Eigenvalues of A^k are lambda^k; of A^-1 are 1/lambda; of A + kI are lambda + k",
+          "Rank(A) = number of non-zero rows in echelon form; Ax = b consistent iff rank(A) = rank([A|b])",
+          "Cayley-Hamilton: every square matrix satisfies its own characteristic equation"
+        ]},
+        { "heading": "Calculus", "formulas": [
+          "Integral of sin^n x from 0 to pi/2 (Wallis): ((n-1)/n)((n-3)/(n-2))... x (pi/2 if n even, 1 if n odd)",
+          "Maxima/minima of f(x, y): rt - s^2 > 0 and r < 0 -> maximum; r > 0 -> minimum; rt - s^2 < 0 -> saddle",
+          "Taylor: f(x) = sum f^(n)(a)(x - a)^n / n!"
+        ]},
+        { "heading": "Complex Variables", "formulas": [
+          "Cauchy-Riemann: u_x = v_y, u_y = -v_x",
+          "Residue at simple pole z0: lim (z - z0) f(z); at pole of order m: (1/(m-1)!) d^(m-1)/dz^(m-1) [(z - z0)^m f(z)]",
+          "Contour integral = 2 pi j x (sum of residues inside)"
+        ]},
+        { "heading": "Probability", "formulas": [
+          "Bayes: P(A|B) = P(B|A) P(A) / P(B)",
+          "Binomial: mean np, variance np(1 - p); Poisson: mean = variance = lambda",
+          "Exponential(lambda): mean 1/lambda, variance 1/lambda^2; Uniform(a, b): mean (a + b)/2, variance (b - a)^2/12",
+          "Normal: about 68% / 95% / 99.7% within 1 / 2 / 3 sigma"
+        ]},
+        { "heading": "Numerical Methods", "formulas": [
+          "Newton-Raphson: x(n+1) = x(n) - f(x(n))/f'(x(n))",
+          "Trapezoidal: (h/2)[y0 + 2(y1 + ... + y(n-1)) + yn]; Simpson 1/3: (h/3)[y0 + 4(odd) + 2(even) + yn]"
+        ]}
+      ]
+    },
+    {
+      "subject_id": "EC",
+      "title": "Electric Circuits",
+      "sections": [
+        { "heading": "Theorems", "formulas": [
+          "Maximum power transfer (resistive): RL = Rth, Pmax = Vth^2/(4 Rth)",
+          "AC maximum power: ZL = Zth* (conjugate); if only |ZL| variable: |ZL| = |Zth|",
+          "Star-delta: R_star = (Ra Rb)/(Ra + Rb + Rc); R_delta = (R1R2 + R2R3 + R3R1)/R_opposite"
+        ]},
+        { "heading": "Transients", "formulas": [
+          "x(t) = x(inf) + [x(0+) - x(inf)] e^(-t/tau); tau = RC or L/R",
+          "Series RLC: alpha = R/(2L), w0 = 1/sqrt(LC); overdamped if alpha > w0",
+          "Capacitor voltage and inductor current cannot change instantaneously"
+        ]},
+        { "heading": "AC and Three-Phase", "formulas": [
+          "S = V I* = P + jQ; pf = P/|S|",
+          "Resonance: f0 = 1/(2 pi sqrt(LC)); Q (series) = w0 L/R; bandwidth = f0/Q",
+          "Star: V_L = sqrt(3) V_ph, I_L = I_ph; Delta: V_L = V_ph, I_L = sqrt(3) I_ph; P = sqrt(3) V_L I_L cos(phi)",
+          "Two-wattmeter: P = W1 + W2; tan(phi) = sqrt(3)(W1 - W2)/(W1 + W2)"
+        ]},
+        { "heading": "Two-Port", "formulas": [
+          "Reciprocal: z12 = z21, y12 = y21, AD - BC = 1, h12 = -h21",
+          "Symmetric: z11 = z22, A = D"
+        ]}
+      ]
+    },
+    {
+      "subject_id": "EMF",
+      "title": "Electromagnetic Fields",
+      "sections": [
+        { "heading": "Electrostatics", "formulas": [
+          "Coulomb: F = Q1Q2/(4 pi eps r^2); E (point charge) = Q/(4 pi eps r^2)",
+          "Infinite line charge: E = rho_L/(2 pi eps r); infinite sheet: E = rho_s/(2 eps)",
+          "Gauss: closed-surface integral of D.dS = Q_enclosed; div D = rho_v",
+          "Parallel plate: C = eps A/d; coaxial: C = 2 pi eps L/ln(b/a); isolated sphere: C = 4 pi eps a",
+          "Energy: W = (1/2) C V^2 = (1/2) integral of eps E^2 dv"
+        ]},
+        { "heading": "Magnetostatics", "formulas": [
+          "Biot-Savart: dH = I dl x a_R/(4 pi R^2); infinite wire: H = I/(2 pi r)",
+          "Ampere: closed-loop integral of H.dl = I_enclosed; curl H = J",
+          "Faraday: emf = -N d(phi)/dt; Lorentz: F = q(E + v x B)",
+          "Reluctance S = l/(mu A); mmf = N I = phi x S_total; L = N^2/S",
+          "Coaxial cable inductance per metre: (mu/2 pi) ln(b/a)"
+        ]}
+      ]
+    },
+    {
+      "subject_id": "SS",
+      "title": "Signals and Systems",
+      "sections": [
+        { "heading": "Transforms", "formulas": [
+          "e^(-at) u(t) <-> 1/(s + a), ROC Re(s) > -a; <-> 1/(a + jw)",
+          "a^n u[n] <-> z/(z - a), ROC |z| > |a|",
+          "Final value: lim t->inf x(t) = lim s->0 sX(s) (poles of sX(s) in LHP)",
+          "Parseval: integral |x(t)|^2 dt = (1/2 pi) integral |X(w)|^2 dw",
+          "Time shift: x(t - t0) <-> e^(-jw t0) X(w); scaling: x(at) <-> (1/|a|) X(w/a)"
+        ]},
+        { "heading": "Sampling and LTI", "formulas": [
+          "Nyquist rate = 2 f_max; alias of f with fs: |f - k fs|",
+          "BIBO stable iff integral |h(t)| dt < inf; causal iff h(t) = 0 for t < 0",
+          "Convolution: y(t) = integral x(tau) h(t - tau) d tau; width of result = sum of widths"
+        ]}
+      ]
+    },
+    {
+      "subject_id": "EM",
+      "title": "Electrical Machines",
+      "sections": [
+        { "heading": "Transformers", "formulas": [
+          "E = 4.44 f N phi_m",
+          "Max efficiency at load fraction x = sqrt(P_core/P_cu,FL)",
+          "Regulation (lagging) ~ (I R cos phi + I X sin phi)/V x 100%",
+          "All-day efficiency = output energy / input energy over 24 h",
+          "Auto-transformer copper saving = (1 - V2/V1) x copper of 2-winding transformer"
+        ]},
+        { "heading": "DC Machines", "formulas": [
+          "E = P phi Z N/(60 A); T = P phi Z Ia/(2 pi A)",
+          "Motor: V = Eb + Ia Ra; N proportional to Eb/phi",
+          "Series motor: T proportional to Ia^2 (unsaturated)"
+        ]},
+        { "heading": "Induction Machines", "formulas": [
+          "Ns = 120 f/P; s = (Ns - N)/Ns; rotor frequency = s f",
+          "Air-gap power : rotor copper loss : mechanical power = 1 : s : (1 - s)",
+          "Slip at Tmax: s_m = R2/X2; Tmax independent of R2",
+          "T_start/T_max = 2 s_m/(1 + s_m^2); T/T_max = 2/(s/s_m + s_m/s)",
+          "Star-delta starter: starting current and torque reduced to 1/3"
+        ]},
+        { "heading": "Synchronous Machines", "formulas": [
+          "E = V + j Xs I (generator); P = (E V/Xs) sin(delta)",
+          "Salient pole: P = (E V/Xd) sin(delta) + (V^2/2)(1/Xq - 1/Xd) sin(2 delta)",
+          "Over-excited motor: leading pf, supplies Q; V-curve minimum armature current at unity pf"
+        ]}
+      ]
+    },
+    {
+      "subject_id": "PS",
+      "title": "Power Systems",
+      "sections": [
+        { "heading": "Per Unit and Lines", "formulas": [
+          "Z_new = Z_old (S_new/S_old)(V_old/V_new)^2",
+          "Z_base = V_base^2/S_base",
+          "Nominal-pi: A = D = 1 + YZ/2, B = Z, C = Y(1 + YZ/4)",
+          "Surge impedance Zc = sqrt(L/C); SIL = V^2/Zc",
+          "Receiving-end power: P = (Vs Vr/X) sin(delta) for a lossless line"
+        ]},
+        { "heading": "Faults", "formulas": [
+          "3-phase: If = E/Z1",
+          "LG: If = 3E/(Z1 + Z2 + Z0 + 3Zf)",
+          "LL: If = sqrt(3) E/(Z1 + Z2)",
+          "LLG: Ia1 = E/(Z1 + Z2 || (Z0 + 3Zf))",
+          "Symmetrical components: a = 1 angle 120 deg; Va0 = (Va + Vb + Vc)/3"
+        ]},
+        { "heading": "Stability and Dispatch", "formulas": [
+          "Swing: (2H/ws) d^2 delta/dt^2 = Pm - Pe",
+          "Critical clearing (fault Pe = 0): cos(delta_c) = (Pm/Pmax)(delta_max - delta0) + cos(delta_max), angles in radians",
+          "Economic dispatch: dC1/dP1 = dC2/dP2 = lambda (losses neglected)",
+          "With losses: (dCi/dPi) x Li = lambda, Li = 1/(1 - dPL/dPi)"
+        ]},
+        { "heading": "Cables and Insulators", "formulas": [
+          "Cable capacitance per metre: 2 pi eps/ln(R/r); max stress at the conductor",
+          "String efficiency = V_string/(n x V_unit nearest line)"
+        ]}
+      ]
+    },
+    {
+      "subject_id": "CS",
+      "title": "Control Systems",
+      "sections": [
+        { "heading": "Time Response", "formulas": [
+          "Second order: s^2 + 2 zeta wn s + wn^2",
+          "Peak overshoot Mp = e^(-pi zeta/sqrt(1 - zeta^2)); tp = pi/wd; wd = wn sqrt(1 - zeta^2)",
+          "Settling time (2%) = 4/(zeta wn); rise time = (pi - theta)/wd, theta = acos(zeta)",
+          "Kp = lim G(s), Kv = lim s G(s), Ka = lim s^2 G(s) as s -> 0",
+          "ess (step) = 1/(1 + Kp); (ramp) = 1/Kv; (parabola) = 1/Ka"
+        ]},
+        { "heading": "Stability", "formulas": [
+          "Routh: number of sign changes in first column = RHP poles",
+          "Root locus: centroid = (sum poles - sum zeros)/(P - Z); asymptote angles = (2k + 1)180/(P - Z)",
+          "Nyquist: Z = P - N (N counter-clockwise encirclements of -1)",
+          "GM = 1/|G(j w_pc)|; PM = 180 + angle G(j w_gc)"
+        ]},
+        { "heading": "Compensators and State Space", "formulas": [
+          "Lead: (1 + aTs)/(1 + Ts), a > 1; max phase sin(phi_m) = (a - 1)/(a + 1) at w = 1/(T sqrt(a))",
+          "Transfer function: G(s) = C(sI - A)^-1 B + D",
+          "Controllable iff rank[B AB ... A^(n-1)B] = n; observable iff rank[C; CA; ...] = n",
+          "State transition matrix: phi(t) = L^-1[(sI - A)^-1]"
+        ]}
+      ]
+    },
+    {
+      "subject_id": "MEAS",
+      "title": "Measurements",
+      "sections": [
+        { "heading": "Instruments", "formulas": [
+          "Ammeter shunt: Rsh = Rm Im/(I - Im); voltmeter multiplier: Rs = V/Im - Rm",
+          "PMMC: deflection proportional to average current; MI: proportional to I^2 (reads RMS)",
+          "Energy meter error = (registered - true)/true x 100%"
+        ]},
+        { "heading": "Bridges", "formulas": [
+          "Wheatstone balance: R1 R4 = R2 R3",
+          "Maxwell inductance-capacitance: Lx = R2 R3 C1, Rx = R2 R3/R1",
+          "Schering: Cx = C2 R4/R3, tan(delta) = w C4 R4"
+        ]},
+        { "heading": "Errors and CRO", "formulas": [
+          "For x = a^m b^n: limiting error % = |m| (da/a) + |n| (db/b)",
+          "Lissajous: fy/fx = horizontal tangencies/vertical tangencies; phase sin(phi) = y-intercept/y-max"
+        ]}
+      ]
+    },
+    {
+      "subject_id": "AE",
+      "title": "Analog and Digital Electronics",
+      "sections": [
+        { "heading": "Analog", "formulas": [
+          "Half-wave: Vdc = Vm/pi, ripple factor 1.21; full-wave: Vdc = 2Vm/pi, ripple factor 0.48",
+          "Inverting amp gain = -Rf/R1; non-inverting = 1 + Rf/R1",
+          "Schmitt trigger thresholds = +/- Vsat R1/(R1 + R2)",
+          "BJT: gm = Ic/VT, r_pi = beta/gm; MOSFET saturation: Id = (k/2)(Vgs - Vt)^2",
+          "Wien bridge oscillator: f = 1/(2 pi RC), gain needed 3; RC phase shift: f = 1/(2 pi RC sqrt(6)), gain 29"
+        ]},
+        { "heading": "Digital", "formulas": [
+          "De Morgan: (AB)' = A' + B'; (A + B)' = A'B'",
+          "Mod-N counter needs ceil(log2 N) flip-flops",
+          "n-bit DAC resolution = Vref/(2^n - 1); ADC quantisation step = Vref/2^n"
+        ]}
+      ]
+    },
+    {
+      "subject_id": "PE",
+      "title": "Power Electronics",
+      "sections": [
+        { "heading": "DC-DC", "formulas": [
+          "Buck: Vo = D Vin; ripple dI = (Vin - Vo) D/(L f)",
+          "Boost: Vo = Vin/(1 - D); buck-boost: Vo = -D Vin/(1 - D)",
+          "CCM boundary (buck): Io = dI/2"
+        ]},
+        { "heading": "Rectifiers", "formulas": [
+          "1-phase full converter (continuous): Vo = (2Vm/pi) cos(alpha)",
+          "1-phase semi-converter: Vo = (Vm/pi)(1 + cos(alpha))",
+          "3-phase full converter: Vo = (3 Vml/pi) cos(alpha), Vml = peak line voltage",
+          "Input pf (1-phase full, ripple-free current) = (2 sqrt(2)/pi) cos(alpha) = 0.9 cos(alpha)"
+        ]},
+        { "heading": "Inverters and Drives", "formulas": [
+          "1-phase full-bridge square wave: V1(rms) = 0.9 Vdc; nth harmonic = V1/n (odd n)",
+          "3-phase 180-degree: V_L(rms) = 0.816 Vdc, V_ph(rms) = 0.471 Vdc",
+          "SPWM (linear): V1(peak, phase) = m Vdc/2",
+          "V/f control keeps the air-gap flux constant"
+        ]}
+      ]
+    },
+    {
+      "subject_id": "GA",
+      "title": "General Aptitude",
+      "sections": [
+        { "heading": "Quantitative", "formulas": [
+          "Work: combined rate = sum of individual rates (subtract outlets)",
+          "Successive percentage change a% then b%: a + b + ab/100",
+          "nPr = n!/(n - r)!, nCr = n!/(r!(n - r)!)",
+          "Simple interest PNR/100; compound amount P(1 + r/100)^n"
+        ]}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "gate-ee-backend",
+  "version": "1.0.0",
+  "description": "Backend proxy + multi-agent GATE EE paper setter pipeline (holds the LLM API key, never shipped in the APK)",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test test/*.test.js",
+    "build-series": "node --env-file-if-exists=.env scripts/build-series.js",
+    "demo": "LLM_PROVIDER=mock node scripts/build-series.js --only FM01 --out ./runs/demo"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.131.0",
+    "express": "5.2.1"
+  }
+}

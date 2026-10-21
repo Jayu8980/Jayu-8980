@@ -1,0 +1,6153 @@
+{
+  "version": 1,
+  "description": "Sample GATE EE question bank (38 original questions, 8 with figures) showing the bank format",
+  "questions": [
+    {
+      "id": "SAMPLE-001",
+      "qno": 1,
+      "section": "GA",
+      "subject_id": "GA",
+      "subject": "General Aptitude",
+      "topic_id": "GA.VERBAL",
+      "topic": "Verbal Aptitude",
+      "subtopic": "Vocabulary",
+      "type": "MCQ",
+      "marks": 1,
+      "negative_marks": 0.33,
+      "cognitive_level": "Recall",
+      "difficulty": "Easy",
+      "question": "Choose the word that best completes the sentence: The committee's decision was ______; no amount of argument afterwards could change it.",
+      "options": [
+        "tentative",
+        "irrevocable",
+        "ambiguous",
+        "provisional"
+      ],
+      "answer": "B",
+      "answer_range": null,
+      "solution": "The second clause says nothing could change the decision, so the decision was final and unalterable: 'irrevocable'.",
+      "concept": "Contextual vocabulary",
+      "common_trap": "Picking 'tentative' or 'provisional' by reading only the first clause.",
+      "distractor_logic": "A and D mean the opposite (open to change); C describes clarity, not finality.",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 90,
+      "verification": null,
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-002",
+      "qno": 2,
+      "section": "GA",
+      "subject_id": "GA",
+      "subject": "General Aptitude",
+      "topic_id": "GA.QUANT",
+      "topic": "Quantitative Aptitude",
+      "subtopic": "Time, speed and work",
+      "type": "NAT",
+      "marks": 2,
+      "negative_marks": 0,
+      "cognitive_level": "Application",
+      "difficulty": "Easy",
+      "question": "Pipe A fills a tank in 12 hours and pipe B fills it in 15 hours. Pipe C empties the full tank in 20 hours. If all three pipes are opened together on an empty tank, the time taken to fill the tank is ______ hours (round off to the nearest integer).",
+      "options": [],
+      "answer": "10",
+      "answer_range": {
+        "min": 10,
+        "max": 10
+      },
+      "solution": "Net rate = 1/12 + 1/15 - 1/20 = (5 + 4 - 3)/60 = 6/60 = 1/10 tank per hour, so the tank fills in 10 hours.",
+      "concept": "Combined work rates with an outlet",
+      "common_trap": "Adding the outlet rate instead of subtracting it (gives 5 h).",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 180,
+      "verification": {
+        "expression": "1/(1/a + 1/b - 1/c)",
+        "variables": {
+          "a": 12,
+          "b": 15,
+          "c": 20
+        }
+      },
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-003",
+      "qno": 3,
+      "section": "GA",
+      "subject_id": "GA",
+      "subject": "General Aptitude",
+      "topic_id": "GA.ANALYTICAL",
+      "topic": "Analytical Aptitude",
+      "subtopic": "Seating and arrangement",
+      "type": "MCQ",
+      "marks": 2,
+      "negative_marks": 0.67,
+      "cognitive_level": "Analysis",
+      "difficulty": "Medium",
+      "question": "Five people P, Q, R, S and T sit in a row facing north. Q sits immediately to the right of P. S sits between T and P and is adjacent to both. R sits at one of the ends and T does not sit at an end. Who sits in the middle?",
+      "options": [
+        "P",
+        "Q",
+        "S",
+        "T"
+      ],
+      "answer": "C",
+      "answer_range": null,
+      "solution": "Q is immediately right of P and S is adjacent to both T and P, so S must be left of P: T S P Q. R is at an end. If R is at the right end, T is at the left end, which is not allowed. So the order is R T S P Q and the middle seat is S.",
+      "concept": "Linear arrangement with adjacency constraints",
+      "common_trap": "Ignoring the condition that T is not at an end, which also allows T S P Q R (middle P).",
+      "distractor_logic": "A is the answer if the last condition is skipped; B and D come from placing S to the right of P.",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 180,
+      "verification": null,
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-004",
+      "qno": 4,
+      "section": "Technical",
+      "subject_id": "MATH",
+      "subject": "Engineering Mathematics",
+      "topic_id": "MATH.LA",
+      "topic": "Linear Algebra",
+      "subtopic": "Eigenvalues and eigenvectors",
+      "type": "MCQ",
+      "marks": 1,
+      "negative_marks": 0.33,
+      "cognitive_level": "Application",
+      "difficulty": "Easy",
+      "question": "Let A = [[2, 1], [1, 2]]. The eigenvalues of the matrix B = A^2 - 2A + I, where I is the 2x2 identity matrix, are",
+      "options": [
+        "1 and 9",
+        "0 and 4",
+        "-1 and 1",
+        "0 and 2"
+      ],
+      "answer": "B",
+      "answer_range": null,
+      "solution": "The eigenvalues of A are 1 and 3. B = (A - I)^2, so its eigenvalues are (1 - 1)^2 = 0 and (3 - 1)^2 = 4.",
+      "concept": "Eigenvalues of a matrix polynomial",
+      "common_trap": "Reporting the eigenvalues of A^2 (1 and 9) and forgetting the other terms.",
+      "distractor_logic": "A: eigenvalues of A^2 only; C: eigenvalues of A - 2I (the A^2 term dropped); D: forgetting to square (A - I).",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 90,
+      "verification": null,
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-005",
+      "qno": 5,
+      "section": "Technical",
+      "subject_id": "MATH",
+      "subject": "Engineering Mathematics",
+      "topic_id": "MATH.CALC",
+      "topic": "Calculus",
+      "subtopic": "Definite and improper integrals",
+      "type": "NAT",
+      "marks": 1,
+      "negative_marks": 0,
+      "cognitive_level": "Application",
+      "difficulty": "Medium",
+      "question": "The value of the integral of sin^2(x) cos^2(x) dx from x = 0 to x = pi/2 is ______ (round off to 3 decimal places).",
+      "options": [],
+      "answer": "0.196",
+      "answer_range": {
+        "min": 0.195,
+        "max": 0.197
+      },
+      "solution": "sin^2 x cos^2 x = sin^2(2x)/4 = (1 - cos 4x)/8. Integrating from 0 to pi/2 gives (1/8)(pi/2) - 0 = pi/16 = 0.196.",
+      "concept": "Power-reduction identities",
+      "common_trap": "Writing sin x cos x = sin 2x (dropping the 1/2), which gives 4 times the correct value (pi/4).",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 90,
+      "verification": {
+        "expression": "pi/16",
+        "variables": {}
+      },
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-006",
+      "qno": 6,
+      "section": "Technical",
+      "subject_id": "MATH",
+      "subject": "Engineering Mathematics",
+      "topic_id": "MATH.PROB",
+      "topic": "Probability and Statistics",
+      "subtopic": "Discrete and continuous distributions",
+      "type": "MSQ",
+      "marks": 2,
+      "negative_marks": 0,
+      "cognitive_level": "Analysis",
+      "difficulty": "Medium",
+      "question": "A random variable X follows a Poisson distribution with mean 2. Which of the following statements is/are TRUE?",
+      "options": [
+        "P(X = 0) = e^-2",
+        "E[X^2] = 6",
+        "Var(X) = 4",
+        "P(X = 1) = P(X = 2)"
+      ],
+      "answer": "A,B,D",
+      "answer_range": null,
+      "solution": "P(X = k) = e^-2 2^k / k!. (A) P(X = 0) = e^-2: true. (B) E[X^2] = Var(X) + (E[X])^2 = 2 + 4 = 6: true. (C) Var(X) = mean = 2, not 4: false. (D) P(X = 1) = 2e^-2 and P(X = 2) = 4e^-2/2 = 2e^-2: true.",
+      "concept": "Poisson mean, variance and pmf",
+      "common_trap": "Taking the variance as the square of the mean.",
+      "distractor_logic": "C tempts students who treat Poisson variance like the square of the mean.",
+      "related_pyq_year": "",
+      "predicted_importance": "High",
+      "time_estimate_sec": 180,
+      "verification": null,
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-007",
+      "qno": 7,
+      "section": "Technical",
+      "subject_id": "MATH",
+      "subject": "Engineering Mathematics",
+      "topic_id": "MATH.DE",
+      "topic": "Differential Equations",
+      "subtopic": "Higher-order linear ODEs with constant coefficients",
+      "type": "MCQ",
+      "marks": 2,
+      "negative_marks": 0.67,
+      "cognitive_level": "Application",
+      "difficulty": "Medium",
+      "question": "The solution of y'' + 4y' + 4y = 0 with y(0) = 1 and y'(0) = 0 is",
+      "options": [
+        "(1 + 2t)e^(-2t)",
+        "(1 - 2t)e^(-2t)",
+        "(1 + t)e^(-2t)",
+        "e^(-2t)"
+      ],
+      "answer": "A",
+      "answer_range": null,
+      "solution": "The characteristic equation m^2 + 4m + 4 = 0 has a repeated root m = -2, so y = (c1 + c2 t)e^-2t. y(0) = c1 = 1. y'(0) = c2 - 2c1 = 0 gives c2 = 2. So y = (1 + 2t)e^-2t.",
+      "concept": "Repeated roots and initial conditions",
+      "common_trap": "Taking y'(0) = c2 and missing the -2c1 term, which gives c2 = 0 and y = e^(-2t).",
+      "distractor_logic": "B: sign error in the derivative; C: halves c2; D: drops the -2c1 term so c2 = 0.",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 180,
+      "verification": null,
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-008",
+      "qno": 8,
+      "section": "Technical",
+      "subject_id": "EC",
+      "subject": "Electric Circuits",
+      "topic_id": "EC.THEOREMS",
+      "topic": "Network Theorems",
+      "subtopic": "Maximum power transfer",
+      "type": "NAT",
+      "marks": 2,
+      "negative_marks": 0,
+      "cognitive_level": "Analysis",
+      "difficulty": "Medium",
+      "question": "A 12 V ideal DC source in series with a 4 ohm resistor feeds node a. A 6 ohm resistor connects node a to the reference node. A 1.6 ohm resistor connects node a to terminal x, and a variable load resistor RL is connected between terminal x and the reference node. The maximum power that can be delivered to RL is ______ W (round off to 2 decimal places).",
+      "options": [],
+      "answer": "3.24",
+      "answer_range": {
+        "min": 3.22,
+        "max": 3.26
+      },
+      "solution": "Thevenin voltage at x: Vth = 12 x 6/(4 + 6) = 7.2 V (no current in the 1.6 ohm resistor on open circuit). Rth = (4 || 6) + 1.6 = 2.4 + 1.6 = 4 ohm. Pmax = Vth^2/(4 Rth) = 51.84/16 = 3.24 W.",
+      "concept": "Thevenin equivalent with a series element, then maximum power transfer",
+      "common_trap": "Forgetting the 1.6 ohm series resistor in Rth (gives 5.40 W).",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "High",
+      "time_estimate_sec": 180,
+      "verification": {
+        "expression": "(V*R2/(R1+R2))^2/(4*(R1*R2/(R1+R2)+Rs))",
+        "variables": {
+          "V": 12,
+          "R1": 4,
+          "R2": 6,
+          "Rs": 1.6
+        }
+      },
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-009",
+      "qno": 9,
+      "section": "Technical",
+      "subject_id": "EC",
+      "subject": "Electric Circuits",
+      "topic_id": "EC.TRANSIENT",
+      "topic": "Transient Response",
+      "subtopic": "DC transients",
+      "type": "MCQ",
+      "marks": 1,
+      "negative_marks": 0.33,
+      "cognitive_level": "Application",
+      "difficulty": "Easy",
+      "question": "A 10 microfarad capacitor, initially charged to 2 V, is connected at t = 0 to a 10 V DC source through a 10 kilo-ohm resistor. The capacitor voltage at t = 0.1 s is approximately",
+      "options": [
+        "6.32 V",
+        "7.06 V",
+        "8.00 V",
+        "2.94 V"
+      ],
+      "answer": "B",
+      "answer_range": null,
+      "solution": "tau = RC = 10e3 x 10e-6 = 0.1 s. v(t) = 10 - (10 - 2)e^(-t/tau). At t = tau, v = 10 - 8e^-1 = 10 - 2.94 = 7.06 V.",
+      "concept": "First-order response with a non-zero initial condition",
+      "common_trap": "Ignoring the initial 2 V and using 10(1 - e^-1) = 6.32 V.",
+      "distractor_logic": "A: zero initial condition; C: initial plus 6 V without the exponential; D: the exponential term alone.",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 90,
+      "verification": null,
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-010",
+      "qno": 10,
+      "section": "Technical",
+      "subject_id": "EC",
+      "subject": "Electric Circuits",
+      "topic_id": "EC.THREEPHASE",
+      "topic": "Three-Phase Circuits",
+      "subtopic": "Power measurement (two-wattmeter)",
+      "type": "MCQ",
+      "marks": 1,
+      "negative_marks": 0.33,
+      "cognitive_level": "Application",
+      "difficulty": "Easy",
+      "question": "In the two-wattmeter method of measuring power in a balanced three-phase load, the wattmeters read 2000 W and 1000 W. The power factor of the load is",
+      "options": [
+        "0.866",
+        "0.500",
+        "0.707",
+        "0.949"
+      ],
+      "answer": "A",
+      "answer_range": null,
+      "solution": "tan(phi) = sqrt(3)(W1 - W2)/(W1 + W2) = sqrt(3) x 1000/3000 = 0.577, so phi = 30 degrees and pf = cos 30 = 0.866.",
+      "concept": "Two-wattmeter method",
+      "common_trap": "Dropping the sqrt(3) factor, giving tan(phi) = 1/3 and pf = 0.949.",
+      "distractor_logic": "B: pf when one reading is zero; C: random 45 degrees; D: missed sqrt(3).",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 90,
+      "verification": null,
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-011",
+      "qno": 11,
+      "section": "Technical",
+      "subject_id": "EMF",
+      "subject": "Electromagnetic Fields",
+      "topic_id": "EMF.DIELECTRIC",
+      "topic": "Dielectrics",
+      "subtopic": "Effect of dielectric medium",
+      "type": "MCQ",
+      "marks": 1,
+      "negative_marks": 0.33,
+      "cognitive_level": "Application",
+      "difficulty": "Medium",
+      "question": "An air-filled parallel-plate capacitor has capacitance C0. A dielectric slab of relative permittivity 4, with the same area as the plates and thickness equal to half the plate separation, is inserted parallel to the plates. The new capacitance is",
+      "options": [
+        "2.5 C0",
+        "1.6 C0",
+        "4 C0",
+        "2 C0"
+      ],
+      "answer": "B",
+      "answer_range": null,
+      "solution": "The slab and the remaining air gap act as capacitors in series: 2C0 (air, d/2) and 8C0 (dielectric, d/2). C = (2C0 x 8C0)/(10C0) = 1.6 C0.",
+      "concept": "Series layers of dielectric",
+      "common_trap": "Treating the layers as parallel and averaging permittivities: (1 + 4)/2 = 2.5 C0.",
+      "distractor_logic": "A: parallel combination; C: whole gap filled; D: only the air half doubled.",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 90,
+      "verification": null,
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-012",
+      "qno": 12,
+      "section": "Technical",
+      "subject_id": "EMF",
+      "subject": "Electromagnetic Fields",
+      "topic_id": "EMF.MAGNETOSTATICS",
+      "topic": "Magnetostatics",
+      "subtopic": "Magnetomotive force, reluctance, magnetic circuits",
+      "type": "NAT",
+      "marks": 2,
+      "negative_marks": 0,
+      "cognitive_level": "Application",
+      "difficulty": "Medium",
+      "question": "A toroidal core has a mean iron path length of 0.5 m, a cross-sectional area of 4 cm^2 and relative permeability 1000. It has an air gap of 1 mm and carries a 500-turn coil. Neglecting fringing and leakage, the coil current needed to produce a flux of 0.4 mWb in the gap is ______ A (round off to 2 decimal places).",
+      "options": [],
+      "answer": "2.39",
+      "answer_range": {
+        "min": 2.37,
+        "max": 2.41
+      },
+      "solution": "B = 0.4e-3/4e-4 = 1 T. Iron mmf = B l/(mu0 mur) = 1 x 0.5/(4 pi e-7 x 1000) = 397.9 AT. Gap mmf = B lg/mu0 = 1 x 1e-3/(4 pi e-7) = 795.8 AT. Total = 1193.7 AT, I = 1193.7/500 = 2.39 A.",
+      "concept": "Series magnetic circuit with an air gap",
+      "common_trap": "Ignoring the air gap reluctance (gives 0.80 A) even though the gap dominates.",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 180,
+      "verification": {
+        "expression": "(B/(mu0*mur)*lc + B/mu0*lg)/N",
+        "variables": {
+          "B": 1,
+          "mu0": 0.0000012566370614359173,
+          "mur": 1000,
+          "lc": 0.5,
+          "lg": 0.001,
+          "N": 500
+        }
+      },
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-013",
+      "qno": 13,
+      "section": "Technical",
+      "subject_id": "SS",
+      "subject": "Signals and Systems",
+      "topic_id": "SS.SAMPLING",
+      "topic": "Sampling",
+      "subtopic": "Aliasing",
+      "type": "MCQ",
+      "marks": 1,
+      "negative_marks": 0.33,
+      "cognitive_level": "Application",
+      "difficulty": "Medium",
+      "question": "The signal x(t) = cos(200 pi t) + cos(500 pi t) is sampled at 400 samples/s and passed through an ideal low-pass filter with cut-off 200 Hz. The output contains frequency components at",
+      "options": [
+        "100 Hz and 250 Hz",
+        "100 Hz and 150 Hz",
+        "100 Hz only",
+        "50 Hz and 150 Hz"
+      ],
+      "answer": "B",
+      "answer_range": null,
+      "solution": "The components are 100 Hz and 250 Hz. With fs = 400 Hz, 250 Hz is above fs/2 = 200 Hz and aliases to 400 - 250 = 150 Hz. The filter passes 100 Hz and 150 Hz.",
+      "concept": "Sampling theorem and aliasing",
+      "common_trap": "Assuming both components are reproduced because fs exceeds the highest frequency (but not twice it).",
+      "distractor_logic": "A: no aliasing considered; C: aliased component assumed removed; D: radian-to-Hz confusion (dividing by 4 pi).",
+      "related_pyq_year": "",
+      "predicted_importance": "High",
+      "time_estimate_sec": 90,
+      "verification": null,
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-014",
+      "qno": 14,
+      "section": "Technical",
+      "subject_id": "SS",
+      "subject": "Signals and Systems",
+      "topic_id": "SS.BASICS",
+      "topic": "Signal and System Properties",
+      "subtopic": "LTI systems and convolution",
+      "type": "NAT",
+      "marks": 2,
+      "negative_marks": 0,
+      "cognitive_level": "Analysis",
+      "difficulty": "Medium",
+      "question": "An LTI system has impulse response h(t) = e^(-t) u(t). The input is x(t) = u(t) - u(t - 2). The output y(t) at t = 3 s is ______ (round off to 3 decimal places).",
+      "options": [],
+      "answer": "0.318",
+      "answer_range": {
+        "min": 0.317,
+        "max": 0.319
+      },
+      "solution": "y(3) = integral of x(tau) h(3 - tau) dtau from 0 to 2 = integral of e^-(3 - tau) dtau from 0 to 2 = e^-3 (e^2 - 1) = e^-1 - e^-3 = 0.368 - 0.050 = 0.318.",
+      "concept": "Convolution with a finite pulse",
+      "common_trap": "Integrating up to t = 3 instead of the pulse end at 2 (gives 0.950).",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 180,
+      "verification": {
+        "expression": "exp(-1) - exp(-3)",
+        "variables": {}
+      },
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-015",
+      "qno": 15,
+      "section": "Technical",
+      "subject_id": "EM",
+      "subject": "Electrical Machines",
+      "topic_id": "EM.SPTX",
+      "topic": "Single-Phase Transformer",
+      "subtopic": "Regulation and efficiency",
+      "type": "NAT",
+      "marks": 2,
+      "negative_marks": 0,
+      "cognitive_level": "Analysis",
+      "difficulty": "Medium",
+      "question": "A 20 kVA, 2000/200 V single-phase transformer has a core loss of 200 W and a full-load copper loss of 400 W. Its efficiency at the load at which efficiency is maximum, at 0.8 power factor lagging, is ______ % (round off to 2 decimal places).",
+      "options": [],
+      "answer": "96.59",
+      "answer_range": {
+        "min": 96.55,
+        "max": 96.62
+      },
+      "solution": "Maximum efficiency occurs when copper loss = core loss, at load fraction x = sqrt(200/400) = 0.7071. Output = 0.7071 x 20000 x 0.8 = 11313.7 W. Losses = 200 + 200 = 400 W. Efficiency = 11313.7/11713.7 = 96.59%.",
+      "concept": "Condition for maximum efficiency",
+      "common_trap": "Computing efficiency at full load (96.39%) instead of at the maximum-efficiency load.",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "High",
+      "time_estimate_sec": 180,
+      "verification": {
+        "expression": "100*sqrt(Pi/Pcu)*S*pf/(sqrt(Pi/Pcu)*S*pf + 2*Pi)",
+        "variables": {
+          "Pi": 200,
+          "Pcu": 400,
+          "S": 20000,
+          "pf": 0.8
+        }
+      },
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-016",
+      "qno": 16,
+      "section": "Technical",
+      "subject_id": "EM",
+      "subject": "Electrical Machines",
+      "topic_id": "EM.IM",
+      "topic": "Three-Phase Induction Machines",
+      "subtopic": "Torque-slip characteristics",
+      "type": "MSQ",
+      "marks": 2,
+      "negative_marks": 0,
+      "cognitive_level": "Analysis",
+      "difficulty": "Medium",
+      "question": "A 4-pole, 50 Hz, three-phase slip-ring induction motor has rotor resistance 0.2 ohm per phase and standstill rotor reactance 1.0 ohm per phase (both referred to the stator). Neglect stator impedance. Which of the following statements is/are TRUE?",
+      "options": [
+        "Slip at maximum torque is 0.2",
+        "Speed at maximum torque is 1200 rpm",
+        "An external resistance of 1.0 ohm per phase in the rotor gives maximum torque at starting",
+        "The value of maximum torque does not depend on rotor resistance"
+      ],
+      "answer": "A,B,D",
+      "answer_range": null,
+      "solution": "Slip at maximum torque sm = R2/X2 = 0.2 (A true). Speed = 1500(1 - 0.2) = 1200 rpm (B true). For maximum torque at start, R2 + Rext = X2, so Rext = 0.8 ohm, not 1.0 ohm (C false). Tmax is proportional to V^2/(2X2) and independent of R2 (D true).",
+      "concept": "Maximum torque condition and effect of rotor resistance",
+      "common_trap": "Setting Rext = X2 instead of R2 + Rext = X2.",
+      "distractor_logic": "C is the classic Rext = X2 error.",
+      "related_pyq_year": "",
+      "predicted_importance": "High",
+      "time_estimate_sec": 180,
+      "verification": null,
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-017",
+      "qno": 17,
+      "section": "Technical",
+      "subject_id": "EM",
+      "subject": "Electrical Machines",
+      "topic_id": "EM.DC",
+      "topic": "DC Machines",
+      "subtopic": "Starting and speed control",
+      "type": "NAT",
+      "marks": 2,
+      "negative_marks": 0,
+      "cognitive_level": "Application",
+      "difficulty": "Medium",
+      "question": "A 220 V DC shunt motor has armature resistance 0.5 ohm and draws an armature current of 40 A at 1000 rpm. With field current and load torque unchanged, the external resistance to be inserted in series with the armature to reduce the speed to 800 rpm is ______ ohm (round off to 2 decimal places).",
+      "options": [],
+      "answer": "1.00",
+      "answer_range": {
+        "min": 0.99,
+        "max": 1.01
+      },
+      "solution": "Constant torque and flux mean Ia stays at 40 A. Eb1 = 220 - 40 x 0.5 = 200 V. Eb2 = 200 x 800/1000 = 160 V. 220 - 40(0.5 + R) = 160 gives R = 1.0 ohm.",
+      "concept": "Armature resistance speed control at constant torque",
+      "common_trap": "Scaling the supply voltage by the speed ratio instead of the back emf.",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 180,
+      "verification": {
+        "expression": "(V - (V - Ia*Ra)*N2/N1)/Ia - Ra",
+        "variables": {
+          "V": 220,
+          "Ia": 40,
+          "Ra": 0.5,
+          "N1": 1000,
+          "N2": 800
+        }
+      },
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-018",
+      "qno": 18,
+      "section": "Technical",
+      "subject_id": "EM",
+      "subject": "Electrical Machines",
+      "topic_id": "EM.SYNC",
+      "topic": "Synchronous Machines",
+      "subtopic": "V-curves and power factor control",
+      "type": "MCQ",
+      "marks": 1,
+      "negative_marks": 0.33,
+      "cognitive_level": "Recall",
+      "difficulty": "Easy",
+      "question": "A synchronous motor drives a constant load at unity power factor. If its field current is increased beyond this value, the armature current",
+      "options": [
+        "decreases and the power factor becomes lagging",
+        "increases and the power factor becomes leading",
+        "increases and the power factor becomes lagging",
+        "decreases and the power factor becomes leading"
+      ],
+      "answer": "B",
+      "answer_range": null,
+      "solution": "Beyond normal excitation the motor is over-excited: it supplies reactive power to the system, the power factor becomes leading and the armature current rises along the right arm of the V-curve.",
+      "concept": "V-curves of a synchronous motor",
+      "common_trap": "Mixing up generator and motor conventions and choosing lagging.",
+      "distractor_logic": "C applies to under-excitation; A and D wrongly assume unity pf is not the minimum-current point.",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 90,
+      "verification": null,
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-019",
+      "qno": 19,
+      "section": "Technical",
+      "subject_id": "PS",
+      "subject": "Power Systems",
+      "topic_id": "PS.DISTRIBUTION",
+      "topic": "Distribution and Compensation",
+      "subtopic": "Per-unit quantities",
+      "type": "MCQ",
+      "marks": 1,
+      "negative_marks": 0.33,
+      "cognitive_level": "Application",
+      "difficulty": "Easy",
+      "question": "A generator reactance is 0.2 pu on a 50 MVA, 11 kV base. On a 100 MVA, 22 kV base, its reactance is",
+      "options": [
+        "0.1 pu",
+        "0.4 pu",
+        "0.8 pu",
+        "0.05 pu"
+      ],
+      "answer": "A",
+      "answer_range": null,
+      "solution": "Z_new = Z_old (S_new/S_old)(V_old/V_new)^2 = 0.2 x 2 x (11/22)^2 = 0.2 x 2 x 0.25 = 0.1 pu.",
+      "concept": "Change of per-unit base",
+      "common_trap": "Inverting the voltage ratio, giving 0.2 x 2 x 4 = 1.6 pu, or the MVA ratio, giving 0.025 pu.",
+      "distractor_logic": "B: MVA ratio only; C: voltage ratio not squared and inverted; D: MVA ratio inverted.",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 90,
+      "verification": null,
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-020",
+      "qno": 20,
+      "section": "Technical",
+      "subject_id": "PS",
+      "subject": "Power Systems",
+      "topic_id": "PS.FAULT",
+      "topic": "Fault Analysis",
+      "subtopic": "Unsymmetrical fault analysis (LG, LL, LLG)",
+      "type": "MCQ",
+      "marks": 2,
+      "negative_marks": 0.67,
+      "cognitive_level": "Application",
+      "difficulty": "Medium",
+      "question": "An unloaded generator with solidly grounded neutral has E = 1.0 pu, X1 = 0.2 pu, X2 = 0.15 pu and X0 = 0.05 pu. The fault current for a bolted single line-to-ground fault at its terminals is",
+      "options": [
+        "7.5 pu",
+        "2.5 pu",
+        "5.0 pu",
+        "8.57 pu"
+      ],
+      "answer": "A",
+      "answer_range": null,
+      "solution": "For an LG fault the three sequence networks are in series: Ia1 = E/(X1 + X2 + X0) = 1/0.4 = 2.5 pu. Fault current = 3 Ia1 = 7.5 pu.",
+      "concept": "Sequence network connection for an LG fault",
+      "common_trap": "Reporting the sequence current Ia1 (2.5 pu) as the fault current.",
+      "distractor_logic": "B: forgets the factor 3; C: three-phase fault current E/X1; D: drops X0 from the series sum.",
+      "related_pyq_year": "",
+      "predicted_importance": "High",
+      "time_estimate_sec": 180,
+      "verification": null,
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-021",
+      "qno": 21,
+      "section": "Technical",
+      "subject_id": "PS",
+      "subject": "Power Systems",
+      "topic_id": "PS.STABILITY",
+      "topic": "Stability",
+      "subtopic": "Equal area criterion",
+      "type": "NAT",
+      "marks": 2,
+      "negative_marks": 0,
+      "cognitive_level": "Analysis",
+      "difficulty": "Hard",
+      "question": "A generator delivers 1.0 pu to an infinite bus with Pmax = 2.0 pu, so the initial load angle is 30 degrees. A three-phase fault at the generator terminals reduces the electrical output to zero and is then cleared, restoring the original network. Using the equal area criterion, the critical clearing angle is ______ degrees (round off to 2 decimal places).",
+      "options": [],
+      "answer": "79.56",
+      "answer_range": {
+        "min": 79.3,
+        "max": 79.8
+      },
+      "solution": "delta0 = 30 deg = 0.5236 rad, delta_max = 180 - 30 = 150 deg = 2.618 rad. cos(delta_c) = (Pm/Pmax)(delta_max - delta0) + cos(delta_max) = 0.5 x 2.0944 - 0.8660 = 0.1812, so delta_c = 79.56 degrees.",
+      "concept": "Equal area criterion with zero power during the fault",
+      "common_trap": "Using degrees instead of radians for (delta_max - delta0) inside the formula.",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "High",
+      "time_estimate_sec": 180,
+      "verification": {
+        "expression": "deg(acos(m*(pi - 2*d0) + cos(pi - d0)))",
+        "variables": {
+          "m": 0.5,
+          "d0": 0.5235987755982988
+        }
+      },
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-022",
+      "qno": 22,
+      "section": "Technical",
+      "subject_id": "CS",
+      "subject": "Control Systems",
+      "topic_id": "CS.STABILITY",
+      "topic": "Stability Analysis",
+      "subtopic": "Routh-Hurwitz criterion",
+      "type": "MCQ",
+      "marks": 1,
+      "negative_marks": 0.33,
+      "cognitive_level": "Application",
+      "difficulty": "Easy",
+      "question": "The characteristic equation of a closed-loop system is s^3 + 2s^2 + Ks + 8 = 0. The system is stable for",
+      "options": [
+        "K > 4",
+        "K > 8",
+        "0 < K < 4",
+        "K > 2"
+      ],
+      "answer": "A",
+      "answer_range": null,
+      "solution": "Routh array: s^3: 1, K; s^2: 2, 8; s^1: (2K - 8)/2; s^0: 8. Stability needs 2K - 8 > 0, i.e. K > 4.",
+      "concept": "Routh-Hurwitz criterion",
+      "common_trap": "Using the product condition a1 a2 > a0 a3 incorrectly as K > 8.",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 90,
+      "verification": null,
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-023",
+      "qno": 23,
+      "section": "Technical",
+      "subject_id": "CS",
+      "subject": "Control Systems",
+      "topic_id": "CS.TIME",
+      "topic": "Time Response",
+      "subtopic": "Second-order system specifications",
+      "type": "NAT",
+      "marks": 2,
+      "negative_marks": 0,
+      "cognitive_level": "Analysis",
+      "difficulty": "Medium",
+      "question": "A unity-feedback system has open-loop transfer function G(s) = K/(s(s + 4)). K is chosen so that the closed-loop damping ratio is 0.5. The resulting peak overshoot of the unit-step response is ______ % (round off to 2 decimal places).",
+      "options": [],
+      "answer": "16.30",
+      "answer_range": {
+        "min": 16.2,
+        "max": 16.4
+      },
+      "solution": "Closed loop: s^2 + 4s + K. 2 zeta wn = 4 with zeta = 0.5 gives wn = 4 and K = 16. Mp = exp(-pi zeta/sqrt(1 - zeta^2)) = exp(-1.8138) = 0.1630, i.e. 16.30%.",
+      "concept": "Damping ratio and peak overshoot",
+      "common_trap": "Using exp(-pi zeta) without the sqrt(1 - zeta^2) term (gives 20.79%).",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 180,
+      "verification": {
+        "expression": "100*exp(-pi*z/sqrt(1 - z^2))",
+        "variables": {
+          "z": 0.5
+        }
+      },
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-024",
+      "qno": 24,
+      "section": "Technical",
+      "subject_id": "CS",
+      "subject": "Control Systems",
+      "topic_id": "CS.FREQ",
+      "topic": "Frequency Response",
+      "subtopic": "Bode plots",
+      "type": "MSQ",
+      "marks": 2,
+      "negative_marks": 0,
+      "cognitive_level": "Analysis",
+      "difficulty": "Medium",
+      "question": "A unity-feedback system has open-loop transfer function G(s) = 10/(s(s + 1)(s + 10)). Which of the following statements is/are TRUE?",
+      "options": [
+        "The velocity error constant Kv is 1",
+        "The steady-state error for a unit-step input is zero",
+        "The initial slope of the Bode magnitude plot is -20 dB/decade",
+        "The phase angle tends to -180 degrees as frequency tends to infinity"
+      ],
+      "answer": "A,B,C",
+      "answer_range": null,
+      "solution": "Kv = lim s G(s) as s -> 0 = 10/10 = 1 (A true). It is a type-1 system, so the steady-state error to a unit step is zero (B true). The integrator gives an initial Bode slope of -20 dB/decade (C true). With three poles, the phase tends to -270 degrees, not -180 degrees (D false).",
+      "concept": "System type, error constants and Bode asymptotes",
+      "common_trap": "Counting only the finite poles when finding the high-frequency phase.",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 180,
+      "verification": null,
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-025",
+      "qno": 25,
+      "section": "Technical",
+      "subject_id": "MEAS",
+      "subject": "Electrical and Electronic Measurements",
+      "topic_id": "MEAS.INSTR",
+      "topic": "Measuring Instruments",
+      "subtopic": "PMMC, moving iron, dynamometer instruments",
+      "type": "MCQ",
+      "marks": 1,
+      "negative_marks": 0.33,
+      "cognitive_level": "Application",
+      "difficulty": "Easy",
+      "question": "A PMMC instrument with internal resistance 5 ohm gives full-scale deflection at 10 mA. The shunt resistance needed to use it as a 0-1 A ammeter is approximately",
+      "options": [
+        "0.0505 ohm",
+        "0.05 ohm",
+        "495 ohm",
+        "0.505 ohm"
+      ],
+      "answer": "A",
+      "answer_range": null,
+      "solution": "Shunt current = 1 - 0.01 = 0.99 A. Rsh = Im Rm/(I - Im) = 0.01 x 5/0.99 = 0.0505 ohm.",
+      "concept": "Ammeter range extension",
+      "common_trap": "Using Rm/(I/Im) = 0.05 ohm, which forgets that the meter itself carries 10 mA.",
+      "distractor_logic": "B: multiplying factor not reduced by one; C: series multiplier formula; D: decimal slip.",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 90,
+      "verification": null,
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-026",
+      "qno": 26,
+      "section": "Technical",
+      "subject_id": "MEAS",
+      "subject": "Electrical and Electronic Measurements",
+      "topic_id": "MEAS.ERROR",
+      "topic": "Error Analysis",
+      "subtopic": "Limiting and probable errors",
+      "type": "NAT",
+      "marks": 1,
+      "negative_marks": 0,
+      "cognitive_level": "Application",
+      "difficulty": "Easy",
+      "question": "Power is computed as P = I^2 R, with I = 2 A +/- 1% and R = 100 ohm +/- 0.5%. The limiting error in P is +/- ______ %.",
+      "options": [],
+      "answer": "2.5",
+      "answer_range": {
+        "min": 2.5,
+        "max": 2.5
+      },
+      "solution": "For a product of powers, relative limiting errors add with the exponents as weights: 2(1%) + 0.5% = 2.5%.",
+      "concept": "Propagation of limiting errors",
+      "common_trap": "Adding 1% + 0.5% = 1.5% and ignoring the square on I.",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 90,
+      "verification": {
+        "expression": "2*eI + eR",
+        "variables": {
+          "eI": 1,
+          "eR": 0.5
+        }
+      },
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-027",
+      "qno": 27,
+      "section": "Technical",
+      "subject_id": "AE",
+      "subject": "Analog and Digital Electronics",
+      "topic_id": "AE.OPAMP",
+      "topic": "Operational Amplifiers",
+      "subtopic": "Comparators and Schmitt trigger",
+      "type": "MSQ",
+      "marks": 1,
+      "negative_marks": 0,
+      "cognitive_level": "Application",
+      "difficulty": "Medium",
+      "question": "An inverting Schmitt trigger uses an op-amp with output saturation of +/-12 V. The output feeds back to the non-inverting input through R2 = 50 kilo-ohm, and R1 = 10 kilo-ohm connects the non-inverting input to ground. Which of the following statements is/are TRUE?",
+      "options": [
+        "The upper threshold voltage is +2 V",
+        "The hysteresis width is 4 V",
+        "The output switches to -12 V when the input rises above the upper threshold",
+        "The threshold voltages depend on the input signal frequency"
+      ],
+      "answer": "A,B,C",
+      "answer_range": null,
+      "solution": "Feedback fraction = R1/(R1 + R2) = 10/60. UTP = +12/6 = +2 V and LTP = -2 V (A true), so the hysteresis width is 4 V (B true). In the inverting configuration, the output switches to -12 V when the input rises above UTP (C true). The thresholds depend only on the resistors and the saturation levels, not on input frequency (D false).",
+      "concept": "Schmitt trigger thresholds",
+      "common_trap": "Using R2/(R1 + R2) as the feedback fraction, giving thresholds of +/-10 V.",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 90,
+      "verification": null,
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-028",
+      "qno": 28,
+      "section": "Technical",
+      "subject_id": "AE",
+      "subject": "Analog and Digital Electronics",
+      "topic_id": "AE.DIGITAL",
+      "topic": "Digital Electronics",
+      "subtopic": "Minimization of Boolean functions",
+      "type": "MCQ",
+      "marks": 1,
+      "negative_marks": 0.33,
+      "cognitive_level": "Application",
+      "difficulty": "Easy",
+      "question": "The minimal sum-of-products form of F(A, B, C) = sum of minterms m(0, 2, 4, 5, 6) is",
+      "options": [
+        "C' + AB'",
+        "C' + AB",
+        "A'C' + AB'",
+        "C + AB'"
+      ],
+      "answer": "A",
+      "answer_range": null,
+      "solution": "Minterms 0, 2, 4 and 6 all have C = 0, giving C'. Minterm 5 (101) pairs with 4 (100) to give AB'. F = C' + AB'.",
+      "concept": "Karnaugh map grouping",
+      "common_trap": "Grouping 5 with 7 (not a minterm) to get AC.",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 90,
+      "verification": null,
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-029",
+      "qno": 29,
+      "section": "Technical",
+      "subject_id": "PE",
+      "subject": "Power Electronics",
+      "topic_id": "PE.DCDC",
+      "topic": "DC-DC Converters",
+      "subtopic": "Buck converter",
+      "type": "NAT",
+      "marks": 2,
+      "negative_marks": 0,
+      "cognitive_level": "Analysis",
+      "difficulty": "Medium",
+      "question": "An ideal buck converter operates from 48 V at a switching frequency of 50 kHz with duty ratio 0.5. It has L = 100 microhenry and supplies a 6 ohm resistive load. The peak inductor current is ______ A (round off to 1 decimal place).",
+      "options": [],
+      "answer": "5.2",
+      "answer_range": {
+        "min": 5.15,
+        "max": 5.25
+      },
+      "solution": "Vo = D Vin = 24 V, Io = 24/6 = 4 A. Ripple = (Vin - Vo) D/(L f) = 24 x 0.5/(100e-6 x 50e3) = 2.4 A. The minimum current 4 - 1.2 = 2.8 A > 0, so the converter is in CCM. Peak = 4 + 1.2 = 5.2 A.",
+      "concept": "Inductor ripple and CCM check in a buck converter",
+      "common_trap": "Adding the full ripple instead of half (gives 6.4 A).",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "High",
+      "time_estimate_sec": 180,
+      "verification": {
+        "expression": "D*Vin/R + (Vin - D*Vin)*D/(2*L*f)",
+        "variables": {
+          "D": 0.5,
+          "Vin": 48,
+          "R": 6,
+          "L": 0.0001,
+          "f": 50000
+        }
+      },
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-030",
+      "qno": 30,
+      "section": "Technical",
+      "subject_id": "PE",
+      "subject": "Power Electronics",
+      "topic_id": "PE.RECT",
+      "topic": "Rectifiers",
+      "subtopic": "Line-commutated thyristor rectifiers",
+      "type": "MCQ",
+      "marks": 2,
+      "negative_marks": 0.67,
+      "cognitive_level": "Application",
+      "difficulty": "Medium",
+      "question": "A single-phase fully controlled bridge converter is fed from 230 V (rms), 50 Hz and supplies a highly inductive load so the current is continuous. At a firing angle of 60 degrees, the average output voltage is approximately",
+      "options": [
+        "103.5 V",
+        "155.3 V",
+        "207.1 V",
+        "51.8 V"
+      ],
+      "answer": "A",
+      "answer_range": null,
+      "solution": "Vo = (2 Vm/pi) cos(alpha) = (2 x 325.27/pi) x 0.5 = 103.5 V.",
+      "concept": "Average output of a full converter in continuous conduction",
+      "common_trap": "Using the semi-converter expression (Vm/pi)(1 + cos alpha), which gives 155.3 V.",
+      "distractor_logic": "B: semi-converter formula; C: alpha = 0; D: half-wave converter.",
+      "related_pyq_year": "",
+      "predicted_importance": "High",
+      "time_estimate_sec": 180,
+      "verification": null,
+      "figure": null,
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-031",
+      "qno": 31,
+      "section": "Technical",
+      "subject_id": "MEAS",
+      "subject": "Electrical and Electronic Measurements",
+      "topic_id": "MEAS.INSTR",
+      "topic": "Measuring Instruments",
+      "subtopic": "Measurement of voltage, current, power, energy and power factor",
+      "type": "NAT",
+      "marks": 2,
+      "negative_marks": 0,
+      "cognitive_level": "Application",
+      "difficulty": "Medium",
+      "question": "The periodic voltage waveform shown in the figure is applied across a 5 ohm resistor. The average power dissipated in the resistor is ______ W (round off to 2 decimal places).",
+      "options": [],
+      "answer": "8.00",
+      "answer_range": {
+        "min": 7.95,
+        "max": 8.05
+      },
+      "solution": "Over one 10 ms period the voltage is 10 V for 4 ms and 0 V for 6 ms. Vrms^2 = (10^2 x 4 + 0 x 6)/10 = 40 V^2. Average power = Vrms^2/R = 40/5 = 8 W.",
+      "concept": "RMS value of a pulse waveform and average power",
+      "common_trap": "Using the average voltage (4 V) instead of the RMS value, which gives 3.2 W.",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 180,
+      "verification": {
+        "expression": "10^2*(4/10)/5",
+        "variables": {}
+      },
+      "figure": {
+        "type": "plot",
+        "caption": "Periodic voltage applied to the resistor",
+        "x": {
+          "label": "t",
+          "unit": "ms",
+          "min": 0,
+          "max": 20,
+          "ticks": [
+            0,
+            4,
+            10,
+            14,
+            20
+          ]
+        },
+        "y": {
+          "label": "v(t)",
+          "unit": "V",
+          "min": 0,
+          "max": 12,
+          "ticks": [
+            0,
+            5,
+            10
+          ]
+        },
+        "series": [
+          {
+            "label": "v(t)",
+            "points": [
+              [
+                0,
+                0
+              ],
+              [
+                0,
+                10
+              ],
+              [
+                4,
+                10
+              ],
+              [
+                4,
+                0
+              ],
+              [
+                10,
+                0
+              ],
+              [
+                10,
+                10
+              ],
+              [
+                14,
+                10
+              ],
+              [
+                14,
+                0
+              ],
+              [
+                20,
+                0
+              ]
+            ]
+          }
+        ],
+        "description": "[Figure: plot - Periodic voltage applied to the resistor]\nx-axis: t (ms)\ny-axis: v(t) (V)\nCurve \"v(t)\" is piecewise linear through (x, y): (0, 0), (0, 10), (4, 10), (4, 0), (10, 0), (10, 10), (14, 10), (14, 0), (20, 0)",
+        "render": {
+          "w": 480,
+          "h": 318,
+          "items": [
+            {
+              "k": "path",
+              "p": [
+                58,
+                26,
+                58,
+                260
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                58,
+                272
+              ],
+              "t": "0",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                138.8,
+                26,
+                138.8,
+                260
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                138.8,
+                272
+              ],
+              "t": "4",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                260,
+                26,
+                260,
+                260
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                260,
+                272
+              ],
+              "t": "10",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                340.8,
+                26,
+                340.8,
+                260
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                340.8,
+                272
+              ],
+              "t": "14",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                462,
+                26,
+                462,
+                260
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                462,
+                272
+              ],
+              "t": "20",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                260,
+                462,
+                260
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                53,
+                260
+              ],
+              "t": "0",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                162.5,
+                462,
+                162.5
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                53,
+                162.5
+              ],
+              "t": "5",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                65,
+                462,
+                65
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                53,
+                65
+              ],
+              "t": "10",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                260,
+                462,
+                260
+              ],
+              "s": "fg",
+              "w": 1.2
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                26,
+                58,
+                260
+              ],
+              "s": "fg",
+              "w": 1.2
+            },
+            {
+              "k": "text",
+              "p": [
+                462,
+                288
+              ],
+              "t": "t (ms)",
+              "a": "e",
+              "z": 11,
+              "s": "fg"
+            },
+            {
+              "k": "text",
+              "p": [
+                54,
+                16
+              ],
+              "t": "v(t) (V)",
+              "a": "s",
+              "z": 11,
+              "s": "fg"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                260,
+                58,
+                65,
+                138.8,
+                65,
+                138.8,
+                260,
+                260,
+                260,
+                260,
+                65,
+                340.8,
+                65,
+                340.8,
+                260,
+                462,
+                260
+              ],
+              "s": "s0",
+              "w": 2
+            },
+            {
+              "k": "text",
+              "p": [
+                240,
+                306
+              ],
+              "t": "Periodic voltage applied to the resistor",
+              "a": "m",
+              "z": 11,
+              "s": "muted"
+            }
+          ]
+        }
+      },
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-032",
+      "qno": 32,
+      "section": "Technical",
+      "subject_id": "EC",
+      "subject": "Electric Circuits",
+      "topic_id": "EC.SINUSOIDAL",
+      "topic": "Sinusoidal Steady State",
+      "subtopic": "Complex power and power factor",
+      "type": "MCQ",
+      "marks": 1,
+      "negative_marks": 0.33,
+      "cognitive_level": "Application",
+      "difficulty": "Easy",
+      "question": "The phasor diagram shows the RMS voltage V across a load and the RMS current I drawn by it. The active power and the reactive power of the load are",
+      "options": [
+        "1840 W, 1380 var absorbed",
+        "1840 W, 1380 var delivered",
+        "1380 W, 1840 var absorbed",
+        "2300 W, 0 var"
+      ],
+      "answer": "A",
+      "answer_range": null,
+      "solution": "S = V I* = 230 x 10 at +36.87 deg = 2300(0.8 + j0.6). P = 1840 W and Q = +1380 var. I lags V, so the load is inductive and absorbs reactive power.",
+      "concept": "Complex power from a phasor diagram",
+      "common_trap": "Taking a lagging current as a load that delivers reactive power.",
+      "distractor_logic": "B: sign convention reversed; C: sin and cos swapped; D: apparent power taken as active power.",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 90,
+      "verification": null,
+      "figure": {
+        "type": "phasor",
+        "caption": "V = 230 V (reference), I = 10 A (I drawn to a larger scale)",
+        "reference_label": "reference",
+        "phasors": [
+          {
+            "label": "V",
+            "text": "V = 230 V",
+            "magnitude": 230,
+            "angle_deg": 0,
+            "unit": "V"
+          },
+          {
+            "label": "I",
+            "text": "I = 10 A",
+            "magnitude": 10,
+            "angle_deg": -36.87,
+            "unit": "A",
+            "scale": 16
+          }
+        ],
+        "angles": [
+          {
+            "from": "I",
+            "to": "V",
+            "label": "36.87°"
+          }
+        ],
+        "description": "[Figure: phasor - V = 230 V (reference), I = 10 A (I drawn to a larger scale)]\nPhasors (magnitude at angle, angles measured counter-clockwise from the reference axis):\nV = 230 V at 0 deg\nI = 10 A at -36.87 deg (drawn 16x to scale)\nAngle \"36.87°\" marked between I and V",
+        "render": {
+          "w": 480,
+          "h": 229,
+          "items": [
+            {
+              "k": "path",
+              "p": [
+                20,
+                45,
+                460,
+                45
+              ],
+              "s": "grid",
+              "w": 1,
+              "d": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                22,
+                35
+              ],
+              "t": "reference",
+              "a": "s",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                95,
+                45,
+                385,
+                45
+              ],
+              "s": "s0",
+              "w": 2.2
+            },
+            {
+              "k": "path",
+              "p": [
+                385,
+                45,
+                376.6,
+                48.3,
+                376.6,
+                41.7
+              ],
+              "s": "s0",
+              "w": 1,
+              "f": "s0",
+              "close": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                393,
+                43
+              ],
+              "t": "V = 230 V",
+              "a": "s",
+              "z": 12,
+              "s": "s0",
+              "b": 1
+            },
+            {
+              "k": "path",
+              "p": [
+                95,
+                45,
+                256.4,
+                166
+              ],
+              "s": "s1",
+              "w": 2.2
+            },
+            {
+              "k": "path",
+              "p": [
+                256.4,
+                166,
+                247.7,
+                163.7,
+                251.7,
+                158.4
+              ],
+              "s": "s1",
+              "w": 1,
+              "f": "s1",
+              "close": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                262.8,
+                172.4
+              ],
+              "t": "I = 10 A",
+              "a": "s",
+              "z": 12,
+              "s": "s1",
+              "b": 1
+            },
+            {
+              "k": "circle",
+              "c": [
+                95,
+                45
+              ],
+              "r": 2.5,
+              "s": "fg",
+              "w": 1.5,
+              "f": "fg"
+            },
+            {
+              "k": "path",
+              "p": [
+                122.2,
+                65.4,
+                122.7,
+                64.7,
+                123.3,
+                63.9,
+                123.8,
+                63.1,
+                124.2,
+                62.4,
+                124.7,
+                61.6,
+                125.1,
+                60.8,
+                125.5,
+                60,
+                125.9,
+                59.1,
+                126.3,
+                58.3,
+                126.6,
+                57.5,
+                127,
+                56.6,
+                127.3,
+                55.8,
+                127.5,
+                54.9,
+                127.8,
+                54,
+                128,
+                53.1,
+                128.2,
+                52.2,
+                128.4,
+                51.3,
+                128.6,
+                50.4,
+                128.7,
+                49.5,
+                128.8,
+                48.6,
+                128.9,
+                47.7,
+                129,
+                46.8,
+                129,
+                45.9,
+                129,
+                45
+              ],
+              "s": "accent",
+              "w": 1.2
+            },
+            {
+              "k": "text",
+              "p": [
+                140.7,
+                58.9
+              ],
+              "t": "36.87°",
+              "a": "s",
+              "z": 11,
+              "s": "accent"
+            },
+            {
+              "k": "text",
+              "p": [
+                240,
+                219
+              ],
+              "t": "V = 230 V (reference), I = 10 A (I drawn to a larger scale)",
+              "a": "m",
+              "z": 11,
+              "s": "muted"
+            }
+          ]
+        }
+      },
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-033",
+      "qno": 33,
+      "section": "Technical",
+      "subject_id": "EC",
+      "subject": "Electric Circuits",
+      "topic_id": "EC.ANALYSIS",
+      "topic": "Network Solution Methods",
+      "subtopic": "Node and mesh analysis",
+      "type": "NAT",
+      "marks": 1,
+      "negative_marks": 0,
+      "cognitive_level": "Application",
+      "difficulty": "Easy",
+      "question": "In the circuit shown, the voltage of node a with respect to the ground is ______ V (round off to 2 decimal places).",
+      "options": [],
+      "answer": "6.00",
+      "answer_range": {
+        "min": 5.99,
+        "max": 6.01
+      },
+      "solution": "The 6 ohm and 12 ohm resistors are both between node a and ground: 6 || 12 = 4 ohm. Voltage division: Va = 12 x 4/(4 + 4) = 6 V.",
+      "concept": "Parallel combination and voltage division",
+      "common_trap": "Ignoring the 12 ohm branch and computing 12 x 6/10 = 7.2 V.",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 90,
+      "verification": {
+        "expression": "12*(R2*R3/(R2+R3))/(R1 + R2*R3/(R2+R3))",
+        "variables": {
+          "R1": 4,
+          "R2": 6,
+          "R3": 12
+        }
+      },
+      "figure": {
+        "type": "circuit",
+        "elements": [
+          {
+            "kind": "V",
+            "from": [
+              0,
+              2
+            ],
+            "to": [
+              0,
+              0
+            ],
+            "label": "12 V"
+          },
+          {
+            "kind": "R",
+            "from": [
+              0,
+              0
+            ],
+            "to": [
+              2,
+              0
+            ],
+            "label": "4 Ω"
+          },
+          {
+            "kind": "R",
+            "from": [
+              2,
+              0
+            ],
+            "to": [
+              2,
+              2
+            ],
+            "label": "6 Ω"
+          },
+          {
+            "kind": "wire",
+            "from": [
+              2,
+              0
+            ],
+            "to": [
+              4,
+              0
+            ]
+          },
+          {
+            "kind": "R",
+            "from": [
+              4,
+              0
+            ],
+            "to": [
+              4,
+              2
+            ],
+            "label": "12 Ω"
+          },
+          {
+            "kind": "wire",
+            "from": [
+              0,
+              2
+            ],
+            "to": [
+              4,
+              2
+            ]
+          },
+          {
+            "kind": "ground",
+            "at": [
+              0,
+              2
+            ]
+          }
+        ],
+        "nodes": [
+          {
+            "at": [
+              2,
+              0
+            ],
+            "label": "a"
+          }
+        ],
+        "description": "[Figure: circuit]\nCircuit netlist (node 0 = ground/reference):\nV1: DC voltage source 12 V, + terminal at node n1, - terminal at node 0\nR1: resistor 4 Ω between nodes n1 and a\nR2: resistor 6 Ω between nodes a and 0\nR3: resistor 12 Ω between nodes a and 0",
+        "render": {
+          "w": 480,
+          "h": 240,
+          "items": [
+            {
+              "k": "path",
+              "p": [
+                100,
+                190,
+                100,
+                136
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                100,
+                104,
+                100,
+                50
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                100,
+                136,
+                100,
+                134
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                100,
+                106,
+                100,
+                104
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "circle",
+              "c": [
+                100,
+                120
+              ],
+              "r": 14,
+              "s": "fg",
+              "w": 1.5,
+              "f": "bg"
+            },
+            {
+              "k": "text",
+              "p": [
+                100,
+                113
+              ],
+              "t": "+",
+              "a": "m",
+              "z": 13,
+              "s": "fg",
+              "b": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                100,
+                127
+              ],
+              "t": "−",
+              "a": "m",
+              "z": 13,
+              "s": "fg",
+              "b": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                122,
+                120
+              ],
+              "t": "12 V",
+              "a": "s",
+              "z": 11,
+              "s": "fg"
+            },
+            {
+              "k": "path",
+              "p": [
+                100,
+                50,
+                148,
+                50
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                192,
+                50,
+                240,
+                50
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                148,
+                50,
+                151.7,
+                44,
+                159,
+                56,
+                166.3,
+                44,
+                173.7,
+                56,
+                181,
+                44,
+                188.3,
+                56,
+                192,
+                50
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "text",
+              "p": [
+                170,
+                28
+              ],
+              "t": "4 Ω",
+              "a": "m",
+              "z": 11,
+              "s": "fg"
+            },
+            {
+              "k": "path",
+              "p": [
+                240,
+                50,
+                240,
+                98
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                240,
+                142,
+                240,
+                190
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                240,
+                98,
+                246,
+                101.7,
+                234,
+                109,
+                246,
+                116.3,
+                234,
+                123.7,
+                246,
+                131,
+                234,
+                138.3,
+                240,
+                142
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "text",
+              "p": [
+                262,
+                120
+              ],
+              "t": "6 Ω",
+              "a": "s",
+              "z": 11,
+              "s": "fg"
+            },
+            {
+              "k": "path",
+              "p": [
+                240,
+                50,
+                380,
+                50
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                380,
+                50,
+                380,
+                98
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                380,
+                142,
+                380,
+                190
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                380,
+                98,
+                386,
+                101.7,
+                374,
+                109,
+                386,
+                116.3,
+                374,
+                123.7,
+                386,
+                131,
+                374,
+                138.3,
+                380,
+                142
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "text",
+              "p": [
+                402,
+                120
+              ],
+              "t": "12 Ω",
+              "a": "s",
+              "z": 11,
+              "s": "fg"
+            },
+            {
+              "k": "path",
+              "p": [
+                100,
+                190,
+                380,
+                190
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                100,
+                190,
+                100,
+                198
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                88,
+                198,
+                112,
+                198
+              ],
+              "s": "fg",
+              "w": 1.8
+            },
+            {
+              "k": "path",
+              "p": [
+                93,
+                203,
+                107,
+                203
+              ],
+              "s": "fg",
+              "w": 1.8
+            },
+            {
+              "k": "path",
+              "p": [
+                97.5,
+                208,
+                102.5,
+                208
+              ],
+              "s": "fg",
+              "w": 1.8
+            },
+            {
+              "k": "circle",
+              "c": [
+                100,
+                190
+              ],
+              "r": 3.5,
+              "s": "fg",
+              "w": 1.5,
+              "f": "fg"
+            },
+            {
+              "k": "circle",
+              "c": [
+                240,
+                50
+              ],
+              "r": 3.5,
+              "s": "fg",
+              "w": 1.5,
+              "f": "fg"
+            },
+            {
+              "k": "circle",
+              "c": [
+                240,
+                190
+              ],
+              "r": 3.5,
+              "s": "fg",
+              "w": 1.5,
+              "f": "fg"
+            },
+            {
+              "k": "text",
+              "p": [
+                232,
+                38
+              ],
+              "t": "a",
+              "a": "e",
+              "z": 12,
+              "s": "accent",
+              "b": 1
+            }
+          ]
+        }
+      },
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-034",
+      "qno": 34,
+      "section": "Technical",
+      "subject_id": "CS",
+      "subject": "Control Systems",
+      "topic_id": "CS.MODEL",
+      "topic": "Mathematical Modelling",
+      "subtopic": "Block diagrams and signal flow graphs",
+      "type": "MCQ",
+      "marks": 2,
+      "negative_marks": 0.67,
+      "cognitive_level": "Analysis",
+      "difficulty": "Medium",
+      "question": "For the block diagram shown, the closed-loop transfer function C(s)/R(s) is",
+      "options": [
+        "G1 G2 / (1 + G2 H1 + G1 G2)",
+        "G1 G2 / (1 + G1 G2 H1)",
+        "G1 G2 / (1 + G1 H1 + G1 G2)",
+        "G1 G2 / (1 - G2 H1 + G1 G2)"
+      ],
+      "answer": "A",
+      "answer_range": null,
+      "solution": "Inner loop: G2 with negative feedback H1 gives G2/(1 + G2 H1). In series with G1 the forward path is G1 G2/(1 + G2 H1). The outer unity negative feedback gives C/R = G1 G2/(1 + G2 H1 + G1 G2).",
+      "concept": "Block diagram reduction with nested loops",
+      "common_trap": "Treating H1 as if it fed back around G1 as well, giving 1 + G1 G2 H1 in the denominator.",
+      "distractor_logic": "B: inner loop placed around both blocks; C: H1 attached to G1; D: sign of the inner loop reversed.",
+      "related_pyq_year": "",
+      "predicted_importance": "High",
+      "time_estimate_sec": 180,
+      "verification": null,
+      "figure": {
+        "type": "block_diagram",
+        "blocks": [
+          {
+            "id": "S1",
+            "shape": "sum",
+            "at": [
+              0,
+              0
+            ]
+          },
+          {
+            "id": "G1",
+            "label": "G1(s)",
+            "at": [
+              1.6,
+              0
+            ]
+          },
+          {
+            "id": "S2",
+            "shape": "sum",
+            "at": [
+              3.2,
+              0
+            ]
+          },
+          {
+            "id": "G2",
+            "label": "G2(s)",
+            "at": [
+              4.8,
+              0
+            ]
+          },
+          {
+            "id": "P",
+            "shape": "point",
+            "at": [
+              6.4,
+              0
+            ]
+          },
+          {
+            "id": "H1",
+            "label": "H1(s)",
+            "at": [
+              4.8,
+              1.2
+            ]
+          }
+        ],
+        "links": [
+          {
+            "from": "S1",
+            "to": "G1"
+          },
+          {
+            "from": "G1",
+            "to": "S2",
+            "sign": "+"
+          },
+          {
+            "from": "S2",
+            "to": "G2"
+          },
+          {
+            "from": "G2",
+            "to": "P"
+          },
+          {
+            "from": "P",
+            "to": "H1",
+            "via": [
+              [
+                6.4,
+                1.2
+              ]
+            ]
+          },
+          {
+            "from": "H1",
+            "to": "S2",
+            "via": [
+              [
+                3.2,
+                1.2
+              ]
+            ],
+            "sign": "-"
+          },
+          {
+            "from": "P",
+            "to": "S1",
+            "via": [
+              [
+                6.4,
+                2.2
+              ],
+              [
+                0,
+                2.2
+              ]
+            ],
+            "sign": "-"
+          }
+        ],
+        "inputs": [
+          {
+            "to": "S1",
+            "label": "R(s)",
+            "sign": "+"
+          }
+        ],
+        "outputs": [
+          {
+            "from": "P",
+            "label": "C(s)"
+          }
+        ],
+        "description": "[Figure: block_diagram]\nSignal flow:\nInput R(s) enters summing junction S1 with sign +\nsumming junction S1 -> block G1 [G1(s)]\nblock G1 [G1(s)] -> summing junction S2 (sign + at the junction)\nsumming junction S2 -> block G2 [G2(s)]\nblock G2 [G2(s)] -> take-off point P\ntake-off point P -> block H1 [H1(s)]\nblock H1 [H1(s)] -> summing junction S2 (sign - at the junction)\ntake-off point P -> summing junction S1 (sign - at the junction)\nOutput C(s) taken from take-off point P",
+        "render": {
+          "w": 480,
+          "h": 213,
+          "items": [
+            {
+              "k": "path",
+              "p": [
+                86.7,
+                46,
+                129.6,
+                46
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                129.6,
+                46,
+                122.2,
+                49,
+                122.2,
+                43
+              ],
+              "s": "fg",
+              "w": 1,
+              "f": "fg",
+              "close": 1
+            },
+            {
+              "k": "path",
+              "p": [
+                183.6,
+                46,
+                226.5,
+                46
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                226.5,
+                46,
+                219,
+                49,
+                219,
+                43
+              ],
+              "s": "fg",
+              "w": 1,
+              "f": "fg",
+              "close": 1
+            },
+            {
+              "k": "path",
+              "p": [
+                248.5,
+                46,
+                291.4,
+                46
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                291.4,
+                46,
+                283.9,
+                49,
+                283.9,
+                43
+              ],
+              "s": "fg",
+              "w": 1,
+              "f": "fg",
+              "close": 1
+            },
+            {
+              "k": "path",
+              "p": [
+                345.4,
+                46,
+                399.2,
+                46
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                399.2,
+                46,
+                391.8,
+                49,
+                391.8,
+                43
+              ],
+              "s": "fg",
+              "w": 1,
+              "f": "fg",
+              "close": 1
+            },
+            {
+              "k": "path",
+              "p": [
+                399.2,
+                46,
+                399.2,
+                113.2,
+                345.4,
+                113.2
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                345.4,
+                113.2,
+                352.8,
+                110.2,
+                352.8,
+                116.2
+              ],
+              "s": "fg",
+              "w": 1,
+              "f": "fg",
+              "close": 1
+            },
+            {
+              "k": "path",
+              "p": [
+                291.4,
+                113.2,
+                237.5,
+                113.2,
+                237.5,
+                57
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                237.5,
+                57,
+                240.4,
+                64.4,
+                234.5,
+                64.4
+              ],
+              "s": "fg",
+              "w": 1,
+              "f": "fg",
+              "close": 1
+            },
+            {
+              "k": "path",
+              "p": [
+                399.2,
+                46,
+                399.2,
+                169.2,
+                75.7,
+                169.2,
+                75.7,
+                57
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                75.7,
+                57,
+                78.7,
+                64.4,
+                72.7,
+                64.4
+              ],
+              "s": "fg",
+              "w": 1,
+              "f": "fg",
+              "close": 1
+            },
+            {
+              "k": "path",
+              "p": [
+                20.1,
+                46,
+                64.7,
+                46
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                64.7,
+                46,
+                57.3,
+                49,
+                57.3,
+                43
+              ],
+              "s": "fg",
+              "w": 1,
+              "f": "fg",
+              "close": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                20.1,
+                35
+              ],
+              "t": "R(s)",
+              "a": "s",
+              "z": 12,
+              "s": "fg"
+            },
+            {
+              "k": "path",
+              "p": [
+                399.2,
+                46,
+                459.9,
+                46
+              ],
+              "s": "fg",
+              "w": 1.5
+            },
+            {
+              "k": "path",
+              "p": [
+                459.9,
+                46,
+                452.5,
+                49,
+                452.5,
+                43
+              ],
+              "s": "fg",
+              "w": 1,
+              "f": "fg",
+              "close": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                459.9,
+                35
+              ],
+              "t": "C(s)",
+              "a": "e",
+              "z": 12,
+              "s": "fg"
+            },
+            {
+              "k": "circle",
+              "c": [
+                75.7,
+                46
+              ],
+              "r": 11,
+              "s": "fg",
+              "w": 1.5,
+              "f": "bg"
+            },
+            {
+              "k": "path",
+              "p": [
+                67.9,
+                38.2,
+                83.5,
+                53.8
+              ],
+              "s": "fg",
+              "w": 1
+            },
+            {
+              "k": "path",
+              "p": [
+                67.9,
+                53.8,
+                83.5,
+                38.2
+              ],
+              "s": "fg",
+              "w": 1
+            },
+            {
+              "k": "path",
+              "p": [
+                129.6,
+                29,
+                183.6,
+                29,
+                183.6,
+                63,
+                129.6,
+                63
+              ],
+              "s": "fg",
+              "w": 1.5,
+              "f": "bg",
+              "close": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                156.6,
+                46
+              ],
+              "t": "G1(s)",
+              "a": "m",
+              "z": 12,
+              "s": "fg"
+            },
+            {
+              "k": "circle",
+              "c": [
+                237.5,
+                46
+              ],
+              "r": 11,
+              "s": "fg",
+              "w": 1.5,
+              "f": "bg"
+            },
+            {
+              "k": "path",
+              "p": [
+                229.7,
+                38.2,
+                245.3,
+                53.8
+              ],
+              "s": "fg",
+              "w": 1
+            },
+            {
+              "k": "path",
+              "p": [
+                229.7,
+                53.8,
+                245.3,
+                38.2
+              ],
+              "s": "fg",
+              "w": 1
+            },
+            {
+              "k": "path",
+              "p": [
+                291.4,
+                29,
+                345.4,
+                29,
+                345.4,
+                63,
+                291.4,
+                63
+              ],
+              "s": "fg",
+              "w": 1.5,
+              "f": "bg",
+              "close": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                318.4,
+                46
+              ],
+              "t": "G2(s)",
+              "a": "m",
+              "z": 12,
+              "s": "fg"
+            },
+            {
+              "k": "circle",
+              "c": [
+                399.2,
+                46
+              ],
+              "r": 3.2,
+              "s": "fg",
+              "w": 1.5,
+              "f": "fg"
+            },
+            {
+              "k": "path",
+              "p": [
+                291.4,
+                96.2,
+                345.4,
+                96.2,
+                345.4,
+                130.2,
+                291.4,
+                130.2
+              ],
+              "s": "fg",
+              "w": 1.5,
+              "f": "bg",
+              "close": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                318.4,
+                113.2
+              ],
+              "t": "H1(s)",
+              "a": "m",
+              "z": 12,
+              "s": "fg"
+            },
+            {
+              "k": "text",
+              "p": [
+                216.5,
+                36
+              ],
+              "t": "+",
+              "a": "m",
+              "z": 13,
+              "s": "fg",
+              "b": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                227.5,
+                67
+              ],
+              "t": "−",
+              "a": "m",
+              "z": 13,
+              "s": "fg",
+              "b": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                65.7,
+                67
+              ],
+              "t": "−",
+              "a": "m",
+              "z": 13,
+              "s": "fg",
+              "b": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                54.7,
+                36
+              ],
+              "t": "+",
+              "a": "m",
+              "z": 13,
+              "s": "fg",
+              "b": 1
+            }
+          ]
+        }
+      },
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-035",
+      "qno": 35,
+      "section": "Technical",
+      "subject_id": "CS",
+      "subject": "Control Systems",
+      "topic_id": "CS.FREQ",
+      "topic": "Frequency Response",
+      "subtopic": "Gain and phase margins",
+      "type": "NAT",
+      "marks": 2,
+      "negative_marks": 0,
+      "cognitive_level": "Analysis",
+      "difficulty": "Hard",
+      "question": "The asymptotic Bode magnitude plot of the minimum-phase open-loop transfer function G(s) of a unity-feedback system is shown. The phase margin of the system is ______ degrees (round off to 2 decimal places).",
+      "options": [],
+      "answer": "51.83",
+      "answer_range": {
+        "min": 51.5,
+        "max": 52.2
+      },
+      "solution": "From the plot, the -20 dB/decade line passes 20 dB at w = 1, so K = 10, and the slope changes to -40 dB/decade at the corner w = 10: G(s) = 10/(s(1 + s/10)) = 100/(s(s + 10)). Exact gain crossover: w^2(w^2 + 100) = 10^4, so w^2 = 61.80 and w = 7.86 rad/s. PM = 180 - 90 - atan(7.86/10) = 90 - 38.17 = 51.83 degrees.",
+      "concept": "Transfer function from an asymptotic Bode plot, then the exact phase margin",
+      "common_trap": "Using the asymptotic crossover w = 10 rad/s, which gives 45 degrees.",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "High",
+      "time_estimate_sec": 180,
+      "verification": {
+        "expression": "90 - deg(atan(sqrt((-100 + sqrt(100^2 + 4*10^4))/2)/10))",
+        "variables": {}
+      },
+      "figure": {
+        "type": "plot",
+        "caption": "Asymptotic magnitude plot of G(jω)",
+        "x": {
+          "label": "ω",
+          "unit": "rad/s",
+          "scale": "log",
+          "min": 0.1,
+          "max": 1000
+        },
+        "y": {
+          "label": "|G(jω)|",
+          "unit": "dB",
+          "min": -80,
+          "max": 40,
+          "ticks": [
+            -80,
+            -60,
+            -40,
+            -20,
+            0,
+            20,
+            40
+          ]
+        },
+        "series": [
+          {
+            "label": "asymptote",
+            "points": [
+              [
+                0.1,
+                40
+              ],
+              [
+                10,
+                0
+              ],
+              [
+                1000,
+                -80
+              ]
+            ]
+          }
+        ],
+        "annotations": [
+          {
+            "x": 1,
+            "y": 20,
+            "text": "−20 dB/dec"
+          },
+          {
+            "x": 100,
+            "y": -40,
+            "text": "−40 dB/dec"
+          }
+        ],
+        "vlines": [
+          {
+            "x": 10,
+            "label": "ω = 10"
+          }
+        ],
+        "description": "[Figure: plot - Asymptotic magnitude plot of G(jω)]\nx-axis: ω (rad/s), logarithmic\ny-axis: |G(jω)| (dB)\nCurve \"asymptote\" is piecewise linear through (x, y): (0.1, 40), (10, 0), (1000, -80)\nVertical reference line at x = 10 labelled \"ω = 10\"\nLabel \"−20 dB/dec\" at (1, 20)\nLabel \"−40 dB/dec\" at (100, -40)",
+        "render": {
+          "w": 480,
+          "h": 318,
+          "items": [
+            {
+              "k": "path",
+              "p": [
+                58,
+                26,
+                58,
+                260
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                58,
+                272
+              ],
+              "t": "0.1",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                159,
+                26,
+                159,
+                260
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                159,
+                272
+              ],
+              "t": "1",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                260,
+                26,
+                260,
+                260
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                260,
+                272
+              ],
+              "t": "10",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                361,
+                26,
+                361,
+                260
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                361,
+                272
+              ],
+              "t": "100",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                462,
+                26,
+                462,
+                260
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                462,
+                272
+              ],
+              "t": "1000",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                260,
+                462,
+                260
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                53,
+                260
+              ],
+              "t": "-80",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                221,
+                462,
+                221
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                53,
+                221
+              ],
+              "t": "-60",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                182,
+                462,
+                182
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                53,
+                182
+              ],
+              "t": "-40",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                143,
+                462,
+                143
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                53,
+                143
+              ],
+              "t": "-20",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                104,
+                462,
+                104
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                53,
+                104
+              ],
+              "t": "0",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                65,
+                462,
+                65
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                53,
+                65
+              ],
+              "t": "20",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                26,
+                462,
+                26
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                53,
+                26
+              ],
+              "t": "40",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                104,
+                462,
+                104
+              ],
+              "s": "fg",
+              "w": 1.2
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                26,
+                58,
+                260
+              ],
+              "s": "fg",
+              "w": 1.2
+            },
+            {
+              "k": "text",
+              "p": [
+                462,
+                288
+              ],
+              "t": "ω (rad/s)",
+              "a": "e",
+              "z": 11,
+              "s": "fg"
+            },
+            {
+              "k": "text",
+              "p": [
+                54,
+                16
+              ],
+              "t": "|G(jω)| (dB)",
+              "a": "s",
+              "z": 11,
+              "s": "fg"
+            },
+            {
+              "k": "path",
+              "p": [
+                260,
+                26,
+                260,
+                260
+              ],
+              "s": "muted",
+              "w": 1,
+              "d": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                263,
+                34
+              ],
+              "t": "ω = 10",
+              "a": "s",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                26,
+                260,
+                104,
+                462,
+                260
+              ],
+              "s": "s0",
+              "w": 2
+            },
+            {
+              "k": "circle",
+              "c": [
+                159,
+                65
+              ],
+              "r": 2.5,
+              "s": "accent",
+              "w": 1.5,
+              "f": "accent"
+            },
+            {
+              "k": "text",
+              "p": [
+                165,
+                55
+              ],
+              "t": "−20 dB/dec",
+              "a": "s",
+              "z": 11,
+              "s": "accent"
+            },
+            {
+              "k": "circle",
+              "c": [
+                361,
+                182
+              ],
+              "r": 2.5,
+              "s": "accent",
+              "w": 1.5,
+              "f": "accent"
+            },
+            {
+              "k": "text",
+              "p": [
+                367,
+                172
+              ],
+              "t": "−40 dB/dec",
+              "a": "s",
+              "z": 11,
+              "s": "accent"
+            },
+            {
+              "k": "text",
+              "p": [
+                240,
+                306
+              ],
+              "t": "Asymptotic magnitude plot of G(jω)",
+              "a": "m",
+              "z": 11,
+              "s": "muted"
+            }
+          ]
+        }
+      },
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-036",
+      "qno": 36,
+      "section": "Technical",
+      "subject_id": "PE",
+      "subject": "Power Electronics",
+      "topic_id": "PE.RECT",
+      "topic": "Rectifiers",
+      "subtopic": "Line-commutated thyristor rectifiers",
+      "type": "NAT",
+      "marks": 2,
+      "negative_marks": 0,
+      "cognitive_level": "Application",
+      "difficulty": "Medium",
+      "question": "A single-phase half-wave thyristor rectifier supplies a resistive load from a 230 V (rms), 50 Hz source. The supply voltage vs (dashed) and the load voltage vo are shown. The average load voltage is ______ V (round off to 2 decimal places).",
+      "options": [],
+      "answer": "77.65",
+      "answer_range": {
+        "min": 77.4,
+        "max": 77.9
+      },
+      "solution": "The figure shows conduction from wt = 60 deg to 180 deg, so alpha = 60 deg. Vo = (Vm/(2 pi))(1 + cos alpha) = (325.27/(2 pi)) x 1.5 = 77.65 V.",
+      "concept": "Average output of a half-wave controlled rectifier read from its waveform",
+      "common_trap": "Using the full-wave expression (Vm/pi)(1 + cos alpha), which doubles the answer to 155.3 V.",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 180,
+      "verification": {
+        "expression": "230*sqrt(2)/(2*pi)*(1 + cosd(60))",
+        "variables": {}
+      },
+      "figure": {
+        "type": "plot",
+        "x": {
+          "label": "ωt",
+          "unit": "deg",
+          "min": 0,
+          "max": 720,
+          "ticks": [
+            0,
+            60,
+            180,
+            360,
+            420,
+            540,
+            720
+          ]
+        },
+        "y": {
+          "label": "v",
+          "unit": "V",
+          "min": -350,
+          "max": 350,
+          "ticks": [
+            -325,
+            0,
+            325
+          ]
+        },
+        "series": [
+          {
+            "label": "vs",
+            "expression": "325.27*sind(x)",
+            "domain": [
+              0,
+              720
+            ],
+            "style": "dashed",
+            "color_index": 0
+          },
+          {
+            "label": "vo",
+            "expression": "325.27*sind(x)",
+            "domains": [
+              [
+                60,
+                180
+              ],
+              [
+                420,
+                540
+              ]
+            ],
+            "color_index": 1
+          },
+          {
+            "points": [
+              [
+                0,
+                0
+              ],
+              [
+                60,
+                0
+              ]
+            ],
+            "color_index": 1
+          },
+          {
+            "points": [
+              [
+                180,
+                0
+              ],
+              [
+                420,
+                0
+              ]
+            ],
+            "color_index": 1
+          },
+          {
+            "points": [
+              [
+                540,
+                0
+              ],
+              [
+                720,
+                0
+              ]
+            ],
+            "color_index": 1
+          }
+        ],
+        "description": "[Figure: plot]\nx-axis: ωt (deg)\ny-axis: v (V)\nCurve \"vs\" (dashed): y = 325.27*sind(x), drawn for x in [0, 720]; elsewhere not drawn\nCurve \"vo\": y = 325.27*sind(x), drawn for x in [60, 180] and [420, 540]; elsewhere not drawn\nCurve \"y\" is piecewise linear through (x, y): (0, 0), (60, 0)\nCurve \"y\" is piecewise linear through (x, y): (180, 0), (420, 0)\nCurve \"y\" is piecewise linear through (x, y): (540, 0), (720, 0)",
+        "render": {
+          "w": 480,
+          "h": 300,
+          "items": [
+            {
+              "k": "path",
+              "p": [
+                58,
+                26,
+                58,
+                260
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                58,
+                272
+              ],
+              "t": "0",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                91.7,
+                26,
+                91.7,
+                260
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                91.7,
+                272
+              ],
+              "t": "60",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                159,
+                26,
+                159,
+                260
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                159,
+                272
+              ],
+              "t": "180",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                260,
+                26,
+                260,
+                260
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                260,
+                272
+              ],
+              "t": "360",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                293.7,
+                26,
+                293.7,
+                260
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                293.7,
+                272
+              ],
+              "t": "420",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                361,
+                26,
+                361,
+                260
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                361,
+                272
+              ],
+              "t": "540",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                462,
+                26,
+                462,
+                260
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                462,
+                272
+              ],
+              "t": "720",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                251.6,
+                462,
+                251.6
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                53,
+                251.6
+              ],
+              "t": "-325",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                143,
+                462,
+                143
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                53,
+                143
+              ],
+              "t": "0",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                34.4,
+                462,
+                34.4
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                53,
+                34.4
+              ],
+              "t": "325",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                143,
+                462,
+                143
+              ],
+              "s": "fg",
+              "w": 1.2
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                26,
+                58,
+                260
+              ],
+              "s": "fg",
+              "w": 1.2
+            },
+            {
+              "k": "text",
+              "p": [
+                462,
+                288
+              ],
+              "t": "ωt (deg)",
+              "a": "e",
+              "z": 11,
+              "s": "fg"
+            },
+            {
+              "k": "text",
+              "p": [
+                54,
+                16
+              ],
+              "t": "v (V)",
+              "a": "s",
+              "z": 11,
+              "s": "fg"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                143,
+                59.7,
+                137.3,
+                61.4,
+                131.6,
+                63.1,
+                126,
+                64.7,
+                120.4,
+                66.4,
+                114.9,
+                68.1,
+                109.4,
+                69.8,
+                104,
+                71.5,
+                98.8,
+                73.2,
+                93.6,
+                74.8,
+                88.6,
+                76.5,
+                83.8,
+                78.2,
+                79.1,
+                79.9,
+                74.6,
+                81.6,
+                70.2,
+                83.3,
+                66.1,
+                84.9,
+                62.2,
+                86.6,
+                58.5,
+                88.3,
+                55,
+                90,
+                51.8,
+                91.7,
+                48.8,
+                93.4,
+                46.1,
+                95,
+                43.7,
+                96.7,
+                41.5,
+                98.4,
+                39.6,
+                100.1,
+                38,
+                101.8,
+                36.6,
+                103.5,
+                35.6,
+                105.1,
+                34.9,
+                106.8,
+                34.4,
+                108.5,
+                34.3,
+                110.2,
+                34.4,
+                111.9,
+                34.9,
+                113.6,
+                35.6,
+                115.2,
+                36.6,
+                116.9,
+                38,
+                118.6,
+                39.6,
+                120.3,
+                41.5,
+                122,
+                43.7,
+                123.7,
+                46.1,
+                125.3,
+                48.8,
+                127,
+                51.8,
+                128.7,
+                55,
+                130.4,
+                58.5,
+                132.1,
+                62.2,
+                133.8,
+                66.1,
+                135.4,
+                70.2,
+                137.1,
+                74.6,
+                138.8,
+                79.1,
+                140.5,
+                83.8,
+                142.2,
+                88.6,
+                143.9,
+                93.6,
+                145.5,
+                98.8,
+                147.2,
+                104,
+                148.9,
+                109.4,
+                150.6,
+                114.9,
+                152.3,
+                120.4,
+                154,
+                126,
+                155.6,
+                131.6,
+                157.3,
+                137.3,
+                159,
+                143,
+                160.7,
+                148.7,
+                162.4,
+                154.4,
+                164.1,
+                160,
+                165.7,
+                165.6,
+                167.4,
+                171.1,
+                169.1,
+                176.6,
+                170.8,
+                182,
+                172.5,
+                187.2,
+                174.1,
+                192.4,
+                175.8,
+                197.4,
+                177.5,
+                202.2,
+                179.2,
+                206.9,
+                180.9,
+                211.4,
+                182.6,
+                215.8,
+                184.3,
+                219.9,
+                185.9,
+                223.8,
+                187.6,
+                227.5,
+                189.3,
+                231,
+                191,
+                234.2,
+                192.7,
+                237.2,
+                194.4,
+                239.9,
+                196,
+                242.3,
+                197.7,
+                244.5,
+                199.4,
+                246.4,
+                201.1,
+                248,
+                202.8,
+                249.4,
+                204.5,
+                250.4,
+                206.1,
+                251.1,
+                207.8,
+                251.6,
+                209.5,
+                251.7,
+                211.2,
+                251.6,
+                212.9,
+                251.1,
+                214.6,
+                250.4,
+                216.2,
+                249.4,
+                217.9,
+                248,
+                219.6,
+                246.4,
+                221.3,
+                244.5,
+                223,
+                242.3,
+                224.7,
+                239.9,
+                226.3,
+                237.2,
+                228,
+                234.2,
+                229.7,
+                231,
+                231.4,
+                227.5,
+                233.1,
+                223.8,
+                234.8,
+                219.9,
+                236.4,
+                215.8,
+                238.1,
+                211.4,
+                239.8,
+                206.9,
+                241.5,
+                202.2,
+                243.2,
+                197.4,
+                244.9,
+                192.4,
+                246.5,
+                187.2,
+                248.2,
+                182,
+                249.9,
+                176.6,
+                251.6,
+                171.1,
+                253.3,
+                165.6,
+                255,
+                160,
+                256.6,
+                154.4,
+                258.3,
+                148.7,
+                260,
+                143,
+                261.7,
+                137.3,
+                263.4,
+                131.6,
+                265,
+                126,
+                266.7,
+                120.4,
+                268.4,
+                114.9,
+                270.1,
+                109.4,
+                271.8,
+                104,
+                273.5,
+                98.8,
+                275.2,
+                93.6,
+                276.8,
+                88.6,
+                278.5,
+                83.8,
+                280.2,
+                79.1,
+                281.9,
+                74.6,
+                283.6,
+                70.2,
+                285.3,
+                66.1,
+                286.9,
+                62.2,
+                288.6,
+                58.5,
+                290.3,
+                55,
+                292,
+                51.8,
+                293.7,
+                48.8,
+                295.4,
+                46.1,
+                297,
+                43.7,
+                298.7,
+                41.5,
+                300.4,
+                39.6,
+                302.1,
+                38,
+                303.8,
+                36.6,
+                305.5,
+                35.6,
+                307.1,
+                34.9,
+                308.8,
+                34.4,
+                310.5,
+                34.3,
+                312.2,
+                34.4,
+                313.9,
+                34.9,
+                315.5,
+                35.6,
+                317.2,
+                36.6,
+                318.9,
+                38,
+                320.6,
+                39.6,
+                322.3,
+                41.5,
+                324,
+                43.7,
+                325.7,
+                46.1,
+                327.3,
+                48.8,
+                329,
+                51.8,
+                330.7,
+                55,
+                332.4,
+                58.5,
+                334.1,
+                62.2,
+                335.8,
+                66.1,
+                337.4,
+                70.2,
+                339.1,
+                74.6,
+                340.8,
+                79.1,
+                342.5,
+                83.8,
+                344.2,
+                88.6,
+                345.9,
+                93.6,
+                347.5,
+                98.8,
+                349.2,
+                104,
+                350.9,
+                109.4,
+                352.6,
+                114.9,
+                354.3,
+                120.4,
+                356,
+                126,
+                357.6,
+                131.6,
+                359.3,
+                137.3,
+                361,
+                143,
+                362.7,
+                148.7,
+                364.4,
+                154.4,
+                366,
+                160,
+                367.7,
+                165.6,
+                369.4,
+                171.1,
+                371.1,
+                176.6,
+                372.8,
+                182,
+                374.5,
+                187.2,
+                376.2,
+                192.4,
+                377.8,
+                197.4,
+                379.5,
+                202.2,
+                381.2,
+                206.9,
+                382.9,
+                211.4,
+                384.6,
+                215.8,
+                386.3,
+                219.9,
+                387.9,
+                223.8,
+                389.6,
+                227.5,
+                391.3,
+                231,
+                393,
+                234.2,
+                394.7,
+                237.2,
+                396.4,
+                239.9,
+                398,
+                242.3,
+                399.7,
+                244.5,
+                401.4,
+                246.4,
+                403.1,
+                248,
+                404.8,
+                249.4,
+                406.5,
+                250.4,
+                408.1,
+                251.1,
+                409.8,
+                251.6,
+                411.5,
+                251.7,
+                413.2,
+                251.6,
+                414.9,
+                251.1,
+                416.6,
+                250.4,
+                418.2,
+                249.4,
+                419.9,
+                248,
+                421.6,
+                246.4,
+                423.3,
+                244.5,
+                425,
+                242.3,
+                426.7,
+                239.9,
+                428.3,
+                237.2,
+                430,
+                234.2,
+                431.7,
+                231,
+                433.4,
+                227.5,
+                435.1,
+                223.8,
+                436.8,
+                219.9,
+                438.4,
+                215.8,
+                440.1,
+                211.4,
+                441.8,
+                206.9,
+                443.5,
+                202.2,
+                445.2,
+                197.4,
+                446.9,
+                192.4,
+                448.5,
+                187.2,
+                450.2,
+                182,
+                451.9,
+                176.6,
+                453.6,
+                171.1,
+                455.3,
+                165.6,
+                457,
+                160,
+                458.6,
+                154.4,
+                460.3,
+                148.7,
+                462,
+                143
+              ],
+              "s": "s0",
+              "w": 2,
+              "d": 1
+            },
+            {
+              "k": "path",
+              "p": [
+                91.7,
+                48.8,
+                91.9,
+                48.4,
+                92.2,
+                47.9,
+                92.5,
+                47.4,
+                92.8,
+                47,
+                93.1,
+                46.6,
+                93.4,
+                46.1,
+                93.6,
+                45.7,
+                93.9,
+                45.3,
+                94.2,
+                44.9,
+                94.5,
+                44.5,
+                94.8,
+                44.1,
+                95,
+                43.7,
+                95.3,
+                43.3,
+                95.6,
+                42.9,
+                95.9,
+                42.5,
+                96.2,
+                42.2,
+                96.4,
+                41.8,
+                96.7,
+                41.5,
+                97,
+                41.2,
+                97.3,
+                40.8,
+                97.6,
+                40.5,
+                97.8,
+                40.2,
+                98.1,
+                39.9,
+                98.4,
+                39.6,
+                98.7,
+                39.3,
+                99,
+                39,
+                99.2,
+                38.7,
+                99.5,
+                38.5,
+                99.8,
+                38.2,
+                100.1,
+                38,
+                100.4,
+                37.7,
+                100.6,
+                37.5,
+                100.9,
+                37.3,
+                101.2,
+                37.1,
+                101.5,
+                36.8,
+                101.8,
+                36.6,
+                102,
+                36.4,
+                102.3,
+                36.3,
+                102.6,
+                36.1,
+                102.9,
+                35.9,
+                103.2,
+                35.8,
+                103.5,
+                35.6,
+                103.7,
+                35.5,
+                104,
+                35.3,
+                104.3,
+                35.2,
+                104.6,
+                35.1,
+                104.9,
+                35,
+                105.1,
+                34.9,
+                105.4,
+                34.8,
+                105.7,
+                34.7,
+                106,
+                34.6,
+                106.3,
+                34.5,
+                106.5,
+                34.5,
+                106.8,
+                34.4,
+                107.1,
+                34.4,
+                107.4,
+                34.3,
+                107.7,
+                34.3,
+                107.9,
+                34.3,
+                108.2,
+                34.3,
+                108.5,
+                34.3,
+                108.8,
+                34.3,
+                109.1,
+                34.3,
+                109.3,
+                34.3,
+                109.6,
+                34.3,
+                109.9,
+                34.4,
+                110.2,
+                34.4,
+                110.5,
+                34.5,
+                110.7,
+                34.5,
+                111,
+                34.6,
+                111.3,
+                34.7,
+                111.6,
+                34.8,
+                111.9,
+                34.9,
+                112.1,
+                35,
+                112.4,
+                35.1,
+                112.7,
+                35.2,
+                113,
+                35.3,
+                113.3,
+                35.5,
+                113.6,
+                35.6,
+                113.8,
+                35.8,
+                114.1,
+                35.9,
+                114.4,
+                36.1,
+                114.7,
+                36.3,
+                115,
+                36.4,
+                115.2,
+                36.6,
+                115.5,
+                36.8,
+                115.8,
+                37.1,
+                116.1,
+                37.3,
+                116.4,
+                37.5,
+                116.6,
+                37.7,
+                116.9,
+                38,
+                117.2,
+                38.2,
+                117.5,
+                38.5,
+                117.8,
+                38.7,
+                118,
+                39,
+                118.3,
+                39.3,
+                118.6,
+                39.6,
+                118.9,
+                39.9,
+                119.2,
+                40.2,
+                119.4,
+                40.5,
+                119.7,
+                40.8,
+                120,
+                41.2,
+                120.3,
+                41.5,
+                120.6,
+                41.8,
+                120.8,
+                42.2,
+                121.1,
+                42.5,
+                121.4,
+                42.9,
+                121.7,
+                43.3,
+                122,
+                43.7,
+                122.2,
+                44.1,
+                122.5,
+                44.5,
+                122.8,
+                44.9,
+                123.1,
+                45.3,
+                123.4,
+                45.7,
+                123.7,
+                46.1,
+                123.9,
+                46.6,
+                124.2,
+                47,
+                124.5,
+                47.4,
+                124.8,
+                47.9,
+                125.1,
+                48.4,
+                125.3,
+                48.8,
+                125.6,
+                49.3,
+                125.9,
+                49.8,
+                126.2,
+                50.3,
+                126.5,
+                50.8,
+                126.7,
+                51.3,
+                127,
+                51.8,
+                127.3,
+                52.3,
+                127.6,
+                52.9,
+                127.9,
+                53.4,
+                128.1,
+                53.9,
+                128.4,
+                54.5,
+                128.7,
+                55,
+                129,
+                55.6,
+                129.3,
+                56.2,
+                129.5,
+                56.7,
+                129.8,
+                57.3,
+                130.1,
+                57.9,
+                130.4,
+                58.5,
+                130.7,
+                59.1,
+                130.9,
+                59.7,
+                131.2,
+                60.3,
+                131.5,
+                60.9,
+                131.8,
+                61.6,
+                132.1,
+                62.2,
+                132.3,
+                62.8,
+                132.6,
+                63.5,
+                132.9,
+                64.1,
+                133.2,
+                64.8,
+                133.5,
+                65.4,
+                133.8,
+                66.1,
+                134,
+                66.8,
+                134.3,
+                67.5,
+                134.6,
+                68.2,
+                134.9,
+                68.8,
+                135.2,
+                69.5,
+                135.4,
+                70.2,
+                135.7,
+                71,
+                136,
+                71.7,
+                136.3,
+                72.4,
+                136.6,
+                73.1,
+                136.8,
+                73.8,
+                137.1,
+                74.6,
+                137.4,
+                75.3,
+                137.7,
+                76.1,
+                138,
+                76.8,
+                138.2,
+                77.6,
+                138.5,
+                78.3,
+                138.8,
+                79.1,
+                139.1,
+                79.9,
+                139.4,
+                80.6,
+                139.6,
+                81.4,
+                139.9,
+                82.2,
+                140.2,
+                83,
+                140.5,
+                83.8,
+                140.8,
+                84.6,
+                141,
+                85.4,
+                141.3,
+                86.2,
+                141.6,
+                87,
+                141.9,
+                87.8,
+                142.2,
+                88.6,
+                142.4,
+                89.5,
+                142.7,
+                90.3,
+                143,
+                91.1,
+                143.3,
+                92,
+                143.6,
+                92.8,
+                143.9,
+                93.6,
+                144.1,
+                94.5,
+                144.4,
+                95.3,
+                144.7,
+                96.2,
+                145,
+                97,
+                145.3,
+                97.9,
+                145.5,
+                98.8,
+                145.8,
+                99.6,
+                146.1,
+                100.5,
+                146.4,
+                101.4,
+                146.7,
+                102.3,
+                146.9,
+                103.1,
+                147.2,
+                104,
+                147.5,
+                104.9,
+                147.8,
+                105.8,
+                148.1,
+                106.7,
+                148.3,
+                107.6,
+                148.6,
+                108.5,
+                148.9,
+                109.4,
+                149.2,
+                110.3,
+                149.5,
+                111.2,
+                149.7,
+                112.1,
+                150,
+                113,
+                150.3,
+                113.9,
+                150.6,
+                114.9,
+                150.9,
+                115.8,
+                151.1,
+                116.7,
+                151.4,
+                117.6,
+                151.7,
+                118.5,
+                152,
+                119.5,
+                152.3,
+                120.4,
+                152.5,
+                121.3,
+                152.8,
+                122.3,
+                153.1,
+                123.2,
+                153.4,
+                124.1,
+                153.7,
+                125.1,
+                154,
+                126,
+                154.2,
+                126.9,
+                154.5,
+                127.9,
+                154.8,
+                128.8,
+                155.1,
+                129.7,
+                155.4,
+                130.7,
+                155.6,
+                131.6,
+                155.9,
+                132.6,
+                156.2,
+                133.5,
+                156.5,
+                134.5,
+                156.8,
+                135.4,
+                157,
+                136.4,
+                157.3,
+                137.3,
+                157.6,
+                138.3,
+                157.9,
+                139.2,
+                158.2,
+                140.2,
+                158.4,
+                141.1,
+                158.7,
+                142.1,
+                159,
+                143
+              ],
+              "s": "s1",
+              "w": 2
+            },
+            {
+              "k": "path",
+              "p": [
+                293.7,
+                48.8,
+                293.9,
+                48.4,
+                294.2,
+                47.9,
+                294.5,
+                47.4,
+                294.8,
+                47,
+                295.1,
+                46.6,
+                295.4,
+                46.1,
+                295.6,
+                45.7,
+                295.9,
+                45.3,
+                296.2,
+                44.9,
+                296.5,
+                44.5,
+                296.8,
+                44.1,
+                297,
+                43.7,
+                297.3,
+                43.3,
+                297.6,
+                42.9,
+                297.9,
+                42.5,
+                298.2,
+                42.2,
+                298.4,
+                41.8,
+                298.7,
+                41.5,
+                299,
+                41.2,
+                299.3,
+                40.8,
+                299.6,
+                40.5,
+                299.8,
+                40.2,
+                300.1,
+                39.9,
+                300.4,
+                39.6,
+                300.7,
+                39.3,
+                301,
+                39,
+                301.2,
+                38.7,
+                301.5,
+                38.5,
+                301.8,
+                38.2,
+                302.1,
+                38,
+                302.4,
+                37.7,
+                302.6,
+                37.5,
+                302.9,
+                37.3,
+                303.2,
+                37.1,
+                303.5,
+                36.8,
+                303.8,
+                36.6,
+                304,
+                36.4,
+                304.3,
+                36.3,
+                304.6,
+                36.1,
+                304.9,
+                35.9,
+                305.2,
+                35.8,
+                305.5,
+                35.6,
+                305.7,
+                35.5,
+                306,
+                35.3,
+                306.3,
+                35.2,
+                306.6,
+                35.1,
+                306.9,
+                35,
+                307.1,
+                34.9,
+                307.4,
+                34.8,
+                307.7,
+                34.7,
+                308,
+                34.6,
+                308.3,
+                34.5,
+                308.5,
+                34.5,
+                308.8,
+                34.4,
+                309.1,
+                34.4,
+                309.4,
+                34.3,
+                309.7,
+                34.3,
+                309.9,
+                34.3,
+                310.2,
+                34.3,
+                310.5,
+                34.3,
+                310.8,
+                34.3,
+                311.1,
+                34.3,
+                311.3,
+                34.3,
+                311.6,
+                34.3,
+                311.9,
+                34.4,
+                312.2,
+                34.4,
+                312.5,
+                34.5,
+                312.7,
+                34.5,
+                313,
+                34.6,
+                313.3,
+                34.7,
+                313.6,
+                34.8,
+                313.9,
+                34.9,
+                314.1,
+                35,
+                314.4,
+                35.1,
+                314.7,
+                35.2,
+                315,
+                35.3,
+                315.3,
+                35.5,
+                315.5,
+                35.6,
+                315.8,
+                35.8,
+                316.1,
+                35.9,
+                316.4,
+                36.1,
+                316.7,
+                36.3,
+                317,
+                36.4,
+                317.2,
+                36.6,
+                317.5,
+                36.8,
+                317.8,
+                37.1,
+                318.1,
+                37.3,
+                318.4,
+                37.5,
+                318.6,
+                37.7,
+                318.9,
+                38,
+                319.2,
+                38.2,
+                319.5,
+                38.5,
+                319.8,
+                38.7,
+                320,
+                39,
+                320.3,
+                39.3,
+                320.6,
+                39.6,
+                320.9,
+                39.9,
+                321.2,
+                40.2,
+                321.4,
+                40.5,
+                321.7,
+                40.8,
+                322,
+                41.2,
+                322.3,
+                41.5,
+                322.6,
+                41.8,
+                322.8,
+                42.2,
+                323.1,
+                42.5,
+                323.4,
+                42.9,
+                323.7,
+                43.3,
+                324,
+                43.7,
+                324.2,
+                44.1,
+                324.5,
+                44.5,
+                324.8,
+                44.9,
+                325.1,
+                45.3,
+                325.4,
+                45.7,
+                325.7,
+                46.1,
+                325.9,
+                46.6,
+                326.2,
+                47,
+                326.5,
+                47.4,
+                326.8,
+                47.9,
+                327.1,
+                48.4,
+                327.3,
+                48.8,
+                327.6,
+                49.3,
+                327.9,
+                49.8,
+                328.2,
+                50.3,
+                328.5,
+                50.8,
+                328.7,
+                51.3,
+                329,
+                51.8,
+                329.3,
+                52.3,
+                329.6,
+                52.9,
+                329.9,
+                53.4,
+                330.1,
+                53.9,
+                330.4,
+                54.5,
+                330.7,
+                55,
+                331,
+                55.6,
+                331.3,
+                56.2,
+                331.5,
+                56.7,
+                331.8,
+                57.3,
+                332.1,
+                57.9,
+                332.4,
+                58.5,
+                332.7,
+                59.1,
+                332.9,
+                59.7,
+                333.2,
+                60.3,
+                333.5,
+                60.9,
+                333.8,
+                61.6,
+                334.1,
+                62.2,
+                334.3,
+                62.8,
+                334.6,
+                63.5,
+                334.9,
+                64.1,
+                335.2,
+                64.8,
+                335.5,
+                65.4,
+                335.8,
+                66.1,
+                336,
+                66.8,
+                336.3,
+                67.5,
+                336.6,
+                68.2,
+                336.9,
+                68.8,
+                337.2,
+                69.5,
+                337.4,
+                70.2,
+                337.7,
+                71,
+                338,
+                71.7,
+                338.3,
+                72.4,
+                338.6,
+                73.1,
+                338.8,
+                73.8,
+                339.1,
+                74.6,
+                339.4,
+                75.3,
+                339.7,
+                76.1,
+                340,
+                76.8,
+                340.2,
+                77.6,
+                340.5,
+                78.3,
+                340.8,
+                79.1,
+                341.1,
+                79.9,
+                341.4,
+                80.6,
+                341.6,
+                81.4,
+                341.9,
+                82.2,
+                342.2,
+                83,
+                342.5,
+                83.8,
+                342.8,
+                84.6,
+                343,
+                85.4,
+                343.3,
+                86.2,
+                343.6,
+                87,
+                343.9,
+                87.8,
+                344.2,
+                88.6,
+                344.4,
+                89.5,
+                344.7,
+                90.3,
+                345,
+                91.1,
+                345.3,
+                92,
+                345.6,
+                92.8,
+                345.9,
+                93.6,
+                346.1,
+                94.5,
+                346.4,
+                95.3,
+                346.7,
+                96.2,
+                347,
+                97,
+                347.3,
+                97.9,
+                347.5,
+                98.8,
+                347.8,
+                99.6,
+                348.1,
+                100.5,
+                348.4,
+                101.4,
+                348.7,
+                102.3,
+                348.9,
+                103.1,
+                349.2,
+                104,
+                349.5,
+                104.9,
+                349.8,
+                105.8,
+                350.1,
+                106.7,
+                350.3,
+                107.6,
+                350.6,
+                108.5,
+                350.9,
+                109.4,
+                351.2,
+                110.3,
+                351.5,
+                111.2,
+                351.7,
+                112.1,
+                352,
+                113,
+                352.3,
+                113.9,
+                352.6,
+                114.9,
+                352.9,
+                115.8,
+                353.1,
+                116.7,
+                353.4,
+                117.6,
+                353.7,
+                118.5,
+                354,
+                119.5,
+                354.3,
+                120.4,
+                354.5,
+                121.3,
+                354.8,
+                122.3,
+                355.1,
+                123.2,
+                355.4,
+                124.1,
+                355.7,
+                125.1,
+                356,
+                126,
+                356.2,
+                126.9,
+                356.5,
+                127.9,
+                356.8,
+                128.8,
+                357.1,
+                129.7,
+                357.4,
+                130.7,
+                357.6,
+                131.6,
+                357.9,
+                132.6,
+                358.2,
+                133.5,
+                358.5,
+                134.5,
+                358.8,
+                135.4,
+                359,
+                136.4,
+                359.3,
+                137.3,
+                359.6,
+                138.3,
+                359.9,
+                139.2,
+                360.2,
+                140.2,
+                360.4,
+                141.1,
+                360.7,
+                142.1,
+                361,
+                143
+              ],
+              "s": "s1",
+              "w": 2
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                143,
+                91.7,
+                143
+              ],
+              "s": "s1",
+              "w": 2
+            },
+            {
+              "k": "path",
+              "p": [
+                159,
+                143,
+                293.7,
+                143
+              ],
+              "s": "s1",
+              "w": 2
+            },
+            {
+              "k": "path",
+              "p": [
+                361,
+                143,
+                462,
+                143
+              ],
+              "s": "s1",
+              "w": 2
+            },
+            {
+              "k": "path",
+              "p": [
+                342,
+                36,
+                362,
+                36
+              ],
+              "s": "s0",
+              "w": 2,
+              "d": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                366,
+                36
+              ],
+              "t": "vs",
+              "a": "s",
+              "z": 10,
+              "s": "fg"
+            },
+            {
+              "k": "path",
+              "p": [
+                342,
+                52,
+                362,
+                52
+              ],
+              "s": "s1",
+              "w": 2
+            },
+            {
+              "k": "text",
+              "p": [
+                366,
+                52
+              ],
+              "t": "vo",
+              "a": "s",
+              "z": 10,
+              "s": "fg"
+            }
+          ]
+        }
+      },
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-037",
+      "qno": 37,
+      "section": "GA",
+      "subject_id": "GA",
+      "subject": "General Aptitude",
+      "topic_id": "GA.QUANT",
+      "topic": "Quantitative Aptitude",
+      "subtopic": "Data interpretation",
+      "type": "NAT",
+      "marks": 2,
+      "negative_marks": 0,
+      "cognitive_level": "Application",
+      "difficulty": "Easy",
+      "question": "The bar chart shows the annual production of a factory. The average annual production over the five years exceeds the 2019 production by ______ % (round off to 1 decimal place).",
+      "options": [],
+      "answer": "32.5",
+      "answer_range": {
+        "min": 32.45,
+        "max": 32.55
+      },
+      "solution": "Average = (120 + 150 + 135 + 180 + 210)/5 = 795/5 = 159 thousand units. Excess over 2019 = (159 - 120)/120 x 100 = 32.5%.",
+      "concept": "Averages and percentage change from a chart",
+      "common_trap": "Dividing by the average instead of the 2019 value, giving 24.5%.",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 180,
+      "verification": {
+        "expression": "((120+150+135+180+210)/5 - 120)/120*100",
+        "variables": {}
+      },
+      "figure": {
+        "type": "bar_chart",
+        "categories": [
+          "2019",
+          "2020",
+          "2021",
+          "2022",
+          "2023"
+        ],
+        "series": [
+          {
+            "label": "Production",
+            "values": [
+              120,
+              150,
+              135,
+              180,
+              210
+            ]
+          }
+        ],
+        "y": {
+          "label": "Production",
+          "unit": "thousand units"
+        },
+        "x": {
+          "label": "Year"
+        },
+        "description": "[Figure: bar_chart]\nBar chart of Production (thousand units):\n2019: Production = 120\n2020: Production = 150\n2021: Production = 135\n2022: Production = 180\n2023: Production = 210",
+        "render": {
+          "w": 480,
+          "h": 280,
+          "items": [
+            {
+              "k": "path",
+              "p": [
+                58,
+                234,
+                462,
+                234
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                53,
+                234
+              ],
+              "t": "0",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                192,
+                462,
+                192
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                53,
+                192
+              ],
+              "t": "50",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                150,
+                462,
+                150
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                53,
+                150
+              ],
+              "t": "100",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                108,
+                462,
+                108
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                53,
+                108
+              ],
+              "t": "150",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                66,
+                462,
+                66
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                53,
+                66
+              ],
+              "t": "200",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                24,
+                462,
+                24
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                53,
+                24
+              ],
+              "t": "250",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                81.4,
+                234,
+                81.4,
+                133.2,
+                115.4,
+                133.2,
+                115.4,
+                234
+              ],
+              "s": "s0",
+              "w": 1,
+              "f": "s0",
+              "close": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                98.4,
+                125.2
+              ],
+              "t": "120",
+              "a": "m",
+              "z": 9,
+              "s": "fg"
+            },
+            {
+              "k": "text",
+              "p": [
+                98.4,
+                247
+              ],
+              "t": "2019",
+              "a": "m",
+              "z": 10,
+              "s": "fg"
+            },
+            {
+              "k": "path",
+              "p": [
+                162.2,
+                234,
+                162.2,
+                108,
+                196.2,
+                108,
+                196.2,
+                234
+              ],
+              "s": "s0",
+              "w": 1,
+              "f": "s0",
+              "close": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                179.2,
+                100
+              ],
+              "t": "150",
+              "a": "m",
+              "z": 9,
+              "s": "fg"
+            },
+            {
+              "k": "text",
+              "p": [
+                179.2,
+                247
+              ],
+              "t": "2020",
+              "a": "m",
+              "z": 10,
+              "s": "fg"
+            },
+            {
+              "k": "path",
+              "p": [
+                243,
+                234,
+                243,
+                120.6,
+                277,
+                120.6,
+                277,
+                234
+              ],
+              "s": "s0",
+              "w": 1,
+              "f": "s0",
+              "close": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                260,
+                112.6
+              ],
+              "t": "135",
+              "a": "m",
+              "z": 9,
+              "s": "fg"
+            },
+            {
+              "k": "text",
+              "p": [
+                260,
+                247
+              ],
+              "t": "2021",
+              "a": "m",
+              "z": 10,
+              "s": "fg"
+            },
+            {
+              "k": "path",
+              "p": [
+                323.8,
+                234,
+                323.8,
+                82.8,
+                357.8,
+                82.8,
+                357.8,
+                234
+              ],
+              "s": "s0",
+              "w": 1,
+              "f": "s0",
+              "close": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                340.8,
+                74.8
+              ],
+              "t": "180",
+              "a": "m",
+              "z": 9,
+              "s": "fg"
+            },
+            {
+              "k": "text",
+              "p": [
+                340.8,
+                247
+              ],
+              "t": "2022",
+              "a": "m",
+              "z": 10,
+              "s": "fg"
+            },
+            {
+              "k": "path",
+              "p": [
+                404.6,
+                234,
+                404.6,
+                57.6,
+                438.6,
+                57.6,
+                438.6,
+                234
+              ],
+              "s": "s0",
+              "w": 1,
+              "f": "s0",
+              "close": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                421.6,
+                49.6
+              ],
+              "t": "210",
+              "a": "m",
+              "z": 9,
+              "s": "fg"
+            },
+            {
+              "k": "text",
+              "p": [
+                421.6,
+                247
+              ],
+              "t": "2023",
+              "a": "m",
+              "z": 10,
+              "s": "fg"
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                234,
+                462,
+                234
+              ],
+              "s": "fg",
+              "w": 1.2
+            },
+            {
+              "k": "path",
+              "p": [
+                58,
+                24,
+                58,
+                234
+              ],
+              "s": "fg",
+              "w": 1.2
+            },
+            {
+              "k": "text",
+              "p": [
+                54,
+                12
+              ],
+              "t": "Production (thousand units)",
+              "a": "s",
+              "z": 11,
+              "s": "fg"
+            },
+            {
+              "k": "text",
+              "p": [
+                462,
+                264
+              ],
+              "t": "Year",
+              "a": "e",
+              "z": 11,
+              "s": "fg"
+            }
+          ]
+        }
+      },
+      "source": "sample"
+    },
+    {
+      "id": "SAMPLE-038",
+      "qno": 38,
+      "section": "Technical",
+      "subject_id": "SS",
+      "subject": "Signals and Systems",
+      "topic_id": "SS.LAPLACE",
+      "topic": "Laplace Transform",
+      "subtopic": "Laplace transform and ROC",
+      "type": "MSQ",
+      "marks": 2,
+      "negative_marks": 0,
+      "cognitive_level": "Analysis",
+      "difficulty": "Medium",
+      "question": "The pole-zero plot of a causal LTI system H(s) is shown. Which of the following statements is/are TRUE?",
+      "options": [
+        "The system is BIBO stable",
+        "The impulse response is a decaying oscillation with damped frequency 2 rad/s",
+        "The DC gain of the system is zero",
+        "The system behaves as a low-pass filter"
+      ],
+      "answer": "A,B,C",
+      "answer_range": null,
+      "solution": "The poles are at -1 +/- j2 (left half plane), so the causal system is BIBO stable (A true). Complex poles with real part -1 and imaginary part 2 give an impulse response like e^(-t) cos(2t + phi): a decaying oscillation at 2 rad/s (B true). The zero at s = 0 makes H(0) = 0 (C true). A zero at the origin and a complex pole pair give a band-pass response, not low-pass (D false).",
+      "concept": "Reading stability, damped frequency and filter type from a pole-zero plot",
+      "common_trap": "Calling it low-pass because both poles are stable, ignoring the zero at the origin.",
+      "distractor_logic": "",
+      "related_pyq_year": "",
+      "predicted_importance": "Medium",
+      "time_estimate_sec": 180,
+      "verification": null,
+      "figure": {
+        "type": "pole_zero",
+        "poles": [
+          [
+            -1,
+            2
+          ],
+          [
+            -1,
+            -2
+          ]
+        ],
+        "zeros": [
+          [
+            0,
+            0
+          ]
+        ],
+        "label_points": true,
+        "description": "[Figure: pole_zero]\ns-plane pole-zero plot\nPoles (x): -1 + j2, -1 - j2\nZeros (o): 0",
+        "render": {
+          "w": 480,
+          "h": 330,
+          "items": [
+            {
+              "k": "path",
+              "p": [
+                120,
+                314,
+                120,
+                14
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "path",
+              "p": [
+                90,
+                284,
+                390,
+                284
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                120,
+                176
+              ],
+              "t": "-2",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "text",
+              "p": [
+                235,
+                284
+              ],
+              "t": "-2j",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                180,
+                314,
+                180,
+                14
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "path",
+              "p": [
+                90,
+                224,
+                390,
+                224
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                180,
+                176
+              ],
+              "t": "-1",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "text",
+              "p": [
+                235,
+                224
+              ],
+              "t": "-1j",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                240,
+                314,
+                240,
+                14
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "path",
+              "p": [
+                90,
+                164,
+                390,
+                164
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "path",
+              "p": [
+                300,
+                314,
+                300,
+                14
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "path",
+              "p": [
+                90,
+                104,
+                390,
+                104
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                300,
+                176
+              ],
+              "t": "1",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "text",
+              "p": [
+                235,
+                104
+              ],
+              "t": "1j",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                360,
+                314,
+                360,
+                14
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "path",
+              "p": [
+                90,
+                44,
+                390,
+                44
+              ],
+              "s": "grid",
+              "w": 0.8
+            },
+            {
+              "k": "text",
+              "p": [
+                360,
+                176
+              ],
+              "t": "2",
+              "a": "m",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "text",
+              "p": [
+                235,
+                44
+              ],
+              "t": "2j",
+              "a": "e",
+              "z": 10,
+              "s": "muted"
+            },
+            {
+              "k": "path",
+              "p": [
+                90,
+                164,
+                390,
+                164
+              ],
+              "s": "fg",
+              "w": 1.2
+            },
+            {
+              "k": "path",
+              "p": [
+                390,
+                164,
+                383.5,
+                166.6,
+                383.5,
+                161.4
+              ],
+              "s": "fg",
+              "w": 1,
+              "f": "fg",
+              "close": 1
+            },
+            {
+              "k": "path",
+              "p": [
+                240,
+                314,
+                240,
+                14
+              ],
+              "s": "fg",
+              "w": 1.2
+            },
+            {
+              "k": "path",
+              "p": [
+                240,
+                14,
+                242.6,
+                20.5,
+                237.4,
+                20.5
+              ],
+              "s": "fg",
+              "w": 1,
+              "f": "fg",
+              "close": 1
+            },
+            {
+              "k": "text",
+              "p": [
+                390,
+                152
+              ],
+              "t": "σ",
+              "a": "e",
+              "z": 11,
+              "s": "fg"
+            },
+            {
+              "k": "text",
+              "p": [
+                248,
+                18
+              ],
+              "t": "jω",
+              "a": "s",
+              "z": 11,
+              "s": "fg"
+            },
+            {
+              "k": "path",
+              "p": [
+                174,
+                38,
+                186,
+                50
+              ],
+              "s": "s0",
+              "w": 2.2
+            },
+            {
+              "k": "path",
+              "p": [
+                174,
+                50,
+                186,
+                38
+              ],
+              "s": "s0",
+              "w": 2.2
+            },
+            {
+              "k": "text",
+              "p": [
+                189,
+                34
+              ],
+              "t": "-1+j2",
+              "a": "s",
+              "z": 10,
+              "s": "s0"
+            },
+            {
+              "k": "path",
+              "p": [
+                174,
+                278,
+                186,
+                290
+              ],
+              "s": "s0",
+              "w": 2.2
+            },
+            {
+              "k": "path",
+              "p": [
+                174,
+                290,
+                186,
+                278
+              ],
+              "s": "s0",
+              "w": 2.2
+            },
+            {
+              "k": "text",
+              "p": [
+                189,
+                274
+              ],
+              "t": "-1−j2",
+              "a": "s",
+              "z": 10,
+              "s": "s0"
+            },
+            {
+              "k": "circle",
+              "c": [
+                240,
+                164
+              ],
+              "r": 6,
+              "s": "s1",
+              "w": 2.2,
+              "f": "bg"
+            },
+            {
+              "k": "text",
+              "p": [
+                249,
+                176
+              ],
+              "t": "0",
+              "a": "s",
+              "z": 10,
+              "s": "s1"
+            }
+          ]
+        }
+      },
+      "source": "sample"
+    }
+  ]
+}
