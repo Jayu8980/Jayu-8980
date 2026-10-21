@@ -32,8 +32,8 @@ internal object WordAligner {
         val score = IntArray((n + 1) * cols)
         // 0 = diagonal, 1 = up (gap in recognised), 2 = left (gap in script)
         val move = ByteArray((n + 1) * cols)
-        for (i in 1..n) { score[i * cols] = i * GAP; move[i * cols] = 1 }
-        for (j in 1..m) { score[j] = j * GAP; move[j] = 2 }
+        for (i in 1..n) { score[i * cols] = i * GAP; move[i * cols] = 1.toByte() }
+        for (j in 1..m) { score[j] = j * GAP; move[j] = 2.toByte() }
         for (i in 1..n) {
             for (j in 1..m) {
                 val diag = score[(i - 1) * cols + j - 1] + similarity(a[i - 1], b[j - 1])
@@ -45,7 +45,7 @@ internal object WordAligner {
                     diag -> 0
                     up -> 1
                     else -> 2
-                }
+                }.toByte()
             }
         }
 
