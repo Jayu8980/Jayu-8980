@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AutoTube AI</string>
+    <string name="channel_pipeline_name">Video creation</string>
+    <string name="channel_pipeline_desc">Progress of videos being created in the background</string>
+    <string name="channel_alerts_name">Alerts</string>
+    <string name="channel_alerts_desc">Finished videos, review requests and errors</string>
+</resources>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Play button inside a rounded frame with a spark: AutoTube AI. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFF3D57"
+        android:pathData="M30,36h48a8,8 0,0 1,8 8v20a8,8 0,0 1,-8 8h-48a8,8 0,0 1,-8 -8v-20a8,8 0,0 1,8 -8z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M48,44l16,10l-16,10z" />
+    <path
+        android:fillColor="#FFFFD54F"
+        android:pathData="M78,26l2,5l5,2l-5,2l-2,5l-2,-5l-5,-2l5,-2z" />
+</vector>
