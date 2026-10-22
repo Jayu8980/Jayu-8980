@@ -6,10 +6,13 @@ import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.audio.SpeedChangingAudioProcessor
 import androidx.media3.common.audio.SpeedProvider
 import androidx.media3.effect.OverlayEffect
 import androidx.media3.effect.Presentation
 import androidx.media3.effect.ScaleAndRotateTransformation
+import androidx.media3.effect.SpeedChangeEffect
+import androidx.media3.effect.TextureOverlay
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
@@ -70,7 +73,7 @@ class StudioCompositionBuilder(private val silenceDir: File) {
         val builder = Composition.Builder(sequences)
         if (!o.forPreview && o.textOnComposition && project.texts.isNotEmpty()) {
             val overlay = StudioTextOverlay(o.width, o.height, project.texts)
-            builder.setEffects(Effects(emptyList(), listOf<Effect>(OverlayEffect(ImmutableList.of(overlay)))))
+            builder.setEffects(Effects(emptyList(), listOf<Effect>(OverlayEffect(ImmutableList.of<TextureOverlay>(overlay)))))
         }
         return builder.build()
     }
@@ -99,13 +102,13 @@ class StudioCompositionBuilder(private val silenceDir: File) {
             builder.setDurationUs(clip.trimmedMs * 1000L)
         } else {
             builder.setDurationUs(clip.sourceDurationMs * 1000L)
-            if (o.speed && clip.speed != 1f) builder.setSpeed(ConstantSpeed(clip.speed))
         }
         return builder.build()
     }
 
     private fun videoEffects(project: StudioProject, clip: StudioClip, index: Int, startMs: Long, o: Options): List<Effect> {
-        val effects = ArrayList<Effect>(7)
+        val effects = ArrayList<Effect>(8)
+        if (o.speed && !clip.isImage && clip.speed != 1f) effects += SpeedChangeEffect(clip.speed)
         if (clip.rotation != 0 || clip.flipH || clip.flipV) {
             effects += ScaleAndRotateTransformation.Builder()
                 .setScale(if (clip.flipH) -1f else 1f, if (clip.flipV) -1f else 1f)
@@ -126,7 +129,7 @@ class StudioCompositionBuilder(private val silenceDir: File) {
         if (!o.forPreview && !o.textOnComposition) {
             val texts = project.texts.filter { it.endMs > startMs && it.startMs < startMs + clip.durationMs }
             if (texts.isNotEmpty()) {
-                effects += OverlayEffect(ImmutableList.of(StudioTextOverlay(o.width, o.height, texts, startMs * 1000L)))
+                effects += OverlayEffect(ImmutableList.of<TextureOverlay>(StudioTextOverlay(o.width, o.height, texts, startMs * 1000L)))
             }
         }
         return effects
@@ -165,20 +168,15 @@ class StudioCompositionBuilder(private val silenceDir: File) {
             .setUri(Uri.fromFile(File(clip.path)))
             .setClippingConfiguration(clipping(clip.trimStartMs, clip.trimEndMs))
             .build()
+        // Keep the audio in step with an un-sped preview picture.
+        if (clip.speed != 1f && !o.speed) return silenceItem(clip.trimmedMs)
+        val processors = ArrayList<AudioProcessor>(2)
+        if (clip.speed != 1f) processors += SpeedChangingAudioProcessor(ConstantSpeed(clip.speed))
+        if (clip.volume != 1f) processors += VolumeFadeAudioProcessor(clip.volume)
         val builder = EditedMediaItem.Builder(mediaItem)
             .setRemoveVideo(true)
             .setDurationUs(clip.sourceDurationMs * 1000L)
-        if (clip.volume != 1f) {
-            builder.setEffects(Effects(listOf<AudioProcessor>(VolumeFadeAudioProcessor(clip.volume)), emptyList()))
-        }
-        if (clip.speed != 1f) {
-            if (o.speed) {
-                builder.setSpeed(ConstantSpeed(clip.speed))
-            } else {
-                // Keep the audio in step with the (un-sped) preview picture.
-                return silenceItem(clip.trimmedMs)
-            }
-        }
+        if (processors.isNotEmpty()) builder.setEffects(Effects(processors, emptyList()))
         return builder.build()
     }
 
