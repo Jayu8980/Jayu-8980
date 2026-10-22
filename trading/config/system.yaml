@@ -1,0 +1,56 @@
+# System configuration. No secrets here: credentials come from environment variables
+# (see .env.example) or a secrets manager. Every value below is a Phase 1 default that the
+# owner has not yet confirmed; see docs/DECISIONS.md.
+
+stage: backtest  # backtest -> paper -> live_human_approval -> live_auto (no skipping)
+
+market:
+  exchanges: [NSE]
+  segments: [cash, fno]
+  universe: nifty500_plus_fno  # includes delisted names for backtests
+  timezone: Asia/Kolkata
+  allow_naked_option_writing: false
+  shorts_via: [future, put_option]  # cash shorts are intraday-only in India
+
+trading:
+  style: swing
+  decision_cycle:
+    scheduled_ist: ["15:45"]  # after the close, on EOD data
+    event_driven: true
+  entry_timing_timeframe: 15m
+
+broker:
+  name: zerodha_kite
+  max_orders_per_second: 8  # keep under the SEBI retail-algo OPS threshold; confirm current rules with the broker
+  static_ip_required: true
+  allow_market_orders: false
+
+llm:
+  provider: anthropic
+  # Exact pinned model ids are an owner decision (docs/DECISIONS.md). Aliases are rejected.
+  models:
+    reasoning: UNSET  # boss, debate, trend
+    extraction: UNSET  # news extraction, high volume
+  temperature: 0.0
+  max_debate_rounds: 2
+  max_llm_calls_per_cycle: 60
+  daily_cost_budget_usd: 20.0
+
+timeouts_seconds:
+  analyst: 120
+  debate: 180
+  boss: 120
+  gate: 10
+
+bus:
+  backend: memory  # memory (tests/backtests) | redis_streams
+  redis_url_env: AITRADER_REDIS_URL
+
+state:
+  backend: memory  # memory | postgres
+  postgres_dsn_env: AITRADER_POSTGRES_DSN
+
+notifications:
+  channel: telegram
+  bot_token_env: AITRADER_TELEGRAM_BOT_TOKEN
+  chat_id_env: AITRADER_TELEGRAM_CHAT_ID

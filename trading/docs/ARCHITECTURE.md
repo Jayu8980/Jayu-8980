@@ -1,0 +1,306 @@
+# Architecture: Multi-Agent AI Trading System
+
+Status: **Phase 1 (architecture, schemas, skeleton), awaiting review.**
+Scope assumed for Phase 1: NSE cash plus F&O, swing horizon, Zerodha Kite Connect, Python 3.11+.
+Every assumption is listed in [DECISIONS.md](DECISIONS.md) and is config-driven.
+
+---
+
+## 1. Principles and where each one is enforced
+
+| # | Principle | Enforcement mechanism | Verified by |
+|---|-----------|-----------------------|-------------|
+| 1 | LLMs research and judge; they never sit in the execution hot path or do arithmetic | Agent specs mark LLM agents, which cannot publish on gate, risk or order topics (`TOPIC_PUBLISHERS`). The boss outputs a *risk-budget fraction* and deterministic sizing computes quantities | `test_agent_registry.py::test_llm_agents_never_touch_gates_or_orders`, `test_unauthorised_publishers_are_rejected` |
+| 2 | Risk limits, sizing and execution are deterministic | Liquidity, R:R, risk, execution and orchestrator are `DETERMINISTIC`. Limits are validated on load (`config/settings.py`) | `test_gates_and_execution_are_deterministic`, `test_config.py` |
+| 3 | Everything logged immutably and replayably | Every envelope, LLM call (full prompt, model, seed), tool call, config snapshot and human action goes to a hash-chained append-only log (`schemas/audit.py`, `audit/interface.py`) | Phase 2: chain-tamper tests |
+| 4 | Point-in-time correctness | Envelope requires `event_time <= available_at <= produced_at`. Storage reads are as-of `available_at` | `test_lookahead_timestamps_are_rejected`. Phase 2–3: explicit lookahead and survivorship tests |
+| 5 | External text is untrusted | Strict schemas with `extra="forbid"`. Claims must quote a source document. Prompts wrap external text in data blocks. Outputs must parse or are discarded | `test_news_schemas.py`, `test_free_text_payload_is_rejected` |
+| 6 | Safe degradation | Every spec declares a `FailureMode`. Missing agents apply limit multipliers. Safety-critical components `FREEZE` | `test_safety_critical_components_freeze_on_failure`. Phase 5: failure-injection tests |
+| 7 | Staged rollout | `stage` in config; paper/live require durable backends; risk rule `STAGE_NOT_PERMITTED` | `test_paper_and_live_need_durable_backends` |
+
+## 2. Layers and decision flow
+
+```mermaid
+flowchart TD
+  subgraph L1[Data layer]
+    DATA[Data agent]
+  end
+  subgraph L2[Shared infrastructure]
+    BUS[(Message bus)]
+    STATE[(State store)]
+    AUDIT[(Hash-chained audit log)]
+    TOOLS[Institutional tool layer]
+    ORCH[Orchestrator]
+  end
+  subgraph L3[Analyst layer]
+    CHART[Chart] --- NEWS[News] --- IMPACT[News impact] --- SM[Smart money] --- TREND[Trend / regime]
+  end
+  subgraph L4[Deliberation]
+    DEBATE[Bull vs bear]
+  end
+  subgraph L5[Decision]
+    BOSS[Boss / CIO]
+    FALLBACK[Deterministic fallback]
+  end
+  subgraph L6[Gates]
+    LIQ[Liquidity] --> RR[Risk-to-reward] --> RISK[Risk: absolute veto]
+  end
+  subgraph L7[Execution]
+    EXEC[Order execution]
+  end
+  subgraph L8[Feedback]
+    TCA[TCA] --- ATTR[Attribution & calibration]
+  end
+  DATA --> BUS --> L3 --> DEBATE --> BOSS
+  FALLBACK -.->|boss fails/times out| LIQ
+  BOSS --> LIQ
+  RISK -->|signed token + instruction| EXEC
+  EXEC -->|fills| BUS --> TCA & ATTR
+  ATTR -->|credibility by regime| BOSS
+  LIQ -. fail .-> BOSS
+  RR -. fail .-> BOSS
+  RISK -. veto .-> BOSS
+```
+
+### Decision cycle
+
+```mermaid
+sequenceDiagram
+  participant O as Orchestrator
+  participant A as Analysts (parallel, timed out)
+  participant D as Debate (≤ N rounds)
+  participant B as Boss
+  participant L as Liquidity
+  participant R as R:R
+  participant K as Risk
+  participant E as Execution
+  O->>A: cycle_id, as-of time
+  A-->>O: signals (missing ones recorded)
+  O->>D: combined view
+  D-->>B: debate.output
+  B->>L: boss.decision (BUY/SELL/REDUCE/HEDGE) — HOLD/WAIT stop here
+  L-->>R: liquidity.plan (hard max qty)
+  R-->>K: rr.verdict
+  K->>K: deterministic sizing, all limits, VaR/stress
+  K-->>E: orders.instructions + single-use token
+  E-->>O: orders.updates, orders.fills
+  Note over L,K: Any failed gate returns to the boss (revise or drop), max 2 revisions, never forward
+```
+
+**Failed gates.** A rejection at liquidity, R:R or risk goes back to the boss as a request to revise
+or drop. `revision_of` and `revision_number` link the attempts. The revision cap is 2, after which
+the decision becomes WAIT.
+
+**HOLD and WAIT** produce no instructions (enforced in `UnsignedInstruction`). HOLD keeps
+existing positions and their broker-side protective stops.
+
+## 3. Components
+
+| Agent | Kind | Publishes | Failure mode |
+|-------|------|-----------|--------------|
+| Data | deterministic | `data.*`, `risk.alerts` | FREEZE (data failure alert) |
+| Chart | deterministic | `signals.chart` | SKIP (no levels → R:R cannot pass) |
+| News | hybrid (LLM extraction) | `news.events`, `news.risk_flags` | SKIP (calendar flags still apply) |
+| News impact | deterministic | `news.impact` | SKIP (generic stress scenarios) |
+| Smart money | deterministic | `signals.smartmoney` | SKIP |
+| Trend / regime | hybrid | `regime.outlook`, `news.risk_flags` | FALLBACK (regime UNKNOWN, stricter multiplier) |
+| Debate (bull, bear) | LLM | `debate.output` | SKIP (boss conviction capped) |
+| Boss | LLM | `boss.decision` | FALLBACK (rule set, ≤ 50% risk budget) |
+| Liquidity | deterministic | `liquidity.plan` | BLOCK_TRADE |
+| Risk-to-reward | deterministic | `rr.verdict` | BLOCK_TRADE |
+| Risk | deterministic | `risk.approval`, `orders.instructions`, `risk.alerts` | FREEZE (nothing can be approved) |
+| Execution | deterministic | `orders.updates`, `orders.fills`, `risk.alerts` | FREEZE |
+| Orchestrator | deterministic | `system.heartbeat`, `risk.alerts` | FREEZE |
+| TCA, attribution | deterministic | `tca.results`, `feedback.scores` | SKIP |
+
+The full contracts (responsibility, consumed and published topics, tools, timeouts, metrics) are
+the `SPEC` objects in each package, collected in `agents/registry.py`.
+
+**Why most analysts are deterministic.** Chart structure, event studies, flow scores and
+liquidity are numeric. LLMs are used only where language or judgment is the actual job: news
+extraction, regime narrative, debate and the CIO decision. This keeps cost, latency and
+non-determinism where they add value.
+
+## 4. Communication
+
+**Envelope** (`schemas/envelope.py`). Every message carries: `message_id`, `schema_version`,
+`topic`, `agent_id`, `cycle_id`, `causation_ids`, `event_time`, `available_at`,
+`produced_at`, `priority` and a typed `payload`. The payload is a discriminated union on `kind`.
+The envelope validator enforces:
+
+- the payload type matches the topic;
+- the publisher is authorised for the topic (authority hierarchy);
+- `event_time <= available_at <= produced_at` (no lookahead);
+- `risk.alerts` are always `INTERRUPT` priority;
+- the schema major version is compatible.
+
+**Topics:** `data.bars`, `data.corporate_actions`, `data.quality`, `signals.chart`,
+`signals.smartmoney`, `news.events`, `news.risk_flags`, `news.impact`, `regime.outlook`,
+`debate.output`, `boss.decision`, `liquidity.plan`, `rr.verdict`, `risk.approval`,
+`risk.alerts`, `orders.instructions`, `orders.updates`, `orders.fills`, `tca.results`,
+`feedback.scores`, `system.heartbeat`.
+
+**Delivery** (`bus/interface.py`). At-least-once delivery, so consumers dedupe on `message_id`.
+Interrupts jump the queue. Ordering is guaranteed per topic only. Publishing writes the audit log
+first and validates the envelope; an invalid envelope is never delivered. Backends: in-memory for
+tests and backtests, Redis Streams (consumer groups) for paper and live.
+
+**Patterns.** Broadcast for context (regime, risk flags). Request/response for gates, correlated
+by `decision_id` and `cycle_id`. Interrupts for alerts and the kill switch.
+
+## 5. Approval tokens and the no-bypass guarantee
+
+1. The risk agent builds the `UnsignedInstruction` itself: approved quantity, liquidity plan,
+   protective stop and idempotency key.
+2. It computes `digest = sha256(canonical_json(instruction))` and issues an `ApprovalToken`
+   containing `token_id`, `decision_id`, `instruction_digest`, `issued_at`, `expires_at`
+   (TTL 300 s), `key_id`, and an HMAC-SHA256 `signature` keyed by `AITRADER_RISK_SIGNING_KEY`.
+3. `OrderInstruction` refuses to construct if the token's digest or decision does not match. Any
+   change to quantity, price, side, stop or key after approval invalidates it (tested).
+4. Execution verifies the HMAC and expiry, then atomically consumes `token_id`
+   (`StateStore.consume_token`) and claims the `idempotency_key` before any broker call.
+5. The broker adapter is private to the execution package. Its only public entry point is
+   `execute(OrderInstruction)`, which performs steps 4 and 5 and checks the freeze flag. A
+   Phase 6 static test fails CI if any module outside `execution/` imports the broker client.
+6. The kill switch is a `risk.alerts` interrupt (`KILL_SWITCH`). It sets the freeze flag in the
+   state store, which execution checks before every child order. Only a human action can clear it
+   (`clear_freeze(cleared_by_human=True)`). A file-based switch also works when the bus is down.
+
+## 6. Orders
+
+- State machine: `pending → placed → partially_filled → filled`, with `cancelled` and
+  `rejected` as terminal states. Transitions are validated (`ALLOWED_TRANSITIONS`, `OrderUpdate`).
+- One idempotency key per instruction leg. Child orders use `<key>:<slice>` as the broker order
+  tag. Retries after a timeout first query the broker by tag and never blindly re-send.
+- Fills are deduplicated on `broker_trade_id`.
+- Reconciliation runs every 60 s comparing positions and orders with the broker. Any mismatch
+  raises `RECONCILIATION_MISMATCH`, which freezes trading.
+- Sanity caps: order value, order rate (≤ broker OPS cap), and price deviation from the last
+  traded price. Freeze-quantity splits for F&O. Market orders are disabled by default.
+
+## 7. Point-in-time data
+
+- **Bitemporal storage.** Every record keeps `event_time` (when it happened or was published at
+  the source), `available_at` (when the system could first know it, including vendor and exchange
+  publication lag) and `ingested_at`. Reads are always `as_of(available_at <= t)`.
+- **Lagged sources get true availability.** FII/DII and participant OI are published after the
+  close. Shareholding data is quarterly with a filing lag. Fundamentals become available at the
+  filing timestamp, not the period end.
+- **Corporate actions** are applied as of the backtest clock. A split announced after `t` must
+  not adjust prices seen at `t`. `Bar.adjustment_factor` records what was applied.
+- **Survivorship.** Historical index and universe membership is used, with delisted and renamed
+  symbols mapped through `CorporateActionType.DELISTING` and `SYMBOL_CHANGE`.
+- Phase 2 and 3 add explicit tests: a planted future record is never visible to an as-of read,
+  backtest results are unchanged when future data is deleted, and delisted names stay in the
+  universe on dates they traded.
+
+## 8. LLM usage
+
+- Models are pinned by exact id in `system.yaml`. `LlmConfig.require_pinned()` refuses
+  placeholders and `*-latest` aliases before any LLM agent starts. Temperature defaults to 0.
+- Prompts are versioned files in `src/aitrader/prompts/` and never edited in place. Every call
+  logs the prompt id, version, hash, full rendered text, seed, tokens and cost (`LlmCallRecord`).
+- Output must parse into the agent's schema. An unparseable output counts as an agent failure,
+  never as a retry-until-it-agrees loop.
+- External text appears only inside delimited data blocks. Schemas have no free-text
+  "instruction" channel, and the extracted claims must quote the source span. That span is
+  verified against the stored document by a deterministic tool (`news.verify_excerpt`).
+- Numbers in LLM outputs must reference tool calls (`EvidenceKind.TOOL_CALL`). The boss cannot
+  emit a quantity, only a `risk_budget_fraction` in [0, 1].
+- Budgets: a per-cycle call cap and a daily USD cap. Breaching a budget degrades to the
+  deterministic fallback.
+
+## 9. Degradation matrix
+
+| Failure | Behaviour |
+|---------|-----------|
+| One analyst times out | Cycle proceeds; limit multiplier ×0.75 per missing agent; no new entries below 3 live analysts |
+| Trend agent missing | Regime `UNKNOWN`, multiplier ×0.5, exposure targets cannot rise |
+| Debate missing | Boss decides, conviction capped |
+| Boss fails or times out | Deterministic fallback, ≤ 50% risk budget, flagged `used_fallback` |
+| Liquidity or R:R missing | Trade dropped |
+| Risk agent down | Nothing can be approved, so no new orders; freeze alert on heartbeat loss |
+| Data feed stale | `DATA_FAILURE` freeze for new entries; broker-side stops remain |
+| Broker disconnect | Freeze; on reconnect, reconcile before unfreezing (human clears) |
+| Reconciliation mismatch | Freeze; human clears |
+| Duplicate or replayed message | Deduped on `message_id`; instruction replays rejected by single-use token and idempotency key |
+| Drawdown breach | Daily: freeze new entries for the day. Total: freeze and run the flatten runbook. Human clears |
+
+## 10. Risk framework
+
+Limits live in `config/limits.yaml` and are validated for coherence on load (for example,
+daily < total drawdown and net ≤ gross). They cover:
+
+- per-trade risk (1%, hard cap 2% in code) and position (10%);
+- gross and net exposure, sector, correlation cluster, leverage and number of positions;
+- daily and total drawdown (3% / 10%), with progressive tightening from 50% of a limit;
+- liquidity (≤ 5% ADV, participation ≤ 10%, ≤ 1 day to liquidate);
+- VaR and CVaR at 99%, 1 day;
+- minimum R:R per setup and minimum stop distance in ATR;
+- event-window entry blocks;
+- exposure changes of at most 20% per cycle.
+
+Human approval is required above 0.5% risk, for new instrument types, and inside event windows.
+
+## 11. Feedback loops
+
+- **TCA.** Realised versus estimated impact (`estimation_error_bps`) recalibrates the liquidity
+  agent's impact coefficients.
+- **Attribution.** Hit rate, IC and Brier score per agent per regime, shrunk toward a prior when
+  samples are small, publish `credibility` for the boss.
+- **Boss discretion.** The boss's P&L is compared with a credibility-weighted consensus baseline.
+  Sustained underperformance shrinks the maximum `risk_budget_fraction` the boss may use.
+- **Setup EV drift.** Realised R-multiples per setup feed back into the R:R agent's win rates.
+
+## 12. Staged rollout
+
+`backtest → paper → live_human_approval → live_auto`. The stage is config, and the risk agent
+refuses orders the stage does not permit. Each promotion needs explicit owner sign-off and the
+exit criteria in DECISIONS.md. Paper and live refuse in-memory backends.
+
+## 13. Repository layout
+
+```
+trading/
+  config/            system.yaml, limits.yaml (no secrets)
+  docs/              ARCHITECTURE.md, DECISIONS.md
+  src/aitrader/
+    schemas/         every message and tool schema (Phase 1, done)
+    config/          typed config loader and validation (Phase 1, done)
+    agents/<name>/   one package per agent; SPEC now, implementation Phases 2–5
+    bus/ state/ audit/   contracts now; backends Phase 2–3
+    tools/           institutional tool layer (Phase 2)
+    backtest/        event-driven backtester (Phase 3)
+    orchestrator/    decision cycle (Phase 5)
+    execution/       order execution, reconciliation, kill switch (Phase 6)
+    feedback/        TCA and attribution (Phases 5–7)
+    monitoring/      dashboard (Phase 6)
+    prompts/         versioned prompts
+  tests/
+```
+
+## 14. Tool layer (Phase 2 catalogue)
+
+| Domain | Tools | Library |
+|--------|-------|---------|
+| Quant/stats | regression, cointegration, rolling β/ρ, HMM and change-point regimes, ARIMA, GARCH, event study, Brier, IC | statsmodels, arch, hmmlearn, ruptures |
+| Risk | historical/parametric/MC VaR and CVaR, stress, drawdown and tail metrics, exposure decomposition | numpy, scipy |
+| Derivatives | Black-Scholes and binomial pricing, Greeks, IV and its surface, skew, term structure, IV percentile, GEX, PCR, max pain, payoff | QuantLib (or py_vollib) |
+| Microstructure | book imbalance, spread and depth, square-root and Almgren-Chriss impact, VWAP/TWAP, TCA | numpy |
+| Fundamentals | DCF, relative valuation, Piotroski, Beneish, revisions, surprises | pandas |
+| Portfolio | MV, risk parity, Black-Litterman, HRP, Kelly and vol-target sizing, constrained optimiser | Riskfolio-Lib or PyPortfolioOpt |
+| Costs | Indian equity and F&O cost model: brokerage, STT, exchange charges, SEBI fee, stamp duty, GST | in-house, versioned rates by date |
+| Validation | walk-forward, MC trade resampling, deflated Sharpe | in-house |
+
+Every tool is a pure function with Pydantic input and output, a version string, and a
+`ToolCallRecord` per call.
+
+## 15. Known limitations at Phase 1
+
+- Bus, state and audit are contracts only, with no backend yet. Tokens are specified and
+  schema-bound, but HMAC sign/verify lives in tests until the risk and execution packages
+  implement it.
+- No market data has been sourced. Point-in-time quality depends on the data decisions in
+  DECISIONS.md.
+- Compliance: the order-rate cap is set below 10 OPS, but current SEBI retail-algo and broker
+  requirements must be confirmed before live trading.

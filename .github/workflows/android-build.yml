@@ -14,7 +14,7 @@ on:
   push:
     branches: ["**"]
     tags: ["v*"]
-    paths-ignore: ["**.md", "docs/**"]
+    paths-ignore: ["**.md", "docs/**", "trading/**", ".github/workflows/trading-ci.yml"]
   pull_request:
   workflow_dispatch:
     inputs:

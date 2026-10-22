@@ -1,0 +1,42 @@
+# Lint, type-check and test the Python trading system. Runs only when trading/ changes.
+name: Trading system CI
+
+on:
+  push:
+    branches: ["**"]
+    paths: ["trading/**", ".github/workflows/trading-ci.yml"]
+  pull_request:
+    paths: ["trading/**", ".github/workflows/trading-ci.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trading-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: trading
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Format
+        run: ruff format --check .
+      - name: Lint
+        run: ruff check .
+      - name: Type-check
+        run: mypy src tests
+      - name: Test
+        run: pytest
