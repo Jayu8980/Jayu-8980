@@ -92,6 +92,12 @@ ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
 
+// Both variants export the Room schema to the same file; run them one at a time so one never
+// reads the other's half-written JSON in parallel builds.
+tasks.matching { it.name == "kspDebugKotlin" }.configureEach {
+    mustRunAfter(tasks.matching { it.name == "kspReleaseKotlin" })
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
