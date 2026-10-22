@@ -28,6 +28,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.ContentCut
 import androidx.compose.material.icons.rounded.CloudUpload
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Insights
@@ -101,6 +102,7 @@ fun ReviewScreen(
     onBack: () -> Unit,
     onOpenProgress: (Long) -> Unit,
     onOpenError: (Long) -> Unit,
+    onEditInStudio: (path: String, title: String) -> Unit = { _, _ -> },
     viewModel: ReviewViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -194,6 +196,14 @@ fun ReviewScreen(
                     onShare = { path -> UiIntents.shareVideo(context, path, project.displayTitle) },
                     onRerender = { confirmRerender = true },
                 )
+                OutlinedButton(
+                    onClick = { project.outputVideoPath?.let { onEditInStudio(it, project.displayTitle) } },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Rounded.ContentCut, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Edit in Studio (trim, text, music, filters)")
+                }
                 project.warnings.forEach { Banner(it) }
                 UploadStatus(
                     state = state,

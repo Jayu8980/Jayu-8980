@@ -110,13 +110,14 @@ Text-to-speech output -> Speech Services by Google -> (gear) -> Install voice da
 
 ## 3. Screens
 
-Bottom navigation: **Create**, **Projects**, **Settings**. Dark Material 3 design.
+Bottom navigation: **Create**, **Studio**, **Projects**, **Settings**. Dark Material 3 design.
 
 | Screen | What you do there |
 |---|---|
 | **Create (Home)** | Topic/niche (+ optional notes under "Advanced"), Long-form / Shorts toggle, length (Shorts 15/30/45/60 s, long-form 1-20 min), language English / हिन्दी, chips showing which providers will be used or "Offline mode", warnings (low storage, battery saver, notifications off), the **Create Video** button and your 3 latest projects |
 | **Progress** | The 7 stages (Research, Script, Length check, Voice, Music, Editing, Upload) with sub-steps, progress bars and messages; overall progress ring; live preview (current image and narration); live log; Cancel. In review mode this is where you **pick one of the top 5 topics** |
 | **Review** | Video player, editable title (100 chars), description, tags (count/15), hashtags, thumbnail, QC report (human-feel and pacing scores, issues), scene list with **Regenerate** per scene, **Re-render**, upload options (Publish now / Schedule / Private for review), **Approve & Upload**, upload progress and YouTube link, Open in gallery, Share |
+| **Studio** | A manual, CapCut-style video editor for your own media (see [Studio editor](#studio-editor) below) |
 | **Projects** | All projects with thumbnail, format, length, language, status and progress; tap to continue, delete with confirmation |
 | **Settings** | API keys, AI providers, Voice, Music, Visuals, Look, Defaults, Quality, Device, YouTube (see [Settings explained](#9-settings-explained)) |
 | **Error** | What went wrong in plain words, which step failed, **Retry** (resumes at the failed step, finished steps are not redone or re-billed), Open Settings, technical details, View log, Share log |
@@ -124,6 +125,27 @@ Bottom navigation: **Create**, **Projects**, **Settings**. Dark Material 3 desig
 Notifications: an ongoing progress notification (with Cancel) while a video is being made, and
 alerts for "pick a topic", "video ready for review", "failed" and "uploaded"; tapping one opens the
 right screen.
+
+### Studio editor
+
+A full manual editor that runs offline, for your own clips or for an AutoTube video
+(**Review → Edit in Studio**). Projects auto-save and have unlimited undo/redo.
+
+| Area | Features |
+|---|---|
+| **Projects** | New project from gallery photos/videos (the canvas ratio follows the first clip), blank canvas in any ratio, rename, duplicate, delete |
+| **Preview** | Live Media3 preview of cuts, speed, filters, colour, transform and all audio. Text and stickers are drawn on the video: tap to select, double tap to edit, drag to move, pinch to resize. Tap empty video to play/pause |
+| **Timeline** | Fixed centre playhead, scroll to scrub, pinch to zoom, ruler, video filmstrips, separate lanes for text/stickers and audio, trim handles on the selected item, drag text and audio to move them, transition buttons between clips |
+| **Clip tools** | Split, trim (handles, Delete left / Delete right of the playhead), speed 0.25x to 4x (pitch kept), volume 0 to 200 % and mute, 12 filters with strength, Adjust (brightness, contrast, saturation, warmth, tint), Transform (rotate, mirror, flip, zoom, fit/fill), transitions (fade, dip to black, zoom, whip), freeze frame, extract audio, duplicate, reorder, delete, photo duration. Filters, Adjust and transitions can be applied to all clips |
+| **Text & stickers** | Fonts, size, colour, styles (plain, outline, shadow, label, neon), bold, animations (fade, pop, slide up, typewriter), timing on the timeline, 48 emoji stickers |
+| **Audio** | Music from any audio file, sound from another video, voiceover recording (plays the video muted while you record), per-layer volume, fade in/out, split, trim, move, overlapping layers mixed together |
+| **Canvas** | 9:16, 16:9, 1:1, 4:5, 3:4, 4:3, 21:9; fit with black bars or fill |
+| **Export** | H.264/AAC MP4 at 720p, 1080p, 2K or 4K, progress and cancel, saved to the gallery and shareable; retries at safer settings if a phone's encoder refuses |
+
+Studio files live in the app's private storage (`files/studio/<project>/`); picked media is copied in,
+so projects keep working after the gallery permission expires. The microphone permission is only
+asked for when you first record a voiceover. Transitions render on export; the live preview shows
+cuts.
 
 ## 4. Project structure
 
