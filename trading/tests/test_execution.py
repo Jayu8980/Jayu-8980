@@ -306,3 +306,34 @@ def test_friday_evening_approval_trades_at_mondays_open() -> None:
     assert record.status is InstructionStatus.ACCEPTED, record.reason
     r.session(friday + 1)  # Monday
     assert r.position() == 100
+
+
+def test_every_broker_call_is_audited_when_execution_has_an_audit_log() -> None:
+    from aitrader.execution.agent import ExecutionAgent
+    from aitrader.schemas.audit import BrokerCallRecord
+
+    r = rig()
+    audited = ExecutionAgent(
+        broker=r.broker,
+        signer=r.signer,
+        state=r.state,
+        book=r.book,
+        bus=r.bus,
+        limits=r.limits,
+        broker_config=r.agent.broker_config,
+        market_clock=r.agent.market_clock,
+        retry_delay=r.agent.retry_delay,
+        audit=r.audit,
+        audit_clock=r.clock,
+    )
+    instruction = r.instruction(0)
+    r.clock.now = instruction.approval.issued_at  # the evening the instruction was approved
+    run(audited.submit(instruction, r.clock.now))
+    calls = [
+        BrokerCallRecord.model_validate_json(rec.body_json)
+        for rec in r.audit.records()
+        if rec.record_type == "broker_call"
+    ]
+    assert {"quote", "available_margin", "positions", "place_order"} <= {c.method for c in calls}
+    placed = next(c for c in calls if c.method == "place_order")
+    assert placed.request["tag"] == r.book.children()[0].child_order_id and placed.error is None

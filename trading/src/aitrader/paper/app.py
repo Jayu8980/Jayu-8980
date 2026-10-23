@@ -18,7 +18,6 @@ from aitrader.audit.chain import JsonlAuditLog
 from aitrader.backtest.strategies import equity
 from aitrader.config.settings import RiskLimits, Stage, SystemConfig
 from aitrader.execution.agent import ExecutionAgent
-from aitrader.execution.broker import AuditedBroker
 from aitrader.execution.checks import MarketClock
 from aitrader.execution.killswitch import KillSwitch
 from aitrader.execution.paper import PaperBroker, PaperConfig
@@ -101,7 +100,7 @@ def build_paper_service(
         ),
     )
     execution = ExecutionAgent(
-        broker=AuditedBroker(broker, audit, wall_clock),
+        broker=broker,
         signer=signer,
         state=system.state,
         book=system.book,
@@ -109,6 +108,8 @@ def build_paper_service(
         limits=limits,
         broker_config=config.broker,
         market_clock=MarketClock(),
+        audit=audit,
+        audit_clock=wall_clock,
     )
     watchlist = [equity(s) for s in config.paper.watchlist]
 

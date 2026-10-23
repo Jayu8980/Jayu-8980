@@ -29,16 +29,18 @@ import hashlib
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Literal
 from uuid import UUID, uuid5
 
 from aitrader.agents.publishing import publish
 from aitrader.agents.risk.tokens import TokenError, TokenForgeryError, TokenReplayError, TokenSigner
+from aitrader.audit.interface import AuditLog
 from aitrader.bus.interface import MessageBus
 from aitrader.config.settings import BrokerConfig, RiskLimits
 from aitrader.execution.broker import (
+    AuditedBroker,
     Broker,
     BrokerError,
     BrokerOrder,
@@ -125,12 +127,18 @@ class ExecutionAgent:
     retry_delay: Callable[[int], Awaitable[None]] = field(
         default=lambda attempt: asyncio.sleep(0.5 * 2**attempt)
     )
+    audit: AuditLog | None = None  # when set, every broker call is recorded (AuditedBroker)
+    audit_clock: Callable[[], datetime] | None = None
     alerts: list[RiskAlert] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     updates: list[OrderUpdate] = field(default_factory=list)
     published_fills: list[Fill] = field(default_factory=list)
 
     def __post_init__(self) -> None:
+        if self.audit is not None:
+            self.broker = AuditedBroker(
+                self.broker, self.audit, self.audit_clock or (lambda: datetime.now(UTC))
+            )
         self._failures = 0
         self._limiter = self.rate_limiter or RateLimiter(self.broker_config.max_orders_per_second)
         self._open_triggered: dict[str, int] = {}  # key -> unfilled qty of triggered stop orders

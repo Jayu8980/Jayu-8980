@@ -47,3 +47,6 @@ __pycache__/
 *.egg-info/
 .env
 trading/data/
+
+# Paper service: audit log, checkpoint, dashboard, kill file
+trading/run/

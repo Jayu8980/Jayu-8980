@@ -1,7 +1,7 @@
 # Architecture: Multi-Agent AI Trading System
 
-Status: **Phase 6 done** (execution in paper mode, reconciliation, kill switch, durable backends,
-monitoring dashboard), awaiting review.
+Status: **Phase 7 done** (restartable daily paper-trading service, attribution feedback,
+notifications, paper-to-live readiness), awaiting review. Operations: [OPERATIONS.md](OPERATIONS.md).
 Phase reports: [PROGRESS.md](PROGRESS.md).
 Scope assumed for Phase 1: NSE cash plus F&O, swing horizon, Zerodha Kite Connect, Python 3.11+.
 Every assumption is listed in [DECISIONS.md](DECISIONS.md) and is config-driven.
@@ -156,9 +156,10 @@ by `decision_id` and `cycle_id`. Interrupts for alerts and the kill switch.
    protective stop and idempotency key.
 2. It computes `digest = sha256(canonical_json(instruction))` and issues an `ApprovalToken`
    containing `token_id`, `decision_id`, `instruction_digest`, `issued_at`, `expires_at`
-   (TTL from `limits.execution.approval_token_ttl_seconds`: 16 h by default, so an approval made after
-   the close is still valid at the next open), `key_id`, and an HMAC-SHA256 `signature` keyed by
-   `AITRADER_RISK_SIGNING_KEY`.
+   (TTL from `limits.execution.approval_token_ttl_seconds`, 16 h by default: how long the
+   approval may wait for execution to redeem it), `key_id`, and an HMAC-SHA256 `signature`
+   keyed by `AITRADER_RISK_SIGNING_KEY`. The instruction itself is valid until the close of
+   the next weekday session (§22), so a Friday-evening approval trades on Monday.
 3. `OrderInstruction` refuses to construct if the token's digest or decision does not match. Any
    change to quantity, price, side, stop or key after approval invalidates it (tested).
 4. Execution verifies the HMAC and expiry, then atomically consumes `token_id`
@@ -256,13 +257,16 @@ Human approval is required above 0.5% risk, for new instrument types, and inside
 
 ## 11. Feedback loops
 
-- **TCA.** Realised versus estimated impact (`estimation_error_bps`) recalibrates the liquidity
-  agent's impact coefficients.
-- **Attribution.** Hit rate, IC and Brier score per agent per regime, shrunk toward a prior when
-  samples are small, publish `credibility` for the boss.
-- **Boss discretion.** The boss's P&L is compared with a credibility-weighted consensus baseline.
-  Sustained underperformance shrinks the maximum `risk_budget_fraction` the boss may use.
-- **Setup EV drift.** Realised R-multiples per setup feed back into the R:R agent's win rates.
+- **TCA** (Phase 6). Realised versus estimated cost per instruction (`estimation_error_bps`).
+  The readiness report compares the two. The impact coefficient is still recalibrated by
+  hand, from that evidence, not automatically.
+- **Attribution** (Phase 7). Hit rate and IC per agent (Brier score for the trend agent), by
+  the regime the signal was issued in, shrunk toward 0.5. It publishes `credibility`, which
+  the boss's consensus weights read.
+- **Setup EV drift** (Phase 7). Realised R-multiples of closed paper trades feed the R:R
+  agent's setup statistics, which is how paper trading supplies the measured edge.
+- **Boss discretion** (not yet wired). The discretion tracker exists. Recording the boss
+  against the consensus baseline needs counterfactual returns per decision, and is open.
 
 ## 12. Staged rollout
 
@@ -287,9 +291,11 @@ trading/
     backtest/        event-driven backtester (Phase 3)
     orchestrator/    decision cycle (Phase 5)
     execution/       execution agent, paper broker, Kite adapter, checks, kill switch (Phase 6)
-    paper/           paper-trading runner (Phase 6)
-    feedback/        TCA agent and live per-agent scores (Phase 6); attribution (Phase 7)
+    paper/           runner (Phase 6); daily service, checkpoints, feed, readiness, CLI (Phase 7)
+    feedback/        TCA agent (Phase 6), attribution agent (Phase 7)
+    notify/          Telegram notifications and the notification agent (Phase 7)
     monitoring/      dashboard (Phase 6)
+  deploy/            Dockerfile, docker-compose (Redis, Postgres, service), systemd timer
     prompts/         versioned prompts
   tests/
 ```
@@ -605,12 +611,102 @@ Execution receives instructions only through the bus.
 - **Exit protection timing.** Between cancelling a stop and the exit filling, that quantity
   is protected only by the resting exit order. If the exit expires unfilled, the stop is
   re-armed at the next sync.
-- **Per-agent accuracy on the dashboard is a monitoring view** (hit rate and IC against
-  5-session returns). The attribution agent, with regime splits and credibility shrinkage
-  feeding the boss, is Phase 7.
-- **Notifications are not sent.** Alerts are on the bus, in the audit log and on the
-  dashboard; the Telegram channel is unbuilt pending credentials.
+- (Superseded in Phase 7: the attribution agent replaced the monitoring-only accuracy view,
+  and Telegram notifications are built.)
 - **Lookups after a lost acknowledgement assume the broker's order book is consistent
   within the retry delay** (0.5 s, doubling). If an order surfaces later than that, a
   duplicate is possible in principle. Its trades would match no order in the book, so sync
   would flag a mismatch and freeze, but only once it trades.
+
+## 22. Daily paper-trading service (Phase 7)
+
+**Service** (`paper/service.py`, built by `paper/app.py` from config, run by
+`python -m aitrader.paper`). Each step:
+1. Ingests every due weekday's EOD files through the data agent; ingestion is idempotent.
+2. Refreshes the cached point-in-time reader.
+3. Runs each new session through `PaperTrader.run_day`.
+4. Checkpoints, writes the dashboard and sends the daily summary.
+
+A weekday without files is a holiday once a later session exists; until then the service
+waits. Operations are in [OPERATIONS.md](OPERATIONS.md).
+
+**Restart = continuation.** `PaperCheckpoint` holds what the durable stores don't:
+- the paper broker's orders, trades, positions, protections, prices and cash;
+- the runner's peak equity and pending flatten requests;
+- the day records, TCA state, the engaged kill switch and already-reported unfilled stops;
+- the attribution state and the trend agent's last exposure.
+
+The file store writes atomically; the Postgres store keeps one row per run. A test stops a
+run after 15 sessions, rebuilds every object, restores and continues. Fills, equity, closed
+trades and agent credibility match an uninterrupted run exactly. Two changes made that
+possible:
+- The trend agent refits its regime model once per ISO week, on returns from before that
+  week. The fit no longer depends on when the process started.
+- The trend agent's exposure rate limit is checkpointed.
+
+**Attribution agent** (`feedback/attribution.py`). It observes the bus: regime outlooks,
+chart and smart-money signals, boss decisions, instructions and fills.
+- **Signal scoring.** Each signal is scored once its outcome is known, never earlier, and
+  never revised:
+  - chart and smart money: sign against the 5-session forward return, for |score| ≥ 0.2;
+  - trend: top scenario against the realised 20-session index move (±3%), plus a Brier
+    score.
+- **Credibility.** The beta-binomial posterior of the hit rate (prior 0.5, strength 20) in
+  the current regime, or across all regimes when the current one has fewer than 10 scored
+  calls. It is published as `AgentScore` on `feedback.scores` and written into the cycle's
+  credibility map before each decision.
+- **Round trips.** Trips are rebuilt from fills. A closed trip's R multiple is profit per
+  unit over the initial risk at the signed stop. It is recorded in the R:R agent's setup
+  statistics under the setup that triggered the entry; on restore the trips are replayed.
+
+**Instruction validity.** An instruction is valid until the close of the next weekday
+session. Before Phase 7 it was valid for 16 hours from approval, so approvals made on Friday
+evening expired before Monday's open and execution refused all of them (found and fixed
+here). The 16-hour approval-token TTL is unchanged: execution redeems a token within a
+second of signing.
+
+**Notifications** (`notify/`).
+- Freezing and critical alerts are sent once, by alert id; releases are sent too.
+- A summary follows each session.
+- Telegram messages are plain text (no parse mode), so alert text cannot inject formatting.
+- The bot token is scrubbed from kept errors.
+- A failed send never interrupts trading.
+
+**Readiness** (`paper/readiness.py`). The `rollout.paper_exit` criteria, checked on the
+record: sessions, reconciliation, drawdown, slippage against the estimate, closed trades,
+fills traced to tokens that verify offline, and not frozen. Shown on the dashboard and by
+`python -m aitrader.paper readiness`.
+
+**Operations safety:**
+- `kill` freezes in Postgres at once and leaves the kill file for the service.
+- `release` refuses while the file exists, clears every freeze and records the operator in
+  `human_actions`.
+- The kill switch notices a release made from another process.
+- `execution/kite_check.py` exercises only the adapter's read calls, behind a transport that
+  refuses anything but GET.
+- The paper service audits every broker call: the execution agent wraps its broker when
+  given an audit log, so no module outside `execution/` handles broker objects.
+
+## 23. Known limitations (as of Phase 7)
+
+- **No real data has flowed yet.** NSE archives are still unreachable from this
+  environment. The service, feed and parsers are exercised on synthetic files in NSE's
+  published formats. The first real run will be the first test of the parsers on live
+  files (§19).
+- **No universe source.** Index-membership history has no ingestion source, so the paper
+  universe is `paper.watchlist` until one is chosen.
+- **Live paper mode is EOD replay on the day.** The paper broker simulates each session from
+  that day's bar after it is published. Fill timing within the day is approximated, as in
+  §21.
+- **The Docker image has not been built here.** Docker Hub refused the base-image pull
+  (rate limit). The compose file validates, and the systemd timer schedules were checked
+  with `systemd-analyze`.
+- **A crash in the middle of a session** is not rolled back. The restart replays the
+  session from the last checkpoint: fills dedupe by trade id, but protection records may
+  disagree with the broker. Reconciliation freezes and a human checks.
+- **Boss discretion is not fed.** Credibility and setup statistics are live; the discretion
+  cap stays at its default.
+- **Impact recalibration is manual.** The TCA evidence is reported, but coefficients are
+  not changed automatically.
+- **Holidays are inferred,** not read from an exchange calendar. An instruction approved
+  before an unknown holiday expires untraded (safe).

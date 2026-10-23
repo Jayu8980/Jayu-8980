@@ -174,7 +174,7 @@ explicit acceptance tests in `tests/test_lookahead_survivorship.py`:
 - The trend agent refitted its regime model every cycle (0.36 s). It now refits weekly and
   filters in between (6 ms).
 
-## Phase 6: execution in paper mode, reconciliation, kill switch (done, awaiting review)
+## Phase 6: execution in paper mode, reconciliation, kill switch (done)
 
 **Built** (details in ARCHITECTURE.md §20)
 - **Execution agent:**
@@ -234,3 +234,53 @@ daily bars, the Kite adapter is unverified live, margin is approximated, corpora
 held positions are not simulated, and notifications are not sent yet.
 
 **Decisions needed before Phase 7:** DECISIONS.md, "Needed from you before Phase 7".
+
+## Phase 7: paper trading (done, awaiting review)
+
+**Built** (details in ARCHITECTURE.md §22; runbook in OPERATIONS.md)
+- **Daily paper service:** EOD ingestion from the NSE archives or a drop folder, due-session
+  detection with holiday inference, the paper session and decision cycle, then checkpoint,
+  dashboard and daily summary. It runs from a timer (`run-once`) or as a daemon.
+- **Checkpoints** (file or Postgres) that make a restart a seamless continuation.
+- **Attribution agent:** per-agent, per-regime hit rate, IC and Brier score with credibility
+  shrinkage, fed into the boss's weights; realised R-multiples of closed trades fed into the
+  setup statistics.
+- **Notifications:** Telegram, plain text; freeze and critical alerts once, releases, and a
+  daily summary.
+- **Paper-to-live readiness report** against `rollout.paper_exit`, on the dashboard and CLI.
+- **CLI:** `status`, `readiness`, `kill [--flatten]` (freezes at once), and
+  `release --operator` (refused while the kill file exists; recorded in Postgres).
+- **Kite read-only check** for your account, behind a GET-only transport.
+- **Deployment:** Dockerfile, docker-compose (Redis, Postgres, service), systemd service and
+  timer.
+
+**Tests:** 546 passing on Python 3.11 and 3.13 against real Postgres and Redis; ruff and strict
+mypy clean. New tests cover:
+- a restarted run identical to an uninterrupted one (fills, equity, closed trades,
+  credibility), and checkpoint round trips through the file and Postgres stores;
+- the service on synthetic files in NSE's formats: not before 19:00, a holiday skipped, a
+  late day waited for, resumed after restart, dashboard and summaries, fills traced;
+- the production factory end to end on DuckDB, Postgres, Redis and a folder feed;
+- attribution: setup statistics growing by the closed trades, credibility published and
+  used by the boss, no signal scored before its horizon, state round trips;
+- notifications sent once, warnings held back, Telegram retries with the token never leaked;
+- readiness criteria, and an untraced fill caught;
+- CLI kill and release, including the refusal while the kill file exists;
+- the Kite check making GET calls only;
+- the Friday-approval regression;
+- broker calls audited;
+- deploy files consistent with the entry points.
+
+**Defects found and fixed**
+- Instructions approved after Friday's close expired (16 h) before Monday's open, so
+  execution refused every Friday decision. This was latent since Phase 5. Instructions are now
+  valid until the next weekday session's close.
+- The trend agent's regime refit depended on when the process started, so a restarted run
+  diverged. It now refits per ISO week on pre-week data.
+- Overriding the state store in the test wiring did not reach the risk agent (test helper).
+
+**Known limitations:** ARCHITECTURE.md §23. In short: no real NSE data yet, no universe
+source (watchlist), the Docker image not built here (Docker Hub rate limit), mid-session
+crashes freeze rather than roll back, boss discretion not fed, impact recalibration manual.
+
+**Decisions needed before Phase 8:** DECISIONS.md, "Needed from you before Phase 8".

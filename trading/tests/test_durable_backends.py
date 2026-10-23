@@ -495,3 +495,38 @@ def test_the_production_factory_runs_paper_sessions(
     assert (tmp_path / "run" / "dashboard.html").exists()
     assert (tmp_path / "run" / "audit.jsonl").stat().st_size > 0
     assert len([m for m in notifier.messages if m.startswith("Paper trading")]) == 2
+
+
+@needs_pg
+def test_cli_kill_freezes_at_once_and_only_a_named_human_releases(
+    pg_schema: tuple[Any, str],
+    tmp_path: Any,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from aitrader.config import load_system_config
+    from aitrader.paper.__main__ import kill, release
+    from aitrader.state.postgres import PostgresStateStore
+
+    conn, schema = pg_schema
+    monkeypatch.setenv("AITRADER_POSTGRES_DSN", PG_DSN or "")
+    base = load_system_config().model_dump()
+    config = type(load_system_config()).model_validate(
+        base
+        | {
+            "state": base["state"] | {"schema_name": schema},
+            "broker": base["broker"] | {"kill_switch_file": str(tmp_path / "KILL")},
+        }
+    )
+    state = PostgresStateStore(conn, schema)
+    assert kill(config, "suspicious fills", flatten=True) == 0
+    assert state.freeze_status().frozen  # immediately, before any service polls the file
+    assert (tmp_path / "KILL").read_text(encoding="utf-8").startswith("flatten:")
+    assert release(config, "asha") == 1  # refused while the kill file exists
+    assert state.freeze_status().frozen
+    (tmp_path / "KILL").unlink()
+    assert release(config, "asha") == 0
+    assert not state.freeze_status().frozen
+    row = conn.execute(f"SELECT operator, action FROM {schema}.human_actions").fetchone()
+    assert row == ("asha", "release_freeze")
+    assert "released 1 freeze" in capsys.readouterr().out

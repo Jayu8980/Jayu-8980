@@ -144,7 +144,7 @@ must confirm or change each one before the phase that depends on it.**
 | Kill file | `run/KILL`; text containing "flatten" also exits every position via risk-signed exits |
 | Limit rounding | Buy limits round down and sell limits round up to the tick, so they never exceed the 1% deviation guard |
 
-## Needed from you before Phase 7 (paper trading)
+## Needed from you before Phase 7 (paper trading) (still open)
 
 1. **Data access.** Paper trading on real prices needs the NSE archives reachable from
    wherever it runs, or daily files delivered to it. With no measured setup edge, the R:R
@@ -162,3 +162,39 @@ must confirm or change each one before the phase that depends on it.**
    2× the estimate; drawdown within limits; every fill traced to a token. Confirm or change.
 6. **Margin and capital.** Starting capital for paper (default ₹10 lakh), and whether F&O
    is in scope for the first paper run (the default excludes it until SPAN margin is wired).
+
+## Phase 7 decisions taken (defaults)
+
+| Decision | Choice |
+|----------|--------|
+| Paper capital and scope | ₹10 lakh (`limits.capital_inr`), cash equities; F&O excluded until SPAN margin is wired |
+| Where it runs | Any machine with Redis and Postgres: `deploy/docker-compose.yml`, or a venv plus the systemd timer |
+| Schedule | `run-once` at 19:45, 21:00, 23:30 IST on weekdays and 09:00 Saturday, or the daemon every 15 min |
+| EOD source | NSE archives (`paper.feed: nse`), or a drop folder with NSE's file names |
+| Universe | Index membership of `paper.universe_index` when loaded; `paper.watchlist` until then (empty by default, so you choose) |
+| Checkpoints | Postgres (`paper.checkpoint: postgres`), one row per run |
+| Notifications | Telegram when the token and chat id are set, otherwise in memory only; plain text |
+| Attribution | 5-session horizon (trend: 20 sessions, ±3%), calls at abs(score) ≥ 0.2, prior 0.5 with strength 20, regime-specific after 10 calls |
+| Paper-to-live exit criteria | 60 sessions, 0 mismatch days, drawdown below the 10% limit, slippage ≤ 2× estimate over ≥ 10 instructions, ≥ 20 closed trades, every fill traced, not frozen |
+| Instruction validity | Until the close of the next weekday session (replaces "16 h from approval", which made Friday approvals unusable) |
+| Regime model refit | Once per ISO week, on returns from before that week (restart-independent) |
+| Releasing a freeze | `python -m aitrader.paper release --operator NAME --confirm`; refused while the kill file exists |
+
+## Needed from you before Phase 8 (human-approval live mode)
+
+1. **Run paper trading for real.** It needs the NSE files reachable (or delivered to a
+   folder), about 220 sessions of history backfilled, a watchlist or an index-membership
+   source, and a machine to run on. Phase 8 should start only after the readiness report
+   passes on that run.
+2. **Kite read-only check.** Run `python -m aitrader.execution.kite_check` once with your
+   API key and a day's access token, and send me the output (it contains no secrets). It
+   confirms the response shapes the adapter assumes.
+3. **Approval channel for live trades.** In `live_human_approval` every order needs a
+   person's yes. Should that be a Telegram reply, a web page, or the CLI? And who approves,
+   and how quickly must they answer before the approval lapses?
+4. **Daily Kite login.** Kite issues the access token through an interactive login every
+   day. Who does it, and when? It must be before the after-market order window.
+5. **Static IP and compliance.** SEBI's retail algo rules and Zerodha's requirements (static
+   IP, algo registration or exemption, order-rate limits). This needs your confirmation with
+   the broker; see "Compliance notes".
+6. **Exit criteria.** Confirm or change the paper-to-live criteria above.

@@ -297,3 +297,38 @@ def test_instruments_master_maps_derivatives_both_ways() -> None:
     call = master.ours("NFO", "NIFTY26OCT25000CE")
     assert call.strike == Decimal("25000") and master.kite(call) == ("NFO", "NIFTY26OCT25000CE")
     assert master.kite(XYZ) == ("NSE", "XYZ")
+
+
+def test_read_only_check_parses_every_read_and_cannot_write() -> None:
+    from aitrader.execution.kite_check import WriteRefusedError, check, read_only
+
+    fake = Fake(
+        {
+            ("GET", "/orders"): [],
+            ("GET", "/trades"): [],
+            ("GET", "/portfolio/holdings"): [],
+            ("GET", "/portfolio/positions"): {"net": [], "day": []},
+            ("GET", "/user/margins/equity"): {"net": 125000.5},
+            ("GET", "/quote"): {
+                "NSE:INFY": {"last_price": 1500.0, "lower_circuit_limit": 1200, "upper_circuit_limit": 1800}
+            },
+            ("GET", "/gtt/triggers"): [],
+        }
+    )
+    kite = KiteBroker(read_only(fake))
+    results = check(kite, "INFY")
+    assert all(ok for _, ok, _ in results), results
+    assert {m for m, _, _ in fake.calls} == {"GET"}
+    with pytest.raises(WriteRefusedError):
+        kite.place_order(
+            OrderRequest(
+                tag="A1",
+                instrument=XYZ,
+                side=Side.BUY,
+                quantity=1,
+                order_type=OrderType.LIMIT,
+                price=Decimal("1"),
+                product=Product.CNC,
+            )
+        )
+    assert {m for m, _, _ in fake.calls} == {"GET"}

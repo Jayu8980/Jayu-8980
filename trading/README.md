@@ -4,13 +4,14 @@ An institutional-grade, multi-agent trading system for NSE cash and F&O. LLM age
 and judge; deterministic code sizes, gates, vetoes and executes. Every decision is replayable
 from a hash-chained audit log.
 
-**Status:** Phase 6 is done and awaiting review. It covers execution against a paper broker,
-reconciliation, the kill switch, the Redis and Postgres backends and the monitoring dashboard.
-A Kite Connect adapter exists but has never been run against a live account, and no stage
-that sends real orders is enabled.
+**Status:** Phase 7 (the daily paper-trading service) is done and awaiting review. The
+service is restartable and includes attribution feedback, notifications and a paper-to-live
+readiness report. No stage that sends real orders is enabled, and the Kite adapter has not
+been run against a live account.
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Configuration decisions (assumed, pending confirmation)](docs/DECISIONS.md)
+- [Operations runbook (paper trading)](docs/OPERATIONS.md)
 - [Phase reports](docs/PROGRESS.md)
 
 ## Development
