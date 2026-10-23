@@ -25,6 +25,11 @@ liquidity:
   max_fraction_of_adv: 0.05
   max_participation_rate: 0.10
   max_days_to_liquidate: 1.0
+  assumed_spread_bps: 10.0  # no order-book data yet; replaced by live depth in paper trading
+  thin_adv_value_inr: 50000000  # below Rs 5 crore a day a name counts as thin
+  impact_coefficient: 1.0  # square-root law Y; recalibrated from TCA
+  adv_sessions: 20
+  freeze_quantity: {}  # F&O symbol -> exchange freeze quantity (units); orders are sliced below it
 
 var:
   confidence: 0.99
@@ -33,12 +38,18 @@ var:
   max_cvar_fraction: 0.03
 
 risk_reward:
+  holding_sessions: 10  # horizon for event-risk and gap checks
+  setup_prior_strength: 30  # pseudo-trades of the barrier model before history dominates
   min_rr_after_costs:
     breakout: 2.0
     pullback: 1.8
     mean_reversion: 1.5
     range: 1.5
   min_stop_atr_multiple: 0.75  # stops inside normal noise are rejected
+
+stress:
+  index_shock: -0.10  # one-day index move every portfolio must survive
+  max_stress_loss_fraction: 0.06
 
 degradation:
   # Limit multiplier applied when agents are missing; multipliers compound per missing agent.
@@ -49,7 +60,8 @@ degradation:
 execution:
   max_order_value_inr: 200000
   max_price_deviation_bps: 100
-  approval_token_ttl_seconds: 300
+  # Swing orders are approved after the close and executed at the next open (~13.5 h later).
+  approval_token_ttl_seconds: 57600
   reconciliation_interval_seconds: 60
 
 regime:

@@ -62,7 +62,7 @@ class RRVerdict(StrictModel):
     setup: SetupType
     passed: bool
     p_win: Probability
-    p_win_source: Literal["historical_setup", "monte_carlo", "option_implied", "blend"]
+    p_win_source: Literal["historical_setup", "monte_carlo", "option_implied", "barrier_model", "blend"]
     reward_per_unit: float
     risk_per_unit: Annotated[float, Field(gt=0)]
     costs_per_unit: Annotated[float, Field(ge=0)]

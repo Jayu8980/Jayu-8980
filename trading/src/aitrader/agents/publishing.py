@@ -22,11 +22,13 @@ async def publish(
     event_time: datetime | None = None,
     causation_ids: tuple[UUID, ...] = (),
     priority: Priority = Priority.NORMAL,
+    message_id: UUID | None = None,
 ) -> Envelope:
     """Publish one payload. ``available_at`` is when the newest input to it became known;
     the envelope rejects anything produced before that."""
     envelope = Envelope.model_validate(
         {
+            **({"message_id": message_id} if message_id else {}),
             "topic": topic,
             "agent_id": agent_id,
             "cycle_id": cycle_id,

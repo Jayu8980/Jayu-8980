@@ -52,6 +52,9 @@ class RiskRule(StrEnum):
     TRADING_FROZEN = "trading_frozen"
     HUMAN_APPROVAL_PENDING = "human_approval_pending"
     STAGE_NOT_PERMITTED = "stage_not_permitted"
+    MAX_OPEN_POSITIONS = "max_open_positions"
+    GATE_NOT_PASSED = "gate_not_passed"  # liquidity plan or R:R verdict missing, failed or mismatched
+    DEGRADED_COVERAGE = "degraded_coverage"  # too few analysts reported for a new entry
 
 
 class RuleResult(StrictModel):

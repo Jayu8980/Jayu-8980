@@ -92,8 +92,13 @@ class BossDecision(StrictModel):
         if self.action in TRADING_ACTIONS:
             if self.invalidation is None:
                 raise ValueError("trading decisions need an explicit invalidation condition")
-            if self.risk_budget_fraction <= 0 and self.action is not Action.REDUCE:
-                raise ValueError("trading decisions need a positive risk budget fraction")
+            opening = self.action in (Action.BUY, Action.HEDGE) or (
+                self.action is Action.SELL and self.open_short
+            )
+            if opening and self.risk_budget_fraction <= 0:
+                raise ValueError("opening trades need a positive risk budget fraction")
+            if not opening and self.risk_budget_fraction != 0:
+                raise ValueError("exits and reductions use no risk budget")
         else:
             if self.risk_budget_fraction != 0:
                 raise ValueError(f"{self.action} must not request risk budget")

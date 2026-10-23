@@ -95,7 +95,7 @@ must confirm or change each one before the phase that depends on it.**
 | Participant OI | Stamped available at 20:00 IST |
 | Macro calendar | Empty until you add confirmed dates to `config/events.yaml` |
 
-## Needed from you before Phase 5 (debate, boss, gates, full chain in backtest)
+## Needed from you before Phase 5 (debate, boss, gates, full chain in backtest) (still open)
 
 1. **Data:** still the blocker for every real evaluation (NSE is refused from this session).
 2. **LLM model ids and prices:** the debate and boss agents are LLM agents, and Phase 5 needs
@@ -103,3 +103,27 @@ must confirm or change each one before the phase that depends on it.**
    backtested.
 3. **Macro event dates** in `config/events.yaml` (RBI MPC, Budget, CPI and GDP releases).
 4. **News source:** which feed to build a connector for (default: NSE corporate announcements).
+
+## Phase 5 decisions taken (defaults)
+
+| Decision | Choice |
+|----------|--------|
+| Boss without an LLM | Deterministic fallback: consensus ≥ 0.25, agreement ≥ 60%, budget ≤ 0.5, long-only |
+| Revisions after a failed gate | At most 2; the fallback simply waits |
+| No-edge prior | Zero-drift barrier model, so nothing trades until setup statistics are measured |
+| Approval token TTL | 16 hours (swing: approve after close, execute at next open) |
+| Freeze | Blocks every opening order; exits and reductions remain allowed |
+| Assumed spread | 10 bps until order-book data exists |
+| Stress test | -10% index shock, max 6% loss of equity |
+| Limit orders | Marketable limit at ±1% of the last close; larger gaps at the open go unfilled |
+
+## Needed from you before Phase 6 (execution in paper mode, reconciliation, kill switch)
+
+1. **Broker:** confirm Zerodha Kite Connect and that you have API access. The paper
+   broker comes first, but its interface follows the real one.
+2. **Infrastructure for paper trading:** Redis and Postgres (defaults), or keep in-memory
+   backends for a first paper run on one machine.
+3. **Data access** (still the blocker for measuring setup edge): without it, paper trading
+   will run but the R:R gate will (correctly) reject every entry.
+4. **Alerts:** Telegram bot token and chat id for freeze alerts and approvals (or another
+   channel).

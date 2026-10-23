@@ -215,25 +215,37 @@ class RegimeResult(ToolOutput):
     current_regime: int
     filtered_high_vol_probability: tuple[float, ...]  # P(highest-vol regime) per observation
     expected_durations: tuple[float, ...]
+    params: tuple[float, ...]  # fitted parameters (scaled data), reusable via fixed_params
+    scale: float
 
 
 @tool("stats.regime_hmm", "1.0.0", example={"returns": _EX_REGIME, "n_regimes": 2})
 def regime_hmm(
-    returns: Annotated[Series, Field(min_length=100)], n_regimes: Annotated[int, Field(ge=2, le=3)] = 2
+    returns: Annotated[Series, Field(min_length=100)],
+    n_regimes: Annotated[int, Field(ge=2, le=3)] = 2,
+    fixed_params: Sequence[Finite] | None = None,
+    fixed_scale: Annotated[float, Field(gt=0)] | None = None,
 ) -> RegimeResult:
     """Markov-switching mean/variance model. Uses statsmodels' deterministic start values
-    (no random restarts) so identical inputs give identical outputs."""
+    (no random restarts) so identical inputs give identical outputs. With ``fixed_params``
+    and ``fixed_scale`` from an earlier fit, it only filters the data (no re-estimation)."""
     from statsmodels.tsa.regime_switching.markov_regression import MarkovRegression
 
     data = arr(returns)
-    scale = float(np.std(data)) or 1.0
+    if (fixed_params is None) != (fixed_scale is None):
+        raise ValueError("fixed_params and fixed_scale go together")
+    scale = fixed_scale or float(np.std(data)) or 1.0
     model = MarkovRegression(data / scale, k_regimes=n_regimes, trend="c", switching_variance=True)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         try:
-            fit = model.fit(disp=False, em_iter=50)
-        except (RuntimeError, np.linalg.LinAlgError) as exc:
-            raise ArithmeticError(f"regime model failed to fit: {exc}") from exc
+            fit = (
+                model.filter(np.asarray(fixed_params))
+                if fixed_params is not None
+                else model.fit(disp=False, em_iter=50)
+            )
+        except (RuntimeError, np.linalg.LinAlgError, ValueError) as exc:
+            raise ArithmeticError(f"regime model failed: {exc}") from exc
     names = list(fit.model.param_names)
     params = np.asarray(fit.params)
     means = np.array([params[names.index(f"const[{i}]")] for i in range(n_regimes)]) * scale
@@ -250,6 +262,8 @@ def regime_hmm(
         current_regime=int(np.argmax(current)),
         filtered_high_vol_probability=tuple(float(v) for v in filtered[:, -1]),
         expected_durations=tuple(float(min(v, 1e9)) for v in durations),
+        params=tuple(float(v) for v in params),
+        scale=scale,
     )
 
 

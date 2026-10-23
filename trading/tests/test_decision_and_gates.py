@@ -103,3 +103,12 @@ def test_debate_round_cap_and_sides() -> None:
 
 def test_decision_id_constant_is_used() -> None:
     assert boss_decision().decision_id == DECISION_ID
+
+
+def test_exits_use_no_risk_budget() -> None:
+    exit_ = boss_decision(action=Action.SELL, risk_budget_fraction=0.0)
+    assert exit_.risk_budget_fraction == 0
+    with pytest.raises(ValidationError, match="no risk budget"):
+        boss_decision(action=Action.REDUCE, risk_budget_fraction=0.3)
+    with pytest.raises(ValidationError, match="positive risk budget"):
+        boss_decision(action=Action.SELL, open_short=True, risk_budget_fraction=0.0)

@@ -19,8 +19,6 @@ SPEC = AgentSpec(
     ),
     publishes=(Topic.RR_VERDICT,),
     tools=(
-        "rr.compute",
-        "rr.expected_value",
         "costs.india",
         "costs.round_trip",
         "derivs.barrier_hit_probability",

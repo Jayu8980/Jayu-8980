@@ -80,12 +80,8 @@ def test_tool_names_follow_registry_convention() -> None:
 PLANNED_TOOLS = {
     "flows.fii_dii": 4,  # needs a source (NSE publishes FII/DII cash flows via its website API)
     "flows.delivery_pct": 4,  # needs the security-wise delivery file (not in UDiFF bhavcopies)
-    "micro.volume_curve": 5,
-    "derivs.freeze_qty": 5,
-    "rr.compute": 5,
-    "rr.expected_value": 5,
-    "attribution.credibility_weights": 5,
-    "attribution.weighted_consensus": 5,
+    "micro.volume_curve": 6,  # needs intraday volume data
+    "derivs.freeze_qty": 6,  # freeze quantities come from config (limits.liquidity) for now
     "broker.place": 6,
     "broker.cancel": 6,
     "broker.positions": 6,

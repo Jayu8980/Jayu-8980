@@ -1,6 +1,6 @@
 # Architecture: Multi-Agent AI Trading System
 
-Status: **Phase 4 done** (analyst agents with offline evaluation), awaiting review.
+Status: **Phase 5 done** (debate, boss, gates, full decision chain in backtest), awaiting review.
 Phase reports: [PROGRESS.md](PROGRESS.md).
 Scope assumed for Phase 1: NSE cash plus F&O, swing horizon, Zerodha Kite Connect, Python 3.11+.
 Every assumption is listed in [DECISIONS.md](DECISIONS.md) and is config-driven.
@@ -155,7 +155,9 @@ by `decision_id` and `cycle_id`. Interrupts for alerts and the kill switch.
    protective stop and idempotency key.
 2. It computes `digest = sha256(canonical_json(instruction))` and issues an `ApprovalToken`
    containing `token_id`, `decision_id`, `instruction_digest`, `issued_at`, `expires_at`
-   (TTL 300 s), `key_id`, and an HMAC-SHA256 `signature` keyed by `AITRADER_RISK_SIGNING_KEY`.
+   (TTL from `limits.execution.approval_token_ttl_seconds`: 16 h by default, so an approval made after
+   the close is still valid at the next open), `key_id`, and an HMAC-SHA256 `signature` keyed by
+   `AITRADER_RISK_SIGNING_KEY`.
 3. `OrderInstruction` refuses to construct if the token's digest or decision does not match. Any
    change to quantity, price, side, stop or key after approval invalidates it (tested).
 4. Execution verifies the HMAC and expiry, then atomically consumes `token_id`
@@ -375,7 +377,66 @@ Agents refuse to start an LLM path until model ids and their prices are pinned i
   climatology;
 - trend calibration (temperature and shrinkage) is fitted on a training window only.
 
-## 17. Known limitations (as of Phase 4)
+## 17. Decision chain (Phase 5)
+
+`orchestrator/cycle.py` runs one cycle:
+1. Analysts run under per-agent timeouts. A failure or timeout is isolated and shrinks limits
+   by `limit_multiplier`: ×0.75 per missing agent, ×0.5 more when the trend agent is missing.
+   The multiplier also includes the regime's exposure view and drawdown tightening.
+2. Candidates are held positions plus instruments with a chart setup.
+3. For each candidate: debate → boss → liquidity → R:R → risk.
+   - A failed gate goes back to the boss to revise (the LLM boss) or wait (the fallback), at
+     most twice.
+   - Every message is published with causation links and a deterministic id, so a cycle
+     replays identically and every order traces back to its analyst inputs.
+
+The agents:
+- **Boss.** The deterministic fallback (the default while models are unpinned) buys only an
+  aligned long chart setup when the credibility-weighted consensus is at least 0.25 and
+  agreement at least 60%, using at most half the risk budget. It exits or reduces holdings
+  when consensus turns negative, and never opens shorts. The LLM boss's output is validated:
+  allowed actions only, budget within the discretion cap, the chart stop as invalidation.
+  Otherwise it falls back. A discretion tracker shrinks the cap when the boss
+  underperforms the consensus baseline.
+- **Debate.** Bull and bear take capped rounds. Every point must cite a real message id; the
+  debate is skipped without an LLM.
+- **Liquidity.** ADV, square-root impact with an assumed spread (no order book yet), and a
+  regime: normal, thin, stressed, circuit-locked or expiry. The maximum quantity is 5% of
+  ADV, and 0 when circuit-locked. The algorithm is marketable limit, TWAP, POV, or iceberg
+  above the freeze quantity.
+- **R:R.** Blended targets, costs at the planned size, and P(win) blended from measured
+  setup history with a no-edge prior (zero-drift barrier). Under that prior EV is exactly
+  minus costs, so **nothing trades without a measured edge**: seed `SetupStats` from an
+  offline evaluation (`SetupStats.from_evaluation`) or a paper-trading record. Gates: EV,
+  minimum R:R per setup, stop noise, event risk, gap risk, missing levels.
+- **Risk.** Sizes the order itself and checks 17 rules on the portfolio after the trade:
+  per-trade risk, position, open positions, gross/net, sector, correlation cluster,
+  leverage, daily/total drawdown, liquidity, events, VaR/CVaR, an index-shock stress test,
+  freeze, analyst coverage, gates passed, human approval in live stages. It then signs the
+  exact instruction. A freeze blocks entries but never exits.
+- **Tokens.** HMAC-signed, digest-bound, expiring, single-use, with the idempotency key
+  claimed atomically. `backtest/chain.py` verifies every instruction exactly as execution
+  will before the engine sees it, so backtests exercise the same no-bypass path.
+
+## 18. Known limitations (as of Phase 5)
+
+- **Edge has to be supplied.** With empty setup history the chain correctly trades nothing.
+  Real setup statistics must come from an offline evaluation on an earlier window of real
+  data (still blocked on data access).
+- **Only the deterministic boss is exercised end to end.** The LLM boss and debate are tested
+  with a scripted client only.
+- **Universe-scale speed.** About 0.15 s per cycle for 3 instruments; chart analysis costs
+  ~0.04 s per instrument. NIFTY 500 over ten years needs caching or vectorisation
+  (roughly 30× work), or backtests will take hours.
+- **Risk model simplifications.** Correlation clusters and VaR use 250 days of
+  historical returns. The stress test is a single index shock (beta-weighted); news stress
+  quantiles exist but are not yet wired into it. Margin for F&O is not modelled.
+- **Spread is assumed** (10 bps) until order-book data is available; impact coefficients are
+  not yet calibrated by TCA (Phase 6 onward).
+- **Realised-R feedback into `SetupStats` isn't wired from engine trades yet;** the attribution
+  loop is Phase 7.
+
+## 19. Known limitations carried from Phase 4
 
 - **Analysts are only evaluated on synthetic markets.** On planted trends the chart agent
   shows positive IC and hit rate, and the calibrated trend agent beats a uniform forecast out

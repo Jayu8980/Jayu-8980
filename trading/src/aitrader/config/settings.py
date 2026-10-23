@@ -202,6 +202,11 @@ class LiquidityLimits(StrictModel):
     max_fraction_of_adv: Annotated[float, Field(gt=0.0, le=0.25)]
     max_participation_rate: Annotated[float, Field(gt=0.0, le=0.25)]
     max_days_to_liquidate: Annotated[float, Field(gt=0.0)]
+    assumed_spread_bps: Annotated[float, Field(ge=0)]
+    thin_adv_value_inr: Annotated[float, Field(gt=0)]
+    impact_coefficient: Annotated[float, Field(gt=0, le=5)]
+    adv_sessions: Annotated[int, Field(ge=5, le=250)]
+    freeze_quantity: dict[str, Annotated[int, Field(ge=1)]]
 
 
 class VarLimits(StrictModel):
@@ -212,8 +217,15 @@ class VarLimits(StrictModel):
 
 
 class RiskRewardLimits(StrictModel):
+    holding_sessions: Annotated[int, Field(ge=1, le=120)]
+    setup_prior_strength: Annotated[float, Field(gt=0)]
     min_rr_after_costs: dict[SetupType, Annotated[float, Field(gt=0.0)]]
     min_stop_atr_multiple: Annotated[float, Field(gt=0.0)]
+
+
+class StressLimits(StrictModel):
+    index_shock: Annotated[float, Field(ge=-0.5, lt=0)]
+    max_stress_loss_fraction: Fraction
 
 
 class DegradationLimits(StrictModel):
@@ -225,7 +237,7 @@ class DegradationLimits(StrictModel):
 class ExecutionLimits(StrictModel):
     max_order_value_inr: Annotated[float, Field(gt=0)]
     max_price_deviation_bps: Annotated[float, Field(gt=0, le=500)]
-    approval_token_ttl_seconds: Annotated[int, Field(ge=1, le=3600)]
+    approval_token_ttl_seconds: Annotated[int, Field(ge=1, le=86400)]
     reconciliation_interval_seconds: Annotated[int, Field(ge=1)]
 
 
@@ -241,6 +253,7 @@ class RiskLimits(StrictModel):
     liquidity: LiquidityLimits
     var: VarLimits
     risk_reward: RiskRewardLimits
+    stress: StressLimits
     degradation: DegradationLimits
     execution: ExecutionLimits
     regime: RegimeLimits

@@ -44,7 +44,7 @@ from aitrader.schemas.base import (
 from aitrader.schemas.news import EventRiskFlag, EventType
 from aitrader.schemas.regime import RegimeLabel, RegimeOutlook, Scenario, SectorTilt
 from aitrader.tools.flows import Breadth, breadth
-from aitrader.tools.stats import regime_hmm
+from aitrader.tools.stats import RegimeResult, regime_hmm
 
 SCENARIOS = ("uptrend", "range", "correction")
 SECTOR_INDICES = (
@@ -59,6 +59,7 @@ SECTOR_INDICES = (
 )
 MIN_HISTORY = 220
 HMM_MIN_VOL_RATIO = 1.5
+HMM_REFIT_DAYS = 7
 # Uncalibrated defaults: soften the rule's scores and shrink toward 1/3 each. Refit on real
 # history with aitrader.evaluation.calibration.calibrate_trend before relying on them.
 DEFAULT_TEMPERATURE = 2.5
@@ -152,6 +153,7 @@ class TrendAgent:
     ) -> None:
         self.temperature = temperature
         self.shrink = shrink
+        self._hmm_cache: tuple[date, tuple[float, ...], float] | None = None
         self._market = market
         self._universe = universe
         self._universe_index = universe_index
@@ -170,7 +172,7 @@ class TrendAgent:
         dma50, dma200 = closes[-50:].mean(), closes[-200:].mean()
         dma50_prev = closes[-70:-20].mean()
         try:
-            hmm = regime_hmm(returns=rets[-500:].tolist())
+            hmm = self._regime(rets[-500:], ist_date(as_of))
             # With a single regime in the window the "high-vol" state is arbitrary; only trust
             # it when the fitted regimes genuinely differ.
             distinct = hmm.regime_vols[-1] >= HMM_MIN_VOL_RATIO * hmm.regime_vols[0]
@@ -194,6 +196,20 @@ class TrendAgent:
             new_high_minus_low=(b.new_highs - b.new_lows) / b.members if b and b.members else None,
             vix_percentile=vix_pct,
         )
+
+    def _regime(self, rets: np.ndarray, today: date) -> RegimeResult:
+        """Re-estimate the regime model at most every ``HMM_REFIT_DAYS`` calendar days; in
+        between, filter the new data through the last parameters (fitted on earlier data
+        only, so this stays point in time)."""
+        cache = self._hmm_cache
+        if cache is not None and 0 <= (today - cache[0]).days < HMM_REFIT_DAYS:
+            try:
+                return regime_hmm(returns=rets.tolist(), fixed_params=cache[1], fixed_scale=cache[2])
+            except ArithmeticError:
+                pass
+        fit = regime_hmm(returns=rets.tolist())
+        self._hmm_cache = (today, fit.params, fit.scale)
+        return fit
 
     def _breadth(self, as_of: datetime) -> Breadth | None:
         if self._universe is None:

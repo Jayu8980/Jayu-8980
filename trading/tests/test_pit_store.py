@@ -98,3 +98,4 @@ def test_cached_reader_matches_the_store_exactly() -> None:
         entities = rng.choice([["A"], ["B"], ["A", "B"]])
         expected = store.read_as_of("d", as_of, entities=entities, start=start, end=end)
         assert cached.read_as_of("d", as_of, entities=entities, start=start, end=end) == expected
+        assert cached.entities("d", as_of) == store.entities("d", as_of)

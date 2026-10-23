@@ -2,5 +2,6 @@
 limits, trading-freeze status, consumed approval tokens and used idempotency keys."""
 
 from aitrader.state.interface import FreezeStatus, StateStore
+from aitrader.state.memory import FreezeClearRefusedError, InMemoryStateStore
 
-__all__ = ["FreezeStatus", "StateStore"]
+__all__ = ["FreezeClearRefusedError", "FreezeStatus", "InMemoryStateStore", "StateStore"]

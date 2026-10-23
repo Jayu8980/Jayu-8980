@@ -244,7 +244,7 @@ class CachedPitReader:
     def __init__(self, store: PitStore) -> None:
         self._store = store
         self._cache: dict[tuple[str, str], tuple[list[datetime], list[PitRow]]] = {}
-        self._entities: dict[tuple[str, datetime], list[str]] = {}
+        self._first_seen: dict[str, list[tuple[str, datetime]]] = {}
 
     def _history(self, dataset: str, entity: str) -> tuple[list[datetime], list[PitRow]]:
         key = (dataset, entity)
@@ -280,7 +280,12 @@ class CachedPitReader:
         return self._store.latest_available_at(dataset, entity)
 
     def entities(self, dataset: str, as_of: datetime) -> list[str]:
-        key = (dataset, as_of)
-        if key not in self._entities:
-            self._entities[key] = self._store.entities(dataset, as_of)
-        return self._entities[key]
+        """Entities with at least one record available at ``as_of`` (same as the store)."""
+        if dataset not in self._first_seen:
+            rows = self._store._con.execute(
+                "SELECT entity, min(available_at) FROM pit_records"
+                " WHERE dataset = ? GROUP BY entity ORDER BY entity",
+                [dataset],
+            ).fetchall()
+            self._first_seen[dataset] = [(entity, _aware(first)) for entity, first in rows]
+        return [entity for entity, first in self._first_seen[dataset] if first <= as_of]

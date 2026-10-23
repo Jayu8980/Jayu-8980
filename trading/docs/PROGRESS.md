@@ -48,7 +48,7 @@ explicit acceptance tests in `tests/test_lookahead_survivorship.py`:
 - The tool decorator erased function signatures, which hid type errors.
 - The mean-variance turnover constraint was non-smooth and the optimizer failed on it.
 
-**Known limitations:** ARCHITECTURE.md §17.
+**Known limitations:** ARCHITECTURE.md §18–19.
 
 ## Phase 3: event-driven backtester and walk-forward validation (done)
 
@@ -95,9 +95,9 @@ explicit acceptance tests in `tests/test_lookahead_survivorship.py`:
   numbers in a different order for different lengths; the engine was fine once the data
   matched.
 
-**Known limitations:** ARCHITECTURE.md §17.
+**Known limitations:** ARCHITECTURE.md §18–19.
 
-## Phase 4: analyst agents with offline evaluation (done, awaiting review)
+## Phase 4: analyst agents with offline evaluation (done)
 
 **Built** (details in ARCHITECTURE.md §16)
 - The LLM layer: client contract, Anthropic adapter, versioned prompts, untrusted-text
@@ -130,3 +130,46 @@ explicit acceptance tests in `tests/test_lookahead_survivorship.py`:
 - Regime labels relied on a fixed 50% threshold that calibrated probabilities rarely cross.
   Labels now follow the top scenario.
 - The chart evaluator compared levels in different price bases across splits.
+
+## Phase 5: debate, boss, gates and the full chain in backtest (done, awaiting review)
+
+**Built** (details in ARCHITECTURE.md §17)
+- In-memory state store with an atomic token and idempotency-key ledger, and a freeze that
+  only a human can clear.
+- HMAC approval tokens (`agents/risk/tokens.py`): digest-bound, expiring, single-use.
+- Liquidity agent, R:R agent (blended targets, no-edge prior, seedable setup statistics) and
+  risk agent (deterministic sizing, 17 rules, VaR/CVaR, stress, correlation, signed
+  instructions, drawdown alerts).
+- Boss: deterministic fallback rule set, validated LLM path, discretion tracker. Debate agent
+  with capped rounds and enforced citations. Prompts `boss/v1` and `debate/v1`.
+- Attribution tools (`attribution.credibility_weights`, `attribution.weighted_consensus`).
+- Orchestrator cycle with timeouts, failure isolation, revision loop, causation-linked and
+  deterministic messages, and heartbeats.
+- `backtest/chain.py` runs the whole chain inside the event-driven backtester, verifying
+  every token first. `system.py` wires the chain from config.
+
+**Tests:** 475 passing on Python 3.11 and 3.13; ruff and strict mypy clean. New tests cover:
+- forged, expired, replayed and re-approved tokens;
+- liquidity regimes and freeze-quantity icebergs;
+- every R:R gate, including "no measured edge → no trade";
+- risk sizing within budget, freeze blocking entries but not exits, unskippable gates,
+  drawdown freezes, and the coverage, position, sector and human-approval rules;
+- boss fallback and LLM validation, the discretion tracker, debate citations;
+- full-cycle traceability and reproducibility;
+- a failing agent, a slow agent and a crashing boss;
+- the chain trading in a backtest with every order traced to its approval, memo and chart
+  signal;
+- a frozen backtest that never trades, and refused replays.
+
+**Defects found and fixed while testing**
+- `BossDecision` required a positive risk budget for every SELL, so a plain exit was
+  impossible. Only opening trades now need one.
+- The R:R no-edge prior used a log-driftless model, under which wide targets showed positive
+  EV with no edge. It is now a price martingale, which gives EV of exactly minus costs.
+- R:R used only the first target, so breakouts with 2R/3R targets could never meet their own
+  2.0 minimum. It now uses blended targets, as the spec says.
+- Token signatures were computed over a different timestamp serialisation from the one
+  verified.
+- Random message ids made replays differ; ids are now derived from the cycle and payload.
+- The trend agent refitted its regime model every cycle (0.36 s). It now refits weekly and
+  filters in between (6 ms).
