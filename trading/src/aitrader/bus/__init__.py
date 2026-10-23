@@ -1,4 +1,5 @@
-"""Message bus: contract plus the in-memory backend (Redis Streams lands before paper trading)."""
+"""Message bus: contract, the in-memory backend (tests, backtests) and Redis Streams
+(bus.redis_streams; paper and live)."""
 
 from aitrader.bus.interface import Handler, MessageBus
 from aitrader.bus.memory import InMemoryBus

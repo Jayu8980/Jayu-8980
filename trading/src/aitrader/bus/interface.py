@@ -23,6 +23,10 @@ class MessageBus(Protocol):
 
     def subscribe(self, topics: Iterable[Topic], handler: Handler, *, group: str) -> None: ...
 
+    async def drain(self) -> None:
+        """Deliver everything published so far (immediate for the in-memory bus)."""
+        ...
+
     async def replay(self, topics: Iterable[Topic], *, from_sequence: int = 0) -> list[Envelope]:
         """Return recorded envelopes in audit order, for deterministic replay."""
         ...

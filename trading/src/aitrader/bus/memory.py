@@ -57,6 +57,10 @@ class InMemoryBus:
         finally:
             self._draining = False
 
+    async def drain(self) -> None:
+        if not self._draining:
+            await self._drain()
+
     async def replay(self, topics: Iterable[Topic], *, from_sequence: int = 0) -> list[Envelope]:
         wanted = set(topics)
         out = []

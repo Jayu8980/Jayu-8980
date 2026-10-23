@@ -18,7 +18,7 @@ import itertools
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from decimal import ROUND_HALF_EVEN, Decimal
+from decimal import ROUND_CEILING, ROUND_FLOOR, ROUND_HALF_EVEN, Decimal
 from uuid import UUID, uuid5
 
 import numpy as np
@@ -52,6 +52,13 @@ _Q = Decimal("0.05")  # NSE tick size for most equities and F&O
 
 def _tick(price: float) -> Decimal:
     return (Decimal(str(price)) / _Q).to_integral_value(rounding=ROUND_HALF_EVEN) * _Q
+
+
+def _limit_tick(price: float, side: Side) -> Decimal:
+    """Round a limit to the tick on the conservative side (buys down, sells up), so rounding
+    never takes it past the price-deviation guard execution enforces."""
+    rounding = ROUND_FLOOR if side is Side.BUY else ROUND_CEILING
+    return (Decimal(str(price)) / _Q).to_integral_value(rounding=rounding) * _Q
 
 
 @dataclass
@@ -138,6 +145,45 @@ class RiskAgent:
         for alert in alerts:
             self.handle_alert(alert, now)
         return alerts
+
+    def flatten_instructions(
+        self, alert: RiskAlert, portfolio: PortfolioSnapshot, as_of: datetime
+    ) -> list[OrderInstruction]:
+        """Signed exits for every holding, for an alert that asks to flatten. Exits are
+        risk-reducing, so they are allowed while trading is frozen. Ids derive from the
+        alert, so re-handling the same alert cannot issue a second set."""
+        if not alert.flatten_positions:
+            return []
+        out = []
+        lim = self._limits
+        deviation = lim.execution.max_price_deviation_bps / 1e4
+        for h in sorted(portfolio.holdings, key=lambda h: h.instrument.key):
+            if h.quantity == 0:
+                continue
+            inst = h.instrument
+            side = Side.SELL if h.quantity > 0 else Side.BUY
+            price = h.price * (1 - deviation) if side is Side.SELL else h.price * (1 + deviation)
+            ref = f"flatten|{alert.alert_id}|{inst.key}"
+            unsigned = UnsignedInstruction(
+                instruction_id=uuid5(_NAMESPACE, ref),
+                idempotency_key=f"flatten:{uuid5(_NAMESPACE, ref)}",
+                decision_id=uuid5(_NAMESPACE, f"decision|{ref}"),
+                action=Action.SELL if side is Side.SELL else Action.REDUCE,
+                intent=InstructionIntent.CLOSE,
+                instrument=inst,
+                side=side,
+                quantity=abs(h.quantity),
+                order_type=OrderType.LIMIT,
+                limit_price=_limit_tick(price, side),
+                product=Product.CNC if inst.instrument_type is InstrumentType.EQUITY else Product.NRML,
+                algo=ExecAlgo.MARKETABLE_LIMIT,
+                participation_rate=lim.liquidity.max_participation_rate,
+                horizon_minutes=30,
+                max_price_deviation_bps=lim.execution.max_price_deviation_bps,
+                valid_until=as_of + timedelta(seconds=lim.execution.approval_token_ttl_seconds),
+            )
+            out.append(OrderInstruction(**unsigned.model_dump(), approval=self._signer.sign(unsigned, as_of)))
+        return out
 
     # ------------------------------------------------------------------ assessment
     def assess(
@@ -368,7 +414,7 @@ class RiskAgent:
             side=side,
             quantity=qty,
             order_type=OrderType.LIMIT,
-            limit_price=_tick(limit_price),
+            limit_price=_limit_tick(limit_price, side),
             product=Product.CNC if inst.instrument_type is InstrumentType.EQUITY else Product.NRML,
             open_short=decision.open_short,
             algo=plan.algo,
@@ -420,7 +466,7 @@ class RiskAgent:
             side=side,
             quantity=qty,
             order_type=OrderType.LIMIT,
-            limit_price=_tick(limit_price),
+            limit_price=_limit_tick(limit_price, side),
             product=Product.CNC if inst.instrument_type is InstrumentType.EQUITY else Product.NRML,
             algo=plan.algo if plan else ExecAlgo.MARKETABLE_LIMIT,
             participation_rate=plan.participation_rate

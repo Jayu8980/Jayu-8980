@@ -63,6 +63,8 @@ execution:
   # Swing orders are approved after the close and executed at the next open (~13.5 h later).
   approval_token_ttl_seconds: 57600
   reconciliation_interval_seconds: 60
+  protective_stop_limit_bps: 200  # a stop-limit 2% beyond the trigger; a wider gap leaves it unfilled
+  fno_margin_fraction: 0.25  # conservative stand-in for SPAN + exposure margin
 
 regime:
   max_exposure_change_per_cycle: 0.20  # exposure shifts gradually, never all at once

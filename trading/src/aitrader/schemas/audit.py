@@ -56,9 +56,28 @@ class AuditRecord(StrictModel):
     sequence: Annotated[int, Field(ge=0)]
     recorded_at: UtcDatetime
     record_type: Literal[
-        "envelope", "llm_call", "tool_call", "config_snapshot", "human_action", "ingest_batch"
+        "envelope",
+        "llm_call",
+        "tool_call",
+        "config_snapshot",
+        "human_action",
+        "ingest_batch",
+        "broker_call",
     ]
     body_json: str  # canonical JSON of the recorded object
     body_sha256: HexDigest
     prev_hash: HexDigest
     record_hash: HexDigest  # sha256(prev_hash + body_sha256 + sequence + recorded_at)
+
+
+class BrokerCallRecord(StrictModel):
+    """One call to the broker API (paper or live), recorded before its result is used."""
+
+    kind: Literal["broker_call"] = "broker_call"
+    broker: Annotated[str, Field(min_length=1, max_length=40)]
+    method: Annotated[str, Field(min_length=1, max_length=40)]
+    request: dict[str, Any]
+    response: Any = None
+    error: str | None = None
+    started_at: UtcDatetime
+    finished_at: UtcDatetime

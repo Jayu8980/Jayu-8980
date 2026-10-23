@@ -235,3 +235,55 @@ def liquidation(
     return LiquidationProfile(
         fraction_of_adv=position_quantity / adv, days_to_liquidate=days, exceeds_limit=days > max_days
     )
+
+
+class SlicePlan(ToolOutput):
+    slices: tuple[int, ...]  # child order quantities, each a whole number of lots
+    interval_seconds: float  # spacing between child orders
+    max_child_quantity: int
+
+
+@tool(
+    "micro.slicer",
+    "1.0.0",
+    example={
+        "quantity": 3000,
+        "lot_size": 75,
+        "price": 120.0,
+        "freeze_quantity": 1801,
+        "max_order_value": 200000.0,
+        "algo": "twap",
+        "horizon_minutes": 60,
+    },
+)
+def slicer(
+    quantity: Annotated[int, Field(gt=0)],
+    lot_size: Annotated[int, Field(ge=1)],
+    price: Positive,
+    max_order_value: Positive,
+    algo: Literal["marketable_limit", "twap", "vwap", "pov", "iceberg"],
+    horizon_minutes: Annotated[int, Field(ge=1)],
+    freeze_quantity: Annotated[int, Field(ge=1)] | None = None,
+) -> SlicePlan:
+    """Split an order into child orders that respect the exchange freeze quantity (orders at
+    or above it are refused, so children stay strictly below) and the per-order value cap.
+    Scheduled algos also spread the order across the horizon in up to 12 roughly equal
+    children, at least 15 minutes apart."""
+    if quantity % lot_size:
+        raise ValueError("quantity must be a whole number of lots")
+    lots = quantity // lot_size
+    max_lots = math.floor(max_order_value / (price * lot_size))
+    if freeze_quantity is not None:
+        max_lots = min(max_lots, (freeze_quantity - 1) // lot_size)
+    if max_lots < 1:
+        raise ValueError("a single lot exceeds the freeze quantity or the order value cap")
+    n = math.ceil(lots / max_lots)
+    if algo in ("twap", "vwap", "pov", "iceberg"):
+        n = max(n, min(lots, 12, max(1, horizon_minutes // 15)))
+    base, extra = divmod(lots, n)
+    slices = tuple((base + (1 if i < extra else 0)) * lot_size for i in range(n))
+    return SlicePlan(
+        slices=slices,
+        interval_seconds=0.0 if n == 1 else horizon_minutes * 60 / n,
+        max_child_quantity=max_lots * lot_size,
+    )

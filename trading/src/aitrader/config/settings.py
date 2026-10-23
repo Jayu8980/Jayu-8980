@@ -239,6 +239,10 @@ class ExecutionLimits(StrictModel):
     max_price_deviation_bps: Annotated[float, Field(gt=0, le=500)]
     approval_token_ttl_seconds: Annotated[int, Field(ge=1, le=86400)]
     reconciliation_interval_seconds: Annotated[int, Field(ge=1)]
+    # Broker-held stops become limit orders when triggered; this is how far past the trigger
+    # the limit sits, i.e. the slippage accepted to get out.
+    protective_stop_limit_bps: Annotated[float, Field(gt=0, le=1000)]
+    fno_margin_fraction: Annotated[float, Field(gt=0, le=1)]  # pre-trade estimate until SPAN data is wired
 
 
 class RegimeLimits(StrictModel):

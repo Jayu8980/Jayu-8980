@@ -1,7 +1,9 @@
 """Order execution agent: deterministic code, never an LLM.
 
 Executes only instructions carrying a valid, unexpired, unused risk approval token bound to
-the exact instruction digest. Implementation lands in Phase 6 (paper mode first).
+the exact instruction digest. Broker access goes through the ``Broker`` adapter (paper or
+Kite), wrapped in ``AuditedBroker`` so every call is logged; broker calls are side effects,
+so they are not registry tools (the registry holds pure, replayable functions).
 """
 
 from aitrader.agents.spec import AgentKind, AgentSpec, FailureMode
@@ -19,7 +21,7 @@ SPEC = AgentSpec(
     ),
     consumes=(Topic.ORDERS_INSTRUCTIONS, Topic.RISK_ALERTS),
     publishes=(Topic.ORDERS_UPDATES, Topic.ORDERS_FILLS, Topic.RISK_ALERTS),
-    tools=("broker.place", "broker.cancel", "broker.positions", "broker.orders", "micro.slicer"),
+    tools=("micro.slicer", "costs.india"),
     timeout_key=None,
     failure_mode=FailureMode.FREEZE,
     failure_behaviour=(
