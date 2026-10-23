@@ -140,7 +140,7 @@ class AttributionAgent:
             instructions=dict(self._instructions),
             trips=dict(self._trips),
             closed=tuple(self._closed),
-            seen_fills=tuple(self._seen_fills),
+            seen_fills=tuple(sorted(self._seen_fills)),
             regime=self._regime,
         )
 
