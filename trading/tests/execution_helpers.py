@@ -15,7 +15,7 @@ from typing import Any, TypeVar
 from uuid import UUID, uuid4
 
 from aitrader.agents.data.agent import MarketData
-from aitrader.agents.data.calendar import ist_datetime
+from aitrader.agents.data.calendar import ist_datetime, next_session_close
 from aitrader.agents.risk.tokens import TokenSigner
 from aitrader.audit import InMemoryAuditLog
 from aitrader.backtest.strategies import equity
@@ -159,7 +159,7 @@ class Rig:
             protective_stop=Decimal(stop) if stop and intent is InstructionIntent.OPEN else None,
             targets=tuple(Decimal(t) for t in targets) if intent is InstructionIntent.OPEN else (),
             max_price_deviation_bps=100,
-            valid_until=issued + timedelta(seconds=self.limits.execution.approval_token_ttl_seconds),
+            valid_until=next_session_close(issued),
             **kw,
         )
         token = (signer or self.signer).sign(unsigned, issued)

@@ -7,6 +7,7 @@ of reaching the risk agent. Secrets are never read from these files.
 from __future__ import annotations
 
 import os
+from datetime import date
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Literal
@@ -146,17 +147,46 @@ class TimeoutsConfig(StrictModel):
 class BusConfig(StrictModel):
     backend: Literal["memory", "redis_streams"]
     redis_url_env: str
+    prefix: Annotated[str, Field(pattern=r"^[a-z][a-z0-9_]{0,40}$")] = "aitrader"  # stream key prefix
 
 
 class StateConfig(StrictModel):
     backend: Literal["memory", "postgres"]
     postgres_dsn_env: str
+    schema_name: Annotated[str, Field(pattern=r"^[a-z_][a-z0-9_]{0,40}$")] = "aitrader"
 
 
 class NotificationsConfig(StrictModel):
     channel: Literal["telegram", "none"]
     bot_token_env: str
     chat_id_env: str
+
+
+class PaperSettings(StrictModel):
+    """The daily paper-trading service (Phase 7)."""
+
+    feed: Literal["nse", "folder"] = "nse"
+    folder: str = "data/eod"  # for the folder feed: NSE file names, as published
+    universe_index: str = "NIFTY_500"  # index membership as of each decision, when loaded
+    watchlist: tuple[str, ...] = ()  # symbols used when no membership data is loaded
+    start_date: date | None = None  # first session to trade; default: the first after start-up
+    checkpoint: Literal["postgres", "file"] = "postgres"
+    run_dir: str = "run"  # audit log, file checkpoint and dashboard
+    poll_minutes: Annotated[int, Field(ge=1, le=240)] = 15  # daemon mode
+
+
+class PaperExitCriteria(StrictModel):
+    """What a paper run must show before the owner may promote to live_human_approval."""
+
+    min_sessions: Annotated[int, Field(ge=1)] = 60
+    max_reconciliation_mismatch_days: Annotated[int, Field(ge=0)] = 0
+    max_slippage_to_estimate_ratio: Annotated[float, Field(gt=0)] = 2.0
+    min_tca_samples: Annotated[int, Field(ge=1)] = 10
+    min_closed_trades: Annotated[int, Field(ge=0)] = 20
+
+
+class RolloutConfig(StrictModel):
+    paper_exit: PaperExitCriteria = PaperExitCriteria()
 
 
 class SystemConfig(StrictModel):
@@ -170,6 +200,8 @@ class SystemConfig(StrictModel):
     bus: BusConfig
     state: StateConfig
     notifications: NotificationsConfig
+    paper: PaperSettings = PaperSettings()
+    rollout: RolloutConfig = RolloutConfig()
 
     @model_validator(mode="after")
     def _live_needs_durable_infra(self) -> SystemConfig:

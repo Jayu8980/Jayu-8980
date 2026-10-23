@@ -238,13 +238,18 @@ def _versions(store: PitStore, dataset: str, entity: str) -> list[PitRow]:
 
 class CachedPitReader:
     """Read-only, in-memory view of a ``PitStore`` for backtests, with exactly the same as-of
-    semantics as ``PitStore.read_as_of``. Each (dataset, entity) history is loaded once, so it
-    must not be used while the underlying store is still being written to."""
+    semantics as ``PitStore.read_as_of``. Each (dataset, entity) history is loaded once; a
+    caller that writes to the store afterwards (the daily paper service) must ``refresh()``."""
 
     def __init__(self, store: PitStore) -> None:
         self._store = store
         self._cache: dict[tuple[str, str], tuple[list[datetime], list[PitRow]]] = {}
         self._first_seen: dict[str, list[tuple[str, datetime]]] = {}
+
+    def refresh(self) -> None:
+        """Forget cached histories, so the next reads see rows written since."""
+        self._cache.clear()
+        self._first_seen.clear()
 
     def _history(self, dataset: str, entity: str) -> tuple[list[datetime], list[PitRow]]:
         key = (dataset, entity)

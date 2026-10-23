@@ -136,6 +136,13 @@ class ExecutionAgent:
         self._open_triggered: dict[str, int] = {}  # key -> unfilled qty of triggered stop orders
         self._alerted_triggers: set[str] = set()
 
+    def alerted_triggers(self) -> tuple[str, ...]:
+        """Protections whose unfilled stop was already reported (kept across restarts)."""
+        return tuple(sorted(self._alerted_triggers))
+
+    def restore_alerted_triggers(self, ids: tuple[str, ...]) -> None:
+        self._alerted_triggers = set(ids)
+
     def attach(self, bus: MessageBus) -> None:
         async def on_message(envelope: Envelope) -> None:
             if isinstance(envelope.payload, OrderInstruction):

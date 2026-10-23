@@ -40,11 +40,11 @@ def build(
     """The paper trader on the in-memory stack; ``overrides`` swap in durable components
     (bus, state, risk, audit) for the backend tests."""
     audit = overrides.pop("audit", None)
-    cycle, signer, state, default_audit = wire(store, **overrides)
+    reader = overrides.pop("reader", None) or CachedPitReader(store)
+    cycle, signer, state, default_audit = wire(store, reader=reader, **overrides)
     audit = audit or default_audit
-    state = overrides.get("state", state)
     limits = load_risk_limits()
-    market = MarketData(CachedPitReader(store))
+    market = MarketData(reader)
     clock = SimClock(ist_datetime(days[0], time(8, 0)))
     broker = PaperBroker(market, clock, cash=1_000_000)
     book = book or InMemoryOrderBook()

@@ -60,7 +60,8 @@ degradation:
 execution:
   max_order_value_inr: 200000
   max_price_deviation_bps: 100
-  # Swing orders are approved after the close and executed at the next open (~13.5 h later).
+  # How long a signed approval may wait before execution redeems it. Instructions themselves
+  # are valid until the close of the next session (Friday approvals trade on Monday).
   approval_token_ttl_seconds: 57600
   reconciliation_interval_seconds: 60
   protective_stop_limit_bps: 200  # a stop-limit 2% beyond the trigger; a wider gap leaves it unfilled

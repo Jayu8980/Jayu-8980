@@ -59,7 +59,7 @@ SECTOR_INDICES = (
 )
 MIN_HISTORY = 220
 HMM_MIN_VOL_RATIO = 1.5
-HMM_REFIT_DAYS = 7
+HMM_MIN_FIT = 120  # returns needed to fit the regime model on pre-week data
 # Uncalibrated defaults: soften the rule's scores and shrink toward 1/3 each. Refit on real
 # history with aitrader.evaluation.calibration.calibrate_trend before relying on them.
 DEFAULT_TEMPERATURE = 2.5
@@ -169,10 +169,11 @@ class TrendAgent:
             return None
         closes = np.array([float(b.close) for b in bars])
         rets = np.diff(np.log(closes))
+        ret_days = [ist_date(b.bar_end) for b in bars[1:]]
         dma50, dma200 = closes[-50:].mean(), closes[-200:].mean()
         dma50_prev = closes[-70:-20].mean()
         try:
-            hmm = self._regime(rets[-500:], ist_date(as_of))
+            hmm = self._regime(rets[-500:], ret_days[-500:], ist_date(as_of))
             # With a single regime in the window the "high-vol" state is arbitrary; only trust
             # it when the fitted regimes genuinely differ.
             distinct = hmm.regime_vols[-1] >= HMM_MIN_VOL_RATIO * hmm.regime_vols[0]
@@ -197,18 +198,26 @@ class TrendAgent:
             vix_percentile=vix_pct,
         )
 
-    def _regime(self, rets: np.ndarray, today: date) -> RegimeResult:
-        """Re-estimate the regime model at most every ``HMM_REFIT_DAYS`` calendar days; in
-        between, filter the new data through the last parameters (fitted on earlier data
-        only, so this stays point in time)."""
+    def _regime(self, rets: np.ndarray, days: list[date], today: date) -> RegimeResult:
+        """Re-estimate the regime model once per ISO week, on returns from before that week;
+        within the week, filter the new data through those parameters. Fitting only on data
+        before the week keeps it point in time, and anchoring to the calendar makes the result
+        independent of when the process started (a restarted paper run reproduces it)."""
+        week = today - timedelta(days=today.weekday())
         cache = self._hmm_cache
-        if cache is not None and 0 <= (today - cache[0]).days < HMM_REFIT_DAYS:
+        if cache is not None and cache[0] == week:
             try:
                 return regime_hmm(returns=rets.tolist(), fixed_params=cache[1], fixed_scale=cache[2])
             except ArithmeticError:
                 pass
-        fit = regime_hmm(returns=rets.tolist())
-        self._hmm_cache = (today, fit.params, fit.scale)
+        sample = [r for r, d in zip(rets.tolist(), days, strict=True) if d < week]
+        fit = regime_hmm(returns=sample if len(sample) >= HMM_MIN_FIT else rets.tolist())
+        self._hmm_cache = (week, fit.params, fit.scale)
+        if len(sample) >= HMM_MIN_FIT:
+            try:
+                return regime_hmm(returns=rets.tolist(), fixed_params=fit.params, fixed_scale=fit.scale)
+            except ArithmeticError:
+                pass
         return fit
 
     def _breadth(self, as_of: datetime) -> Breadth | None:

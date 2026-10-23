@@ -24,6 +24,7 @@ from uuid import UUID, uuid5
 import numpy as np
 
 from aitrader.agents.data.agent import MarketData, index_instrument
+from aitrader.agents.data.calendar import next_session_close
 from aitrader.agents.risk.portfolio import PortfolioSnapshot
 from aitrader.agents.risk.tokens import TokenSigner
 from aitrader.agents.risk_reward.agent import blocking_flags
@@ -180,7 +181,7 @@ class RiskAgent:
                 participation_rate=lim.liquidity.max_participation_rate,
                 horizon_minutes=30,
                 max_price_deviation_bps=lim.execution.max_price_deviation_bps,
-                valid_until=as_of + timedelta(seconds=lim.execution.approval_token_ttl_seconds),
+                valid_until=next_session_close(as_of),
             )
             out.append(OrderInstruction(**unsigned.model_dump(), approval=self._signer.sign(unsigned, as_of)))
         return out
@@ -423,7 +424,7 @@ class RiskAgent:
             protective_stop=_tick(stop),
             targets=tuple(_tick(float(t)) for t in chart.targets),
             max_price_deviation_bps=lim.execution.max_price_deviation_bps,
-            valid_until=as_of + timedelta(seconds=lim.execution.approval_token_ttl_seconds),
+            valid_until=next_session_close(as_of),
         )
         return self._approve(decision, unsigned, results, as_of, alerts, m)
 
@@ -474,7 +475,7 @@ class RiskAgent:
             else self._limits.liquidity.max_participation_rate,
             horizon_minutes=plan.horizon_minutes if plan else 30,
             max_price_deviation_bps=self._limits.execution.max_price_deviation_bps,
-            valid_until=as_of + timedelta(seconds=self._limits.execution.approval_token_ttl_seconds),
+            valid_until=next_session_close(as_of),
         )
         return self._approve(decision, unsigned, results, as_of, alerts, 1.0)
 

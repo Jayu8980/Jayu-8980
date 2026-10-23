@@ -18,12 +18,13 @@
 </section>
 <section class="card" style="margin-bottom:12px"><h2>Open positions and broker-held stops</h2>{positions}</section>
 <section class="card" style="margin-bottom:12px"><h2>Agent health, latency and accuracy</h2>{agents}
-<p class="meta">Accuracy: each signal scored against the realised 5-session return; hit rate counts |score| ≥ 0.2, IC needs 10 scored signals.</p></section>
+<p class="meta">Accuracy from the attribution agent: chart and smart-money calls (|score| ≥ 0.2) against the realised 5-session return, trend scenarios against the 20-session index move. Credibility is the hit rate shrunk toward 0.5 and is what the boss weighs.</p></section>
 <section class="grid">
 <div class="card"><h2>Execution quality (TCA)</h2>{tca}</div>
 <div class="card"><h2>Recent fills</h2>{fills}</div>
 </section>
 <section class="card"><h2>Alerts</h2>{alerts}</section>
+<section class="card" style="margin-top:12px"><h2>Paper-to-live readiness</h2>{readiness}</section>
 <details class="card" style="margin-top:12px"><summary>Chart data (table view)</summary><div class="table-wrap" id="data-table"></div></details>
 </main>
 <script type="application/json" id="dash-data">{data}</script>

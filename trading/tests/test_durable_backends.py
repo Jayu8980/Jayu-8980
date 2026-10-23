@@ -348,15 +348,10 @@ def test_redis_bus_rejects_invalid_envelopes_before_writing() -> None:
 @needs_redis
 def test_paper_trading_on_the_durable_stack_matches_in_memory(pg_schema: tuple[Any, str]) -> None:
     """Same market, same window: Redis Streams + Postgres must reproduce the in-memory fills."""
-    from datetime import timedelta
 
-    from aitrader.agents.data.agent import MarketData
-    from aitrader.agents.risk.agent import RiskAgent
     from aitrader.bus.redis_streams import RedisStreamsBus
-    from aitrader.config import load_risk_limits
     from aitrader.state.postgres import PostgresOrderBook, PostgresStateStore
-    from aitrader.storage import CachedPitReader
-    from tests.chain_helpers import KEY, market_store
+    from tests.chain_helpers import market_store
     from tests.test_paper_trading import build, fingerprint_of
 
     conn, schema = pg_schema
@@ -367,20 +362,136 @@ def test_paper_trading_on_the_durable_stack_matches_in_memory(pg_schema: tuple[A
     assert fingerprint_of(memory), "the window must contain trades for the comparison to mean anything"
 
     async def durable() -> list[tuple[object, ...]]:
-        from aitrader.agents.risk.tokens import TokenSigner
-
         prefix = f"t{uuid4().hex[:10]}"
         audit = InMemoryAuditLog(lambda: NOW)
         bus = RedisStreamsBus.from_url(REDIS_URL or "", audit, prefix=prefix)
         state = PostgresStateStore(conn, schema)
-        limits = load_risk_limits()
-        signer = TokenSigner(KEY, ttl=timedelta(seconds=limits.execution.approval_token_ttl_seconds))
-        risk = RiskAgent(MarketData(CachedPitReader(store)), limits, state, signer, min_analysts=2)
-        trader = build(
-            store, days, bus=bus, state=state, book=PostgresOrderBook(conn, schema), risk=risk, audit=audit
-        )
+        trader = build(store, days, bus=bus, state=state, book=PostgresOrderBook(conn, schema), audit=audit)
         await trader.run(window)
         await _cleanup(bus, prefix)
         return fingerprint_of(trader)
 
     assert run(durable()) == fingerprint_of(memory)
+
+
+@needs_pg
+def test_a_restarted_paper_run_is_identical_to_an_uninterrupted_one(
+    pg_schema: tuple[Any, str], tmp_path: Any
+) -> None:
+    """Stop after 15 sessions, rebuild every object from scratch, restore the checkpoint and
+    continue: fills, equity, closed trades and agent credibility match an uninterrupted run."""
+    from aitrader.feedback.attribution import AttributionAgent
+    from aitrader.paper.checkpoint import FileCheckpointStore, PostgresCheckpointStore
+    from aitrader.state.postgres import PostgresOrderBook, PostgresStateStore, connect
+    from tests.chain_helpers import market_store
+    from tests.test_paper_trading import build, fingerprint_of
+
+    store, days = market_store()
+    window = days[-30:]
+
+    def make(schema: str) -> Any:
+        conn = connect(PG_DSN or "")
+        trader = build(
+            store, days, state=PostgresStateStore(conn, schema), book=PostgresOrderBook(conn, schema)
+        )
+        trader.attribution = AttributionAgent(trader.market, trader.cycle.rr.stats, trader.cycle.credibility)
+        trader.attribution.attach(trader.bus)
+        return trader
+
+    conn, schema = pg_schema
+    straight = make(f"{schema}_a")
+    run(straight.run(window))
+    first = make(schema)
+    run(first.run(window[:15]))
+    for checkpoints in (FileCheckpointStore(tmp_path / "cp.json"), PostgresCheckpointStore(conn, schema)):
+        checkpoints.save(first.checkpoint(NOW))
+        assert checkpoints.load() == first.checkpoint(NOW)
+    resumed = make(schema)
+    resumed.restore(PostgresCheckpointStore(conn, schema).load())
+    run(resumed.run(window[15:]))
+    try:
+        assert fingerprint_of(straight), "the window must trade for the comparison to mean anything"
+        assert fingerprint_of(resumed) == fingerprint_of(straight)
+        assert resumed.records[-1].equity == straight.records[-1].equity
+        assert resumed.attribution.closed_trips == straight.attribution.closed_trips
+        assert resumed.attribution.scores == straight.attribution.scores
+        assert all(r.reconciliation is not None and r.reconciliation.matched for r in resumed.records)
+    finally:
+        conn.execute(f"DROP SCHEMA IF EXISTS {schema}_a CASCADE")
+
+
+@needs_pg
+@needs_redis
+def test_the_production_factory_runs_paper_sessions(
+    pg_schema: tuple[Any, str], tmp_path: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """build_paper_service from config: DuckDB PIT file, Postgres state, Redis bus, folder
+    feed, file audit log, dashboard. Two live sessions run end to end."""
+    import asyncio
+    from datetime import time
+
+    from aitrader.agents.data.agent import DataAgent
+    from aitrader.agents.data.calendar import ist_datetime
+    from aitrader.bus import InMemoryBus
+    from aitrader.config import load_system_config
+    from aitrader.notify import MemoryNotifier
+    from aitrader.paper.app import build_paper_service
+    from aitrader.storage import PitStore
+    from tests.data_helpers import SettableClock
+    from tests.nse_files import cm_bhavcopy_text, index_close_text, synthetic_market, write_day
+
+    _, schema = pg_schema
+    prefix = f"t{uuid4().hex[:10]}"
+    days, nifty, stocks = synthetic_market(262, seed=12)
+    pit = tmp_path / "pit.duckdb"
+    history = PitStore(pit)
+    clock = SettableClock(ist_datetime(days[259], time(23, 0)))
+    loader = DataAgent(history, InMemoryBus(InMemoryAuditLog(clock)), load_system_config().data, clock)
+    for i, day in enumerate(days[:260]):
+        asyncio.run(loader.ingest_eod("nse_index_close", index_close_text(day, nifty[i]), publish=False))
+        rows = {s: v[i] for s, v in stocks.items()}
+        asyncio.run(loader.ingest_eod("nse_cm_bhavcopy", cm_bhavcopy_text(day, rows), publish=False))
+    history.close()
+    for i in (260, 261):
+        write_day(tmp_path / "eod", days[i], nifty[i], {s: v[i] for s, v in stocks.items()})
+    base = load_system_config().model_dump()
+    config = type(load_system_config()).model_validate(
+        base
+        | {
+            "stage": "paper",
+            "bus": base["bus"] | {"backend": "redis_streams", "prefix": prefix},
+            "state": base["state"] | {"backend": "postgres", "schema_name": schema},
+            "data": base["data"] | {"store_path": str(pit)},
+            "broker": base["broker"] | {"kill_switch_file": str(tmp_path / "KILL")},
+            "paper": base["paper"]
+            | {
+                "feed": "folder",
+                "folder": str(tmp_path / "eod"),
+                "watchlist": ["UPA", "UPB", "DNC"],
+                "start_date": days[260],
+                "checkpoint": "postgres",
+                "run_dir": str(tmp_path / "run"),
+            },
+        }
+    )
+    monkeypatch.setenv("AITRADER_POSTGRES_DSN", PG_DSN or "")
+    monkeypatch.setenv("AITRADER_REDIS_URL", REDIS_URL or "")
+    monkeypatch.setenv("AITRADER_RISK_SIGNING_KEY", "ab" * 32)
+    from aitrader.config import load_risk_limits
+
+    wall = SettableClock(ist_datetime(days[261], time(21, 0)))
+    notifier = MemoryNotifier()
+
+    async def scenario() -> list[Any]:
+        service = build_paper_service(config, load_risk_limits(), wall_clock=wall, notifier=notifier)
+        assert service.resume() is None
+        done = await service.step()
+        await service.trader.bus._redis.aclose()  # type: ignore[attr-defined]
+        return done
+
+    done = run(scenario())
+    assert [r.day for r in done] == [days[260], days[261]]
+    assert all(r.reconciliation is not None and r.reconciliation.matched for r in done)
+    assert (tmp_path / "run" / "dashboard.html").exists()
+    assert (tmp_path / "run" / "audit.jsonl").stat().st_size > 0
+    assert len([m for m in notifier.messages if m.startswith("Paper trading")]) == 2

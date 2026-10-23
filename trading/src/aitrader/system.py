@@ -55,14 +55,15 @@ def backends(config: SystemConfig, audit: AuditLog) -> tuple[MessageBus, StateSt
     if config.bus.backend == "redis_streams":
         from aitrader.bus.redis_streams import RedisStreamsBus
 
-        bus = RedisStreamsBus.from_url(secret(config.bus.redis_url_env), audit)
+        bus = RedisStreamsBus.from_url(secret(config.bus.redis_url_env), audit, prefix=config.bus.prefix)
     else:
         bus = InMemoryBus(audit)
     if config.state.backend == "postgres":
         from aitrader.state.postgres import PostgresOrderBook, PostgresStateStore, connect
 
         dsn = secret(config.state.postgres_dsn_env)
-        state, book = PostgresStateStore(connect(dsn)), PostgresOrderBook(connect(dsn))
+        schema = config.state.schema_name
+        state, book = PostgresStateStore(connect(dsn), schema), PostgresOrderBook(connect(dsn), schema)
     else:
         state, book = InMemoryStateStore(), InMemoryOrderBook()
     return bus, state, book

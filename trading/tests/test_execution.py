@@ -296,3 +296,13 @@ def test_pre_trade_checks_reject_bad_instructions() -> None:
     short = r.submit(r.instruction(0, side=Side.SELL, limit="99.00", open_short=True))
     assert "intraday only" in short.reason
     assert r.broker.orders() == []
+
+
+def test_friday_evening_approval_trades_at_mondays_open() -> None:
+    r = rig()
+    friday = 4
+    assert r.days[friday].weekday() == 4
+    record = r.submit(r.instruction(friday))
+    assert record.status is InstructionStatus.ACCEPTED, record.reason
+    r.session(friday + 1)  # Monday
+    assert r.position() == 100

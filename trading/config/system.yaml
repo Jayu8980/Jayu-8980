@@ -82,3 +82,22 @@ notifications:
   channel: telegram
   bot_token_env: AITRADER_TELEGRAM_BOT_TOKEN
   chat_id_env: AITRADER_TELEGRAM_CHAT_ID
+
+paper:
+  feed: nse  # nse (download from the archives) | folder (files dropped by another process)
+  folder: data/eod
+  universe_index: NIFTY_500  # membership as of each decision, once index history is loaded
+  watchlist: []  # symbols to analyse while no membership data is loaded (owner decision)
+  start_date: null  # first session to trade; null = the first session after the service starts
+  checkpoint: postgres  # postgres | file (run_dir/checkpoint.json)
+  run_dir: run
+  poll_minutes: 15
+
+rollout:
+  # Promotion from paper to live_human_approval needs all of these and the owner's sign-off.
+  paper_exit:
+    min_sessions: 60
+    max_reconciliation_mismatch_days: 0
+    max_slippage_to_estimate_ratio: 2.0
+    min_tca_samples: 10
+    min_closed_trades: 20

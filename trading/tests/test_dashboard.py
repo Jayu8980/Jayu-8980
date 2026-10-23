@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import re
-from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import uuid4
 
 from aitrader.config import load_risk_limits
 from aitrader.execution.orderbook import InMemoryOrderBook
-from aitrader.feedback.live_scores import LiveScorer
+from aitrader.feedback.attribution import AttributionAgent
 from aitrader.monitoring.dashboard import collect, render
 from aitrader.schemas.market import Severity
 from aitrader.schemas.risk import AlertType, RiskAlert
@@ -23,8 +22,8 @@ GENERATED = datetime(2026, 10, 23, 12, 0, tzinfo=UTC)
 def test_dashboard_from_a_paper_run_is_complete_and_safe() -> None:
     store, days = market_store()
     trader = build(store, days)
-    scorer = LiveScorer(trader.market)
-    scorer.attach(trader.bus)
+    trader.attribution = AttributionAgent(trader.market, trader.cycle.rr.stats, trader.cycle.credibility)
+    trader.attribution.attach(trader.bus)
     records = run(trader.run(days[-30:]))
     hostile = RiskAlert(
         alert_id=uuid4(),
@@ -33,14 +32,14 @@ def test_dashboard_from_a_paper_run_is_complete_and_safe() -> None:
         freeze_new_orders=True,
         detail='<script>alert("x")</script> & <img src=x onerror=1>',
     )
-    records[-1] = replace(records[-1], alerts=[*records[-1].alerts, hostile])
+    records[-1] = records[-1].model_copy(update={"alerts": (*records[-1].alerts, hostile)})
     data = collect(
         title="Paper <monitor>",
         stage="paper",
         generated_at=GENERATED,
         records=records,
         book=trader.execution.book,
-        scores=scorer.scores(trader.clock.now),
+        scores=trader.attribution.scores,
         tca=trader.tca.results,
         limits=load_risk_limits(),
         starting_equity=1_000_000,

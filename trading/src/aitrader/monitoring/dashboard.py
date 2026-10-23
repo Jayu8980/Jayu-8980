@@ -22,9 +22,9 @@ from importlib import resources
 
 from aitrader.config.settings import RiskLimits
 from aitrader.execution.orderbook import OrderBook, net_positions
-from aitrader.feedback.live_scores import LiveScore
+from aitrader.paper.readiness import ReadinessReport
 from aitrader.paper.runner import DayRecord
-from aitrader.schemas.feedback import TcaResult
+from aitrader.schemas.feedback import AgentScore, TcaResult
 from aitrader.schemas.market import Severity
 from aitrader.schemas.risk import RiskAlert
 
@@ -48,11 +48,12 @@ class DashboardData:
     generated_at: datetime
     records: Sequence[DayRecord]
     positions: Sequence[PositionRow]
-    scores: Sequence[LiveScore]
+    scores: Sequence[AgentScore]
     tca: Sequence[TcaResult]
     limits: RiskLimits
     starting_equity: float
     recent_fills: Sequence[tuple[str, str, str, int, float, float]] = field(default_factory=list)
+    readiness: ReadinessReport | None = None
 
 
 def collect(
@@ -62,10 +63,11 @@ def collect(
     generated_at: datetime,
     records: Sequence[DayRecord],
     book: OrderBook,
-    scores: Sequence[LiveScore],
+    scores: Sequence[AgentScore],
     tca: Sequence[TcaResult],
     limits: RiskLimits,
     starting_equity: float,
+    readiness: ReadinessReport | None = None,
 ) -> DashboardData:
     last = records[-1] if records else None
     held = net_positions(book.fills())
@@ -108,6 +110,7 @@ def collect(
         limits=limits,
         starting_equity=starting_equity,
         recent_fills=recent,
+        readiness=readiness,
     )
 
 
@@ -288,7 +291,8 @@ def render(data: DashboardData) -> str:
                 f"{s.information_coefficient:+.2f}"
                 if s and s.information_coefficient is not None
                 else "\u2013",
-                f"{s.matured:,}" if s else "\u2013",
+                f"{s.credibility:.2f}" if s else "\u2013",
+                f"{s.sample_size:,}" if s else "\u2013",
             ]
         )
     agent_table = _table(
@@ -300,10 +304,11 @@ def render(data: DashboardData) -> str:
             "Unhealthy cycles",
             "Hit rate",
             "IC",
-            "Scored signals",
+            "Credibility",
+            "Scored calls",
         ],
         agent_rows,
-        [False, False, True, True, True, True, True, True],
+        [False, False, True, True, True, True, True, True, True],
         "No agent activity yet.",
     )
 
@@ -344,6 +349,33 @@ def render(data: DashboardData) -> str:
         ["Day", "Type", "Detail", "Freezes entries"], alert_rows, [False, False, False, False], "No alerts."
     )
 
+    if data.readiness is None:
+        readiness = '<p class="empty">Not assessed.</p>'
+    else:
+        verdict = (
+            _status("good", "All exit criteria met: the owner may decide on promotion")
+            if data.readiness.ready
+            else _status("warning", "Not ready for live trading")
+        )
+        readiness = (
+            '<div class="banner">'
+            + verdict
+            + "</div>"
+            + _table(
+                ["Criterion", "Status", "Observed", "Required"],
+                [
+                    [
+                        _e(c.name),
+                        _status("good", "met") if c.passed else _status("critical", "not met"),
+                        _e(c.observed),
+                        _e(c.required),
+                    ]
+                    for c in data.readiness.results
+                ],
+                [False, False, False, False],
+                "No criteria.",
+            )
+        )
     series = {
         "dates": [r.day.isoformat() for r in records],
         "equity": [round(r.equity, 2) for r in records],
@@ -366,6 +398,7 @@ def render(data: DashboardData) -> str:
         tca=tca_table,
         fills=fills_table,
         alerts=alert_table,
+        readiness=readiness,
         data=payload,
         script=_asset("dashboard.js"),
         style=_asset("dashboard.css"),

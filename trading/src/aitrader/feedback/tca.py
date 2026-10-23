@@ -16,13 +16,19 @@ from uuid import UUID, uuid5
 from aitrader.agents.publishing import publish
 from aitrader.bus.interface import MessageBus
 from aitrader.execution.orderbook import InstructionStatus, OrderBook
-from aitrader.schemas.base import AgentId
+from aitrader.schemas.base import AgentId, StrictModel
 from aitrader.schemas.envelope import Envelope, Topic
 from aitrader.schemas.feedback import TcaResult
 from aitrader.schemas.gates import LiquidityPlan
 from aitrader.tools.microstructure import tca
 
 _NS = UUID("8e2f1a0b-7c6d-4e5f-9a8b-1c2d3e4f5a6b")
+
+
+class TcaState(StrictModel):
+    plans: tuple[LiquidityPlan, ...] = ()
+    done: tuple[UUID, ...] = ()
+    results: tuple[TcaResult, ...] = ()
 
 
 class TcaAgent:
@@ -33,6 +39,18 @@ class TcaAgent:
         self._plans: dict[UUID, LiquidityPlan] = {}
         self._done: set[UUID] = set()
         self.results: list[TcaResult] = []
+
+    def state(self) -> TcaState:
+        return TcaState(
+            plans=tuple(self._plans.values()),
+            done=tuple(sorted(self._done, key=str)),
+            results=tuple(self.results),
+        )
+
+    def restore(self, state: TcaState) -> None:
+        self._plans = {p.decision_id: p for p in state.plans}
+        self._done = set(state.done)
+        self.results = list(state.results)
 
     def attach(self, bus: MessageBus) -> None:
         async def on_plan(envelope: Envelope) -> None:

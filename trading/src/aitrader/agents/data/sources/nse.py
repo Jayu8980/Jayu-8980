@@ -333,6 +333,32 @@ ARCHIVE_URLS = {
 Transport = Callable[[str], bytes]
 
 
+def archive_url(source: str, trade_date: date) -> str:
+    return ARCHIVE_URLS[source].format(
+        ymd=trade_date.strftime("%Y%m%d"),
+        dmy=trade_date.strftime("%d%m%Y"),
+        dd=trade_date.strftime("%d"),
+        mon=trade_date.strftime("%b").upper(),
+        yyyy=trade_date.strftime("%Y"),
+    )
+
+
+def archive_filename(source: str, trade_date: date) -> str:
+    """The file name NSE publishes, e.g. for a drop folder fed by another process."""
+    return archive_url(source, trade_date).rsplit("/", 1)[1]
+
+
+def read_archive(name: str, body: bytes) -> str:
+    """CSV text from a published file, unzipping when needed."""
+    if name.endswith(".zip"):
+        with zipfile.ZipFile(io.BytesIO(body)) as archive:
+            names = [n for n in archive.namelist() if n.lower().endswith(".csv")]
+            if len(names) != 1:
+                raise SourceFormatError(f"expected one CSV in {name}, found {names}")
+            return archive.read(names[0]).decode("utf-8")
+    return body.decode("utf-8")
+
+
 def _urllib_transport(url: str) -> bytes:
     request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (aitrader EOD ingest)"})
     with urllib.request.urlopen(request, timeout=30) as response:
@@ -351,13 +377,7 @@ class NseArchiveFetcher:
         self._backoff = backoff_seconds
 
     def fetch_text(self, source: str, trade_date: date) -> str:
-        url = ARCHIVE_URLS[source].format(
-            ymd=trade_date.strftime("%Y%m%d"),
-            dmy=trade_date.strftime("%d%m%Y"),
-            dd=trade_date.strftime("%d"),
-            mon=trade_date.strftime("%b").upper(),
-            yyyy=trade_date.strftime("%Y"),
-        )
+        url = archive_url(source, trade_date)
         last_error: Exception | None = None
         for attempt in range(self._retries):
             try:
@@ -368,10 +388,4 @@ class NseArchiveFetcher:
                 time_mod.sleep(self._backoff * 2**attempt)
         else:
             raise ConnectionError(f"failed to fetch {url}") from last_error
-        if url.endswith(".zip"):
-            with zipfile.ZipFile(io.BytesIO(body)) as archive:
-                names = [n for n in archive.namelist() if n.lower().endswith(".csv")]
-                if len(names) != 1:
-                    raise SourceFormatError(f"expected one CSV in {url}, found {names}")
-                return archive.read(names[0]).decode("utf-8")
-        return body.decode("utf-8")
+        return read_archive(url, body)

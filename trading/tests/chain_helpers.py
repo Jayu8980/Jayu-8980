@@ -24,7 +24,7 @@ from aitrader.config import load_risk_limits
 from aitrader.config.settings import RiskLimits
 from aitrader.orchestrator.cycle import CycleTimeouts, DecisionCycle
 from aitrader.schemas.signals import SetupType
-from aitrader.state import InMemoryStateStore
+from aitrader.state import InMemoryStateStore, StateStore
 from aitrader.storage import CachedPitReader, PitStore
 from tests.analyst_helpers import regime_index, write_closes
 from tests.data_helpers import eod
@@ -58,12 +58,14 @@ def wire(
     limits: RiskLimits | None = None,
     stats: SetupStats | None = None,
     timeouts: CycleTimeouts | None = None,
+    reader: CachedPitReader | None = None,
+    state: StateStore | None = None,
     **overrides: object,
-) -> tuple[DecisionCycle, TokenSigner, InMemoryStateStore, InMemoryAuditLog]:
+) -> tuple[DecisionCycle, TokenSigner, StateStore, InMemoryAuditLog]:
     limits = limits or load_risk_limits()
-    reader = CachedPitReader(store)
+    reader = reader or CachedPitReader(store)
     market = MarketData(reader)
-    state = InMemoryStateStore()
+    state = state or InMemoryStateStore()
     audit = InMemoryAuditLog(lambda: datetime(2030, 1, 1, tzinfo=UTC))
     signer = TokenSigner(KEY, ttl=timedelta(seconds=limits.execution.approval_token_ttl_seconds))
     parts: dict[str, object] = {

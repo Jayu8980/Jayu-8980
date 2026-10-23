@@ -69,6 +69,11 @@ class KillSwitch:
 
     async def poll(self, now: datetime) -> RiskAlert | None:
         """Engage if the kill file exists. Returns the alert when this call engaged it."""
+        if (
+            self.engaged is not None
+            and self.engaged.alert_id not in self._state.freeze_status().reason_alert_ids
+        ):
+            self.engaged = None  # released by a human from another process (the CLI)
         if self.engaged is not None or self._path is None or not self._path.exists():
             return None
         text = self._path.read_text(encoding="utf-8", errors="replace").strip()[:400]

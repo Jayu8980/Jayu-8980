@@ -45,7 +45,7 @@ from aitrader.execution.broker import (
     ProtectiveStatus,
     Quote,
 )
-from aitrader.schemas.base import Instrument, InstrumentType, Timeframe
+from aitrader.schemas.base import Instrument, InstrumentType, StrictModel, Timeframe, UtcDatetime
 from aitrader.schemas.market import Bar
 from aitrader.schemas.orders import OrderType, Product, Side
 from aitrader.tools.costs import india_costs
@@ -107,6 +107,44 @@ class _Position:
     average_price: float = 0.0
 
 
+class PaperOrderState(StrictModel):
+    request: OrderRequest
+    broker_order_id: str
+    placed_at: UtcDatetime
+    status: BrokerOrderStatus
+    filled: int
+    notional: float
+    message: str | None = None
+    protective_id: str | None = None
+
+
+class PaperProtectiveState(StrictModel):
+    request: ProtectiveRequest
+    protective_id: str
+    status: ProtectiveStatus
+    triggered_order_id: str | None = None
+
+
+class PaperPositionState(StrictModel):
+    instrument: Instrument
+    quantity: int
+    average_price: float
+
+
+class PaperBrokerState(StrictModel):
+    """Everything the paper broker holds between sessions, for checkpoints."""
+
+    cash: float
+    costs_paid: float
+    seq: int
+    orders: tuple[PaperOrderState, ...]
+    trades: tuple[BrokerTrade, ...]
+    positions: tuple[PaperPositionState, ...]
+    protective: tuple[PaperProtectiveState, ...]
+    last_price: dict[str, float]
+    previous_close: dict[str, float]
+
+
 @dataclass
 class PaperBroker:
     market: MarketData
@@ -127,6 +165,76 @@ class PaperBroker:
         self._used: dict[str, int] = defaultdict(int)
         self._bars: dict[str, Bar] = {}
         self._seq = 0
+
+    # ------------------------------------------------------------ checkpoints
+    def snapshot(self) -> PaperBrokerState:
+        """State between sessions (the per-session volume and bar caches are not kept)."""
+        return PaperBrokerState(
+            cash=self.cash,
+            costs_paid=self.costs_paid,
+            seq=self._seq,
+            orders=tuple(
+                PaperOrderState(
+                    request=o.request,
+                    broker_order_id=o.broker_order_id,
+                    placed_at=o.placed_at,
+                    status=o.status,
+                    filled=o.filled,
+                    notional=o.notional,
+                    message=o.message,
+                    protective_id=o.protective_id,
+                )
+                for o in self._orders.values()
+            ),
+            trades=tuple(self._trades),
+            positions=tuple(
+                PaperPositionState(
+                    instrument=p.instrument, quantity=p.quantity, average_price=p.average_price
+                )
+                for p in self._positions.values()
+            ),
+            protective=tuple(
+                PaperProtectiveState(
+                    request=p.request,
+                    protective_id=p.protective_id,
+                    status=p.status,
+                    triggered_order_id=p.triggered_order_id,
+                )
+                for p in self._protective.values()
+            ),
+            last_price=dict(self._ltp),
+            previous_close=dict(self._prev_close),
+        )
+
+    def restore(self, state: PaperBrokerState) -> None:
+        self.cash = state.cash
+        self.costs_paid = state.costs_paid
+        self._seq = state.seq
+        self._orders = {
+            o.broker_order_id: _Order(
+                o.request,
+                o.broker_order_id,
+                o.placed_at,
+                o.status,
+                o.filled,
+                o.notional,
+                o.message,
+                o.protective_id,
+            )
+            for o in state.orders
+        }
+        self._trades = list(state.trades)
+        self._positions = {
+            p.instrument.key: _Position(p.instrument, p.quantity, p.average_price) for p in state.positions
+        }
+        self._protective = {
+            p.protective_id: _Protective(p.request, p.protective_id, p.status, p.triggered_order_id)
+            for p in state.protective
+        }
+        self._ltp = dict(state.last_price)
+        self._prev_close = dict(state.previous_close)
+        self._used = defaultdict(int)
+        self._bars = {}
 
     # ------------------------------------------------------------ fault injection
     def inject(self, method: str, *faults: Fault) -> None:

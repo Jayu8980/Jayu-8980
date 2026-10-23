@@ -18,9 +18,10 @@ on a wall-clock scheduler, with the paper broker replaced by live quotes; that i
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
+from typing import Literal
 from uuid import UUID, uuid5
 
 from aitrader.agents.data.agent import MarketData
@@ -33,11 +34,12 @@ from aitrader.bus.interface import MessageBus
 from aitrader.execution.agent import ExecutionAgent, ReconciliationReport
 from aitrader.execution.checks import PRE_OPEN
 from aitrader.execution.killswitch import KillSwitch
-from aitrader.execution.paper import PaperBroker
-from aitrader.feedback.tca import TcaAgent
+from aitrader.execution.paper import PaperBroker, PaperBrokerState
+from aitrader.feedback.attribution import AttributionAgent, AttributionState
+from aitrader.feedback.tca import TcaAgent, TcaState
 from aitrader.orchestrator.cycle import CycleResult, DecisionCycle
 from aitrader.schemas.audit import LlmCallRecord
-from aitrader.schemas.base import AgentId, Instrument
+from aitrader.schemas.base import AgentId, Instrument, StrictModel, UtcDatetime
 from aitrader.schemas.envelope import Envelope, Topic
 from aitrader.schemas.feedback import TcaResult
 from aitrader.schemas.orders import Fill
@@ -55,8 +57,7 @@ class SimClock:
         return self.now
 
 
-@dataclass
-class DayRecord:
+class DayRecord(StrictModel):
     day: date
     equity: float
     cash: float
@@ -66,10 +67,10 @@ class DayRecord:
     total_drawdown: float
     positions: dict[str, int]
     prices: dict[str, float]
-    fills: list[Fill]
+    fills: tuple[Fill, ...]
     instructions: int
     rejected_instructions: int
-    alerts: list[RiskAlert]
+    alerts: tuple[RiskAlert, ...]
     frozen: bool
     reconciliation: ReconciliationReport | None
     limit_multiplier: float
@@ -77,8 +78,35 @@ class DayRecord:
     llm_cost_usd: float
     agent_status: dict[str, str]
     agent_latency_ms: dict[str, float]
-    tca: list[TcaResult]
-    notes: list[str] = field(default_factory=list)
+    tca: tuple[TcaResult, ...]
+    notes: tuple[str, ...] = ()
+
+
+class RunnerState(StrictModel):
+    peak_equity: float
+    day_start_equity: float
+    pending_alerts: tuple[RiskAlert, ...]  # flatten requests not yet turned into exits
+    flattened: tuple[UUID, ...]
+    audit_seen: int
+    instructions_seen: int
+    fills_seen: int
+    trend_exposure: float | None = None  # the trend agent rate-limits exposure changes from here
+
+
+class PaperCheckpoint(StrictModel):
+    """Everything a paper run needs to continue after a restart, apart from what the
+    durable state store, order book, PIT store and audit log already hold."""
+
+    version: Literal[1] = 1
+    last_day: date | None
+    saved_at: UtcDatetime
+    runner: RunnerState
+    broker: PaperBrokerState
+    records: tuple[DayRecord, ...]
+    tca: TcaState
+    kill_switch: RiskAlert | None
+    alerted_triggers: tuple[str, ...]
+    attribution: AttributionState | None = None
 
 
 @dataclass
@@ -95,8 +123,11 @@ class PaperTrader:
     audit: AuditLog
     clock: SimClock
     instruments: Sequence[Instrument] = ()
+    # Instruments to analyse at a decision time (index membership); held positions are added.
+    universe: Callable[[datetime], Sequence[Instrument]] | None = None
     sectors: dict[str, str] = field(default_factory=dict)
     decision_time: time = time(20, 0)
+    attribution: AttributionAgent | None = None
     records: list[DayRecord] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -109,6 +140,8 @@ class PaperTrader:
         self._fills_seen = 0
         self.execution.attach(self.bus)
         self.tca.attach(self.bus)
+        if self.attribution is not None:
+            self.attribution.attach(self.bus)
 
         async def on_alert(envelope: Envelope) -> None:
             if isinstance(envelope.payload, RiskAlert):
@@ -154,6 +187,51 @@ class PaperTrader:
                 )
         await self.bus.drain()
 
+    @property
+    def last_day(self) -> date | None:
+        return self.records[-1].day if self.records else None
+
+    def checkpoint(self, saved_at: datetime) -> PaperCheckpoint:
+        pending = tuple(a for a in self._alerts if a.flatten_positions and a.alert_id not in self._flattened)
+        return PaperCheckpoint(
+            last_day=self.last_day,
+            saved_at=saved_at,
+            runner=RunnerState(
+                peak_equity=self._peak,
+                day_start_equity=self._day_start,
+                pending_alerts=pending,
+                flattened=tuple(sorted(self._flattened, key=str)),
+                audit_seen=self._audit_seen,
+                instructions_seen=self._instructions_seen,
+                fills_seen=self._fills_seen,
+                trend_exposure=self.cycle.trend.previous_exposure if self.cycle.trend else None,
+            ),
+            broker=self.broker.snapshot(),
+            records=tuple(self.records),
+            tca=self.tca.state(),
+            kill_switch=self.kill_switch.engaged,
+            alerted_triggers=self.execution.alerted_triggers(),
+            attribution=self.attribution.state() if self.attribution else None,
+        )
+
+    def restore(self, cp: PaperCheckpoint) -> None:
+        self.broker.restore(cp.broker)
+        self._peak = cp.runner.peak_equity
+        self._day_start = cp.runner.day_start_equity
+        self._alerts = list(cp.runner.pending_alerts)
+        self._flattened = set(cp.runner.flattened)
+        self._audit_seen = cp.runner.audit_seen
+        self._instructions_seen = cp.runner.instructions_seen
+        self._fills_seen = cp.runner.fills_seen
+        if self.cycle.trend is not None:
+            self.cycle.trend.previous_exposure = cp.runner.trend_exposure
+        self.records = list(cp.records)
+        self.tca.restore(cp.tca)
+        self.kill_switch.engaged = cp.kill_switch
+        self.execution.restore_alerted_triggers(cp.alerted_triggers)
+        if self.attribution is not None and cp.attribution is not None:
+            self.attribution.restore(cp.attribution)
+
     def _llm_cost(self, cycle_id: UUID) -> float:
         records = self.audit.records(self._audit_seen)
         self._audit_seen += len(records)
@@ -186,9 +264,13 @@ class PaperTrader:
         await self.kill_switch.poll(now)
         await self.bus.drain()
         await self._flatten(now)
+        if self.attribution is not None:  # credibility from outcomes known by now, before deciding
+            await self.attribution.score(self.bus, now)
+            await self.bus.drain()
         portfolio = self.snapshot(now)
         held = [h.instrument for h in portfolio.holdings]
-        universe = list({i.key: i for i in [*self.instruments, *held]}.values())
+        candidates = [*self.instruments, *(self.universe(now) if self.universe else ())]
+        universe = list({i.key: i for i in [*candidates, *held]}.values())
         result: CycleResult = await self.cycle.run(now, universe, portfolio)
         await self.bus.drain()
         await self._flatten(now + timedelta(seconds=2))
@@ -209,10 +291,10 @@ class PaperTrader:
             total_drawdown=portfolio.total_drawdown,
             positions={h.instrument.key: h.quantity for h in portfolio.holdings},
             prices={h.instrument.key: h.price for h in portfolio.holdings},
-            fills=new_fills,
+            fills=tuple(new_fills),
             instructions=sum(1 for r in new_records if r.status.value == "accepted"),
             rejected_instructions=sum(1 for r in new_records if r.status.value == "rejected"),
-            alerts=self._alerts[alerts_before:],
+            alerts=tuple(self._alerts[alerts_before:]),
             frozen=self.state.freeze_status().frozen,
             reconciliation=report,
             limit_multiplier=result.limit_multiplier,
@@ -220,8 +302,8 @@ class PaperTrader:
             llm_cost_usd=self._llm_cost(result.cycle_id),
             agent_status={a.value: s.status.value for a, s in result.statuses.items()},
             agent_latency_ms={a.value: s.latency_ms for a, s in result.statuses.items()},
-            tca=tca,
-            notes=list(result.notes),
+            tca=tuple(tca),
+            notes=tuple(result.notes),
         )
         self._day_start = portfolio.equity
         self.records.append(record)
@@ -236,4 +318,4 @@ def session_window(market: MarketData, start: date, end: date) -> list[date]:
     return [d for d in sessions if start <= d <= end]
 
 
-__all__ = ["DayRecord", "PaperTrader", "SimClock", "session_window"]
+__all__ = ["DayRecord", "PaperCheckpoint", "PaperTrader", "SimClock", "session_window"]
