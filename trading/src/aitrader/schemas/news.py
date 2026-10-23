@@ -82,6 +82,7 @@ class NewsEvent(StrictModel):
     half_life: timedelta
     claims: Annotated[tuple[NewsClaim, ...], Field(min_length=1)]
     duplicate_document_ids: tuple[str, ...] = ()
+    extraction: Literal["llm", "rules"] = "rules"  # which path produced the scored fields
 
     @model_validator(mode="after")
     def _positive_half_life(self) -> NewsEvent:

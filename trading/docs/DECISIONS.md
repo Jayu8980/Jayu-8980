@@ -73,7 +73,7 @@ must confirm or change each one before the phase that depends on it.**
 | Walk-forward objective | Sharpe on the training window; ties go to the earliest grid entry |
 | Pre-2023 costs | Conservative approximate schedules, flagged in results |
 
-## Needed from you before Phase 4 (analyst agents)
+## Needed from you before Phase 4 (analyst agents) (still open)
 
 1. **Data access** (same as above): this session cannot reach NSE; a new session with the
    allowed domains, or uploaded files, unblocks real backtests and the analysts' offline
@@ -83,3 +83,23 @@ must confirm or change each one before the phase that depends on it.**
 3. **News sources:** NSE/BSE announcement feeds are the default. Should anything paid be added?
 4. **FII/DII and participant-OI history** for the smart money engine: NSE publishes both daily.
    Do you want backfill from NSE archives once access works?
+
+## Phase 4 decisions taken (defaults)
+
+| Decision | Choice |
+|----------|--------|
+| LLM model ids | Left `UNSET`. LLM paths are off and deterministic rules run instead |
+| LLM sampling | None sent (current models reject temperature); `effort`: high for reasoning, low for extraction |
+| News acceptance | An LLM claim counts only if its quote is verbatim in the source; symbols only from linked candidates; dates only if stated in their quote |
+| Trend calibration | Temperature 2.5, shrinkage 0.2 until refit on real history |
+| Participant OI | Stamped available at 20:00 IST |
+| Macro calendar | Empty until you add confirmed dates to `config/events.yaml` |
+
+## Needed from you before Phase 5 (debate, boss, gates, full chain in backtest)
+
+1. **Data:** still the blocker for every real evaluation (NSE is refused from this session).
+2. **LLM model ids and prices:** the debate and boss agents are LLM agents, and Phase 5 needs
+   them pinned to run end to end. Without them, the deterministic boss fallback is what gets
+   backtested.
+3. **Macro event dates** in `config/events.yaml` (RBI MPC, Budget, CPI and GDP releases).
+4. **News source:** which feed to build a connector for (default: NSE corporate announcements).

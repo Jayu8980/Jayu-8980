@@ -88,19 +88,51 @@ class LlmModels(StrictModel):
     extraction: str
 
 
+Effort = Literal["low", "medium", "high", "xhigh", "max"]
+
+
+class LlmEfforts(StrictModel):
+    reasoning: Effort
+    extraction: Effort
+
+
+class LlmMaxTokens(StrictModel):
+    reasoning: Annotated[int, Field(ge=256, le=64000)]
+    extraction: Annotated[int, Field(ge=256, le=64000)]
+
+
+class ModelPrice(StrictModel):
+    input: Annotated[float, Field(ge=0)]
+    output: Annotated[float, Field(ge=0)]
+
+
 class LlmConfig(StrictModel):
-    provider: str
+    provider: Literal["anthropic"]
     models: LlmModels
-    temperature: Annotated[float, Field(ge=0.0, le=1.0)]
+    effort: LlmEfforts
+    max_output_tokens: LlmMaxTokens
+    pricing_usd_per_mtok: dict[str, ModelPrice]
+    request_timeout_seconds: Annotated[float, Field(gt=0, le=600)]
     max_debate_rounds: Annotated[int, Field(ge=1, le=4)]
     max_llm_calls_per_cycle: Annotated[int, Field(ge=1)]
     daily_cost_budget_usd: Annotated[float, Field(gt=0)]
 
     def require_pinned(self) -> None:
-        """Called before any LLM agent starts. Aliases and placeholders are refused."""
+        """Called before any LLM agent starts. Placeholders, aliases and unpriced models are
+        refused (an unpriced model would make the cost budget unenforceable)."""
         for role, model in self.models.model_dump().items():
             if not model or model == UNSET or model.endswith("latest"):
                 raise ValueError(f"llm.models.{role} must be an exact pinned model id, got {model!r}")
+            if model not in self.pricing_usd_per_mtok:
+                raise ValueError(f"llm.pricing_usd_per_mtok has no entry for {model!r}")
+
+    @property
+    def pinned(self) -> bool:
+        try:
+            self.require_pinned()
+        except ValueError:
+            return False
+        return True
 
 
 class TimeoutsConfig(StrictModel):

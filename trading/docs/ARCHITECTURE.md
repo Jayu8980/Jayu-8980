@@ -1,6 +1,6 @@
 # Architecture: Multi-Agent AI Trading System
 
-Status: **Phase 3 done** (event-driven backtester, walk-forward validation), awaiting review.
+Status: **Phase 4 done** (analyst agents with offline evaluation), awaiting review.
 Phase reports: [PROGRESS.md](PROGRESS.md).
 Scope assumed for Phase 1: NSE cash plus F&O, swing horizon, Zerodha Kite Connect, Python 3.11+.
 Every assumption is listed in [DECISIONS.md](DECISIONS.md) and is config-driven.
@@ -282,7 +282,7 @@ trading/
 
 ## 14. Tool layer
 
-63 registered tools (`tools/catalogue.py`). Each is a pure function. Its Pydantic input
+66 registered tools (`tools/catalogue.py`). Each is a pure function. Its Pydantic input
 model is derived from the signature, so unknown fields and NaN/inf inputs are rejected, and it
 returns a Pydantic output model. A registry self-test runs every tool's example twice and checks
 determinism and JSON-safe output.
@@ -348,7 +348,54 @@ run takes about 0.6 s.
 **Backfill:** `python -m aitrader.backtest.backfill <dir>` loads NSE files by their file names,
 audits each file (SHA-256, rows written) and is idempotent.
 
-## 16. Known limitations (as of Phase 3)
+## 16. Analyst agents (Phase 4)
+
+| Agent | Implementation | Inputs it can use today |
+|-------|----------------|-------------------------|
+| Chart | Deterministic. Monthly and weekly bars are resampled from daily, and a period still in progress is excluded. It reports per-timeframe structure, alignment with explicit conflicts, setups (breakout, pullback, mean reversion), structural stop and targets, relative strength vs NIFTY, volume point of control and unfilled gaps | Adjusted daily bars |
+| News | Deterministic pipeline: clustering, entity linking by symbol and name, rules, quote verification, novelty, half-life, scheduled-event flags. LLM extraction is optional, and its output is accepted only after quote, symbol and date verification | Any `RawDocument` source (no connector yet) |
+| News impact | Market-model event study (1d/5d), volume and volatility shocks, sector-peer contagion, overlapping events, and a reaction library by event type and regime with a stress quantile for the risk agent | Daily bars, security master sectors |
+| Smart money | Futures-chain OI build-up, persistence, crowding and divergence per stock; FII index-futures positioning from participant OI; nearest-expiry PCR, max pain and OI walls | F&O bars with OI, participant-OI file |
+| Trend | A transparent scenario rule over regime (HMM, gated on distinct volatilities), trend, breadth and VIX. Calibrated softmax (temperature and shrinkage) gives scenario probabilities; rate-limited exposure, sector tilts and macro event flags | NIFTY and sector indices, India VIX, universe bars, `config/events.yaml` |
+
+**LLM layer** (`llm/`):
+- provider-neutral client with an Anthropic adapter that uses structured outputs and sends no sampling parameters;
+- versioned prompt files;
+- fencing of untrusted text, which neutralises any attempt to close the data block;
+- a structured caller with per-cycle call caps and a daily cost budget;
+- every call, including failures, refusals and over-budget calls, audited with its full prompt, model, prompt hash, tokens and cost;
+- LLM output must validate against a strict schema or it is discarded.
+
+Agents refuse to start an LLM path until model ids and their prices are pinned in config.
+
+**Offline evaluation** (`evaluation/`, CLI `python -m aitrader.evaluation.run`):
+- agents are replayed point in time and scored on what followed: hit rate and IC against
+  always-long and zero baselines; R-multiples per setup, with stop-first fills and levels
+  rescaled to the outcome path's price basis; multiclass Brier against uniform and
+  climatology;
+- trend calibration (temperature and shrinkage) is fitted on a training window only.
+
+## 17. Known limitations (as of Phase 4)
+
+- **Analysts are only evaluated on synthetic markets.** On planted trends the chart agent
+  shows positive IC and hit rate, and the calibrated trend agent beats a uniform forecast out
+  of sample. On a market with a deterministic short cycle, the chart agent's daily breakout
+  readings had negative IC: breakouts at cycle peaks are followed by the scripted pullback.
+  Real performance is unknown until NSE history is loaded.
+- **The trend agent's calibration defaults (temperature 2.5, shrinkage 0.2) are not fitted to
+  real data.** Uncalibrated, the rule was overconfident and scored worse than uniform; refit
+  with `evaluation.calibration.calibrate_trend` on real history.
+- **LLM paths are untested against a live model.** Model ids are unpinned by default, and the
+  tests use a scripted client. The trend agent has no LLM component yet; its spec allows one.
+- **No news connector.** NSE/BSE announcement feeds need an adapter producing `RawDocument`s
+  with true publication timestamps.
+- **Smart money gaps:** no FII/DII cash flows, block/bulk deals, insider or promoter
+  disclosures, or delivery % (none has a source). Smart Money Concepts patterns, optional in
+  the spec, are not built.
+- **No intraday bars:** no 5-minute or 1-hour event windows, and no intraday entry timing.
+- **Participant-OI availability time (20:00 IST) is an assumption.**
+
+### Carried over from Phase 3
 
 - **No historical data loaded yet.** Every backtest so far runs on synthetic markets. The NSE
   archive host is still refused by this session's network gateway.

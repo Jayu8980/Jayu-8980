@@ -48,9 +48,9 @@ explicit acceptance tests in `tests/test_lookahead_survivorship.py`:
 - The tool decorator erased function signatures, which hid type errors.
 - The mean-variance turnover constraint was non-smooth and the optimizer failed on it.
 
-**Known limitations:** ARCHITECTURE.md §16.
+**Known limitations:** ARCHITECTURE.md §17.
 
-## Phase 3: event-driven backtester and walk-forward validation (done, awaiting review)
+## Phase 3: event-driven backtester and walk-forward validation (done)
 
 **Built**
 - `backtest/engine.py`: the event-driven engine (timeline in ARCHITECTURE.md §15).
@@ -95,4 +95,38 @@ explicit acceptance tests in `tests/test_lookahead_survivorship.py`:
   numbers in a different order for different lengths; the engine was fine once the data
   matched.
 
-**Known limitations:** ARCHITECTURE.md §16.
+**Known limitations:** ARCHITECTURE.md §17.
+
+## Phase 4: analyst agents with offline evaluation (done, awaiting review)
+
+**Built** (details in ARCHITECTURE.md §16)
+- The LLM layer: client contract, Anthropic adapter, versioned prompts, untrusted-text
+  fencing, and a budgeted, fully audited structured caller. Prompt `news_extraction/v1`.
+- Chart agent, news agent (rules plus optional LLM, with verification), news impact
+  analyser with its reaction library, smart money engine, and trend agent.
+- A participant-OI parser and ingestion; F&O chain lookup on `MarketData`.
+- New tools: `derivs.oi_buildup`, `breadth.compute`, `ta.resample` (66 in total).
+- The offline evaluation harness and trend calibration, with a CLI.
+- Config: LLM `effort` and pricing replace `temperature` (current models reject sampling
+  parameters); `config/events.yaml` for macro events.
+
+**Tests:** 435 passing on Python 3.11 and 3.13; ruff and strict mypy clean. Highlights:
+- prompt injection inside a document stays data;
+- hallucinated quotes, symbols and dates are dropped;
+- an extra output field discards the LLM output;
+- budget caps stop calls before they are sent;
+- the Anthropic adapter sends structured output and no sampling parameters;
+- the event study recovers a planted 6% reaction and never reports an unclosed window;
+- the reaction library ignores reactions completed after as-of;
+- OI build-up is classified correctly;
+- participant OI is not used before publication;
+- the calibrated trend forecast beats uniform out of sample.
+
+**Defects found and fixed while testing**
+- The trend agent's raw probabilities were overconfident (Brier 0.42 vs 0.33 uniform).
+  Calibration was added.
+- The regime model reported "high volatility" in single-regime data. It is now gated on the
+  fitted regimes having distinct volatilities.
+- Regime labels relied on a fixed 50% threshold that calibrated probabilities rarely cross.
+  Labels now follow the top scenario.
+- The chart evaluator compared levels in different price bases across splits.

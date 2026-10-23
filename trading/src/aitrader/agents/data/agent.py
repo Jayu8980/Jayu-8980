@@ -19,13 +19,14 @@ from aitrader.agents.data.adjust import (
     apply_factors,
     factor_for,
 )
-from aitrader.agents.data.calendar import ist_date, ist_datetime, parse_hhmm
+from aitrader.agents.data.calendar import daily_bar_window, ist_date, ist_datetime, parse_hhmm
 from aitrader.agents.data.quality import is_stale, missing_sessions, return_outliers
 from aitrader.agents.data.sources.nse import (
     ParsedBars,
     SourceFormatError,
     parse_index_close,
     parse_legacy_cm_bhavcopy,
+    parse_participant_oi,
     parse_udiff_bhavcopy,
 )
 from aitrader.agents.data.universe import Universe
@@ -46,6 +47,7 @@ from aitrader.storage.pit import CachedPitReader, PitReader, PitRecord, PitStore
 
 BARS = "bars"
 CORPORATE_ACTIONS = "corporate_actions"
+PARTICIPANT_OI = "participant_oi"
 _MSG_NAMESPACE = uuid5(NAMESPACE_URL, "aitrader/data-agent")
 
 
@@ -135,6 +137,17 @@ class MarketData:
             if factor is not None:
                 factors.append(factor)
         return BarSeries(apply_factors(raw, factors, as_of_date), problems)
+
+    def derivatives(self, symbol: str, as_of: datetime) -> list[Instrument]:
+        """Futures and options on ``symbol`` with daily bars known at ``as_of``."""
+        prefix = f"NSE:{symbol}:"
+        out = []
+        for entity in self._store.entities(BARS, as_of):
+            if entity.startswith(prefix) and entity.endswith("|1d"):
+                bars = self._store.read_as_of(BARS, as_of, entities=[entity])
+                if bars:
+                    out.append(Bar.model_validate(bars[-1].payload).instrument)
+        return out
 
     def sessions(self, as_of: datetime, start: datetime | None = None) -> list[date]:
         """Trading sessions = days on which the calendar reference index has a bar."""
@@ -249,6 +262,34 @@ class DataAgent:
         return IngestReport(
             source, parsed.trade_date, len(parsed.bars), written, published, parsed.rejects, alerts
         )
+
+    async def ingest_participant_oi(self, text: str, trade_date: date) -> int:
+        """Store one day's participant-wise OI (read by the smart money engine; not broadcast)."""
+        try:
+            rows = parse_participant_oi(text, trade_date)
+        except SourceFormatError as exc:
+            await self._alert(
+                DataQualityIssue.SCHEMA_VIOLATION, Severity.WARNING, "nse_participant_oi", str(exc)
+            )
+            return 0
+        available_at = self.available_at("nse_participant_oi", trade_date)
+        now = self._clock()
+        if now < available_at:
+            raise NotYetAvailableError(
+                f"participant OI for {trade_date} is usable from {available_at.isoformat()}"
+            )
+        _, close = daily_bar_window(trade_date)
+        records = [
+            PitRecord(
+                dataset=PARTICIPANT_OI,
+                entity=row.participant,
+                event_time=close,
+                available_at=available_at,
+                payload=row.model_dump(mode="json"),
+            )
+            for row in rows
+        ]
+        return self._store.write(records, ingested_at=now)
 
     async def ingest_corporate_actions(self, actions: Iterable[tuple[CorporateAction, datetime]]) -> int:
         """Store and publish announced corporate actions. ``available_at`` is the

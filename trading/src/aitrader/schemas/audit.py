@@ -25,9 +25,11 @@ class LlmCallRecord(StrictModel):
     prompt_version: Annotated[str, Field(min_length=1, max_length=40)]
     prompt_sha256: HexDigest
     rendered_prompt: str  # full prompt as sent, including untrusted-data blocks
-    temperature: Annotated[float, Field(ge=0.0, le=2.0)]
+    effort: str | None = None  # current models take effort, not sampling parameters
     seed: int | None = None
-    response_text: str
+    stop_reason: str | None = None
+    error: str | None = None  # API failure, refusal, budget refusal or schema violation
+    response_text: str = ""
     parsed_output_message_id: UUID | None = None  # None when output failed validation
     input_tokens: Annotated[int, Field(ge=0)]
     output_tokens: Annotated[int, Field(ge=0)]

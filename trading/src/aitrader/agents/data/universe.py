@@ -14,7 +14,7 @@ from pydantic import Field
 
 from aitrader.agents.data.calendar import ist_date
 from aitrader.schemas.base import StrictModel
-from aitrader.storage.pit import PitRecord, PitStore
+from aitrader.storage.pit import PitReader, PitRecord
 
 SECURITY_MASTER = "security_master"
 INDEX_MEMBERSHIP = "index_membership"
@@ -27,6 +27,9 @@ class Security(StrictModel):
     listed_on: date
     delisted_on: date | None = None
     renamed_to: Symbol | None = None
+    name: Annotated[str, Field(max_length=200)] | None = None  # for entity linking
+    sector: Annotated[str, Field(max_length=60)] | None = None
+    aliases: tuple[Annotated[str, Field(min_length=3, max_length=100)], ...] = ()
 
 
 class IndexSnapshot(StrictModel):
@@ -60,7 +63,7 @@ def index_record(snapshot: IndexSnapshot, available_at: datetime) -> PitRecord:
 
 
 class Universe:
-    def __init__(self, store: PitStore) -> None:
+    def __init__(self, store: PitReader) -> None:
         self._store = store
 
     def members(self, index: str, as_of: datetime) -> tuple[str, ...]:
@@ -80,6 +83,14 @@ class Universe:
     def security(self, symbol: str, as_of: datetime) -> Security | None:
         rows = self._store.read_as_of(SECURITY_MASTER, as_of, entities=[symbol])
         return Security.model_validate(rows[-1].payload) if rows else None
+
+    def securities(self, as_of: datetime) -> list[Security]:
+        """Latest known version of every security in the master as of ``as_of``."""
+        rows = self._store.read_as_of(SECURITY_MASTER, as_of)
+        latest: dict[str, Security] = {}
+        for row in rows:  # ordered by entity then event_time: the last row per entity wins
+            latest[row.entity] = Security.model_validate(row.payload)
+        return list(latest.values())
 
     def tradable(self, symbol: str, on: date, as_of: datetime) -> bool:
         sec = self.security(symbol, as_of)

@@ -32,6 +32,15 @@ def test_unpinned_llm_models_are_refused_before_llm_use() -> None:
         bad = llm.model_copy(update={"models": llm.models.model_copy(update={"reasoning": alias})})
         with pytest.raises(ValueError, match="pinned model id"):
             bad.require_pinned()
+    assert not llm.pinned
+    priced = llm.model_copy(
+        update={
+            "models": llm.models.model_copy(update={"reasoning": "model-a", "extraction": "model-b"}),
+            "pricing_usd_per_mtok": {"model-a": {"input": 1.0, "output": 2.0}},
+        }
+    )
+    with pytest.raises(ValueError, match="no entry for 'model-b'"):
+        priced.require_pinned()
 
 
 def test_paper_and_live_need_durable_backends() -> None:

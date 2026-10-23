@@ -13,10 +13,9 @@ SPEC = AgentSpec(
     consumes=(Topic.DATA_BARS,),
     publishes=(Topic.SIGNALS_SMARTMONEY,),
     tools=(
-        "flows.fii_dii",
-        "flows.participant_oi",
-        "derivs.chain_levels",
         "derivs.oi_buildup",
+        "derivs.chain_levels",
+        "flows.fii_dii",
         "flows.delivery_pct",
     ),
     timeout_key="analyst",

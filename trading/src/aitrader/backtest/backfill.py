@@ -30,6 +30,7 @@ PATTERNS: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ("nse_cm_bhavcopy", re.compile(r"BhavCopy_NSE_CM_0_0_0_(\d{8})_F_0000\.csv(\.zip)?$"), "%Y%m%d"),
     ("nse_fo_bhavcopy", re.compile(r"BhavCopy_NSE_FO_0_0_0_(\d{8})_F_0000\.csv(\.zip)?$"), "%Y%m%d"),
     ("nse_index_close", re.compile(r"ind_close_all_(\d{8})\.csv$"), "%d%m%Y"),
+    ("nse_participant_oi", re.compile(r"fao_participant_oi_(\d{8})\.csv$"), "%d%m%Y"),
     (
         "nse_cm_bhavcopy_legacy",
         re.compile(r"cm(\d{2}[A-Z]{3}\d{4})bhav\.csv(\.zip)?$", re.IGNORECASE),
@@ -71,7 +72,11 @@ async def backfill(agent: DataAgent, audit: AuditLog, directory: Path) -> list[I
     reports = []
     for f in files:
         text = read_text(f.path)
-        report = await agent.ingest_eod(f.source, text, publish=False)
+        if f.source == "nse_participant_oi":
+            written = await agent.ingest_participant_oi(text, f.trade_date)
+            report = IngestReport(f.source, f.trade_date, written, written, 0, [], [])
+        else:
+            report = await agent.ingest_eod(f.source, text, publish=False)
         audit.append(
             "ingest_batch",
             json.dumps(

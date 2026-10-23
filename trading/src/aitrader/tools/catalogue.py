@@ -3,6 +3,7 @@
 from aitrader.tools import (  # noqa: F401
     costs,
     derivatives,
+    flows,
     fundamentals,
     microstructure,
     portfolio,

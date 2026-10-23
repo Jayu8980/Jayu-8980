@@ -85,6 +85,10 @@ class ChartSignal(SignalCore):
     entry_high: Price | None = None
     structural_stop: Price | None = None
     targets: tuple[Price, ...] = ()
+    # Context computed alongside the setup.
+    relative_strength: dict[int, float] = Field(default_factory=dict)  # lookback -> excess return vs index
+    volume_point_of_control: Price | None = None  # highest-volume price over the daily window
+    unfilled_gaps: Annotated[int, Field(ge=0)] = 0
 
     @model_validator(mode="after")
     def _check_levels(self) -> ChartSignal:

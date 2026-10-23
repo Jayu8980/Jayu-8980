@@ -78,16 +78,8 @@ def test_tool_names_follow_registry_convention() -> None:
 # Tools named in agent specs that later phases implement. Listing them here keeps any
 # drift between specs and the registry visible: a spec cannot name a tool nobody owns.
 PLANNED_TOOLS = {
-    "news.cluster": 4,
-    "news.entity_link": 4,
-    "news.verify_excerpt": 4,
-    "calendar.corporate_events": 4,
-    "calendar.macro_events": 4,
-    "flows.fii_dii": 4,
-    "flows.participant_oi": 4,
-    "flows.delivery_pct": 4,
-    "derivs.oi_buildup": 4,
-    "breadth.compute": 4,
+    "flows.fii_dii": 4,  # needs a source (NSE publishes FII/DII cash flows via its website API)
+    "flows.delivery_pct": 4,  # needs the security-wise delivery file (not in UDiFF bhavcopies)
     "micro.volume_curve": 5,
     "derivs.freeze_qty": 5,
     "rr.compute": 5,

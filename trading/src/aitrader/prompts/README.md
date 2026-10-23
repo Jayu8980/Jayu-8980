@@ -2,7 +2,7 @@
 
 Every LLM prompt lives here as a versioned file: `<prompt_id>/v<N>.md`. Prompts are never
 edited in place. A change creates a new version, and `LlmCallRecord` logs the prompt id,
-version, SHA-256 hash, fully rendered text, model id, temperature and seed.
+version, SHA-256 hash, fully rendered text, model id, effort, token usage, cost and outcome.
 
 Untrusted external text (news, filings, transcripts, social posts) is inserted only inside
 delimited data blocks. The system prompt says that content inside those blocks is data to

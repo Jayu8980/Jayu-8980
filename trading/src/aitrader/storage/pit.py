@@ -219,6 +219,8 @@ class PitReader(Protocol):
 
     def latest_available_at(self, dataset: str, entity: str | None = None) -> datetime | None: ...
 
+    def entities(self, dataset: str, as_of: datetime) -> list[str]: ...
+
 
 def _versions(store: PitStore, dataset: str, entity: str) -> list[PitRow]:
     rows = store._con.execute(
@@ -242,6 +244,7 @@ class CachedPitReader:
     def __init__(self, store: PitStore) -> None:
         self._store = store
         self._cache: dict[tuple[str, str], tuple[list[datetime], list[PitRow]]] = {}
+        self._entities: dict[tuple[str, datetime], list[str]] = {}
 
     def _history(self, dataset: str, entity: str) -> tuple[list[datetime], list[PitRow]]:
         key = (dataset, entity)
@@ -275,3 +278,9 @@ class CachedPitReader:
 
     def latest_available_at(self, dataset: str, entity: str | None = None) -> datetime | None:
         return self._store.latest_available_at(dataset, entity)
+
+    def entities(self, dataset: str, as_of: datetime) -> list[str]:
+        key = (dataset, as_of)
+        if key not in self._entities:
+            self._entities[key] = self._store.entities(dataset, as_of)
+        return self._entities[key]

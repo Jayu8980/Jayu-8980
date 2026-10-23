@@ -12,7 +12,7 @@ SPEC = AgentSpec(
     ),
     consumes=(),
     publishes=(Topic.NEWS_EVENTS, Topic.NEWS_RISK_FLAGS),
-    tools=("news.cluster", "news.entity_link", "news.verify_excerpt", "calendar.corporate_events"),
+    tools=(),  # deterministic pipeline: agents/news/pipeline.py; LLM via llm.StructuredCaller
     timeout_key="analyst",
     failure_mode=FailureMode.SKIP,
     failure_behaviour=(

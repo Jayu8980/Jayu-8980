@@ -26,6 +26,7 @@ data:
     nse_fo_bhavcopy: "19:00"
     nse_index_close: "19:00"
     nse_cm_bhavcopy_legacy: "19:00"
+    nse_participant_oi: "20:00"  # assumption: confirm NSE's publication time
   calendar_reference: NIFTY_50  # sessions = days this index has a bar
   cash_series: [EQ, BE]
   publish_option_bars: false  # option chains are stored and queried, not broadcast
@@ -42,11 +43,22 @@ broker:
 
 llm:
   provider: anthropic
-  # Exact pinned model ids are an owner decision (docs/DECISIONS.md). Aliases are rejected.
+  # Exact pinned model ids are an owner decision (docs/DECISIONS.md). Until both are set, LLM
+  # agents refuse to start and their deterministic fallbacks run instead.
   models:
     reasoning: UNSET  # boss, debate, trend
     extraction: UNSET  # news extraction, high volume
-  temperature: 0.0
+  # Current Claude models do not accept sampling parameters (temperature etc.); depth and
+  # spend are set with effort instead. Reproducibility comes from logging every prompt/output.
+  effort:
+    reasoning: high
+    extraction: low
+  max_output_tokens:
+    reasoning: 16000
+    extraction: 4000
+  # USD per million tokens for each pinned model id; required for budget enforcement.
+  pricing_usd_per_mtok: {}
+  request_timeout_seconds: 60
   max_debate_rounds: 2
   max_llm_calls_per_cycle: 60
   daily_cost_budget_usd: 20.0

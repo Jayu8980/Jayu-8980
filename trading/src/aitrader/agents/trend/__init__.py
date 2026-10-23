@@ -14,10 +14,9 @@ SPEC = AgentSpec(
     publishes=(Topic.REGIME_OUTLOOK, Topic.NEWS_RISK_FLAGS),
     tools=(
         "stats.regime_hmm",
-        "stats.change_points",
         "breadth.compute",
-        "calendar.macro_events",
-        "stats.brier",
+        "stats.brier_multiclass",
+        "ta.relative_strength",
     ),
     timeout_key="analyst",
     failure_mode=FailureMode.FALLBACK,

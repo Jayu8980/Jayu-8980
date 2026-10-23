@@ -21,11 +21,20 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
+from typing import Annotated, Literal
 
-from pydantic import ValidationError
+from pydantic import Field, ValidationError
 
 from aitrader.agents.data.calendar import daily_bar_window
-from aitrader.schemas.base import Exchange, Instrument, InstrumentType, OptionType, Segment, Timeframe
+from aitrader.schemas.base import (
+    Exchange,
+    Instrument,
+    InstrumentType,
+    OptionType,
+    Segment,
+    StrictModel,
+    Timeframe,
+)
 from aitrader.schemas.market import Bar
 
 UDIFF_REQUIRED = (
@@ -197,6 +206,81 @@ def parse_legacy_cm_bhavcopy(text: str, *, cash_series: frozenset[str] = DEFAULT
     return result
 
 
+PARTICIPANT_COLUMNS = (
+    "Client Type",
+    "Future Index Long",
+    "Future Index Short",
+    "Future Stock Long",
+    "Future Stock Short",
+    "Option Index Call Long",
+    "Option Index Put Long",
+    "Option Index Call Short",
+    "Option Index Put Short",
+    "Option Stock Call Long",
+    "Option Stock Put Long",
+    "Option Stock Call Short",
+    "Option Stock Put Short",
+    "Total Long Contracts",
+    "Total Short Contracts",
+)
+PARTICIPANTS = ("Client", "DII", "FII", "Pro", "TOTAL")
+
+
+class ParticipantOI(StrictModel):
+    """Participant-wise open interest (contracts) for one participant class on one day."""
+
+    trade_date: date
+    participant: Literal["Client", "DII", "FII", "Pro", "TOTAL"]
+    future_index_long: Annotated[int, Field(ge=0)]
+    future_index_short: Annotated[int, Field(ge=0)]
+    future_stock_long: Annotated[int, Field(ge=0)]
+    future_stock_short: Annotated[int, Field(ge=0)]
+    option_index_call_long: Annotated[int, Field(ge=0)]
+    option_index_put_long: Annotated[int, Field(ge=0)]
+    option_index_call_short: Annotated[int, Field(ge=0)]
+    option_index_put_short: Annotated[int, Field(ge=0)]
+    option_stock_call_long: Annotated[int, Field(ge=0)]
+    option_stock_put_long: Annotated[int, Field(ge=0)]
+    option_stock_call_short: Annotated[int, Field(ge=0)]
+    option_stock_put_short: Annotated[int, Field(ge=0)]
+    total_long: Annotated[int, Field(ge=0)]
+    total_short: Annotated[int, Field(ge=0)]
+
+
+def parse_participant_oi(text: str, trade_date: date) -> list[ParticipantOI]:
+    """Parse fao_participant_oi_DDMMYYYY.csv. The first line is a title ("... as on Oct 21,
+    2026"); if it states a date it must match the date in the file name."""
+    lines = [line for line in text.lstrip("\ufeff").splitlines() if line.strip()]
+    if not lines:
+        raise SourceFormatError("empty participant OI file")
+    title = lines[0]
+    if not title.strip().strip('"').startswith("Client Type"):
+        match = re.search(r"as on\s+([A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4})", title)
+        if match:
+            stated = datetime.strptime(match.group(1).replace(",", ""), "%b %d %Y").date()
+            if stated != trade_date:
+                raise SourceFormatError(f"title date {stated} does not match file date {trade_date}")
+        lines = lines[1:]
+    reader = _reader("\n".join(lines), PARTICIPANT_COLUMNS)
+    rows: list[ParticipantOI] = []
+    for row in reader:
+        clean = {k: (v or "").strip() for k, v in row.items() if k}
+        if clean["Client Type"] not in PARTICIPANTS:
+            continue
+        values = [_int(clean[c]) for c in PARTICIPANT_COLUMNS[1:]]
+        fields = [f for f in ParticipantOI.model_fields if f not in ("trade_date", "participant")]
+        rows.append(
+            ParticipantOI(
+                trade_date=trade_date,
+                participant=clean["Client Type"],
+                **dict(zip(fields, values, strict=True)),
+            )
+        )
+    if {r.participant for r in rows} != set(PARTICIPANTS):
+        raise SourceFormatError(f"expected rows for {PARTICIPANTS}, got {[r.participant for r in rows]}")
+    return rows
+
+
 def index_symbol(name: str) -> str:
     return re.sub(r"_+", "_", re.sub(r"[^A-Z0-9]", "_", name.strip().upper())).strip("_")
 
@@ -240,6 +324,7 @@ ARCHIVE_URLS = {
     "nse_cm_bhavcopy": "https://nsearchives.nseindia.com/content/cm/BhavCopy_NSE_CM_0_0_0_{ymd}_F_0000.csv.zip",
     "nse_fo_bhavcopy": "https://nsearchives.nseindia.com/content/fo/BhavCopy_NSE_FO_0_0_0_{ymd}_F_0000.csv.zip",
     "nse_index_close": "https://nsearchives.nseindia.com/content/indices/ind_close_all_{dmy}.csv",
+    "nse_participant_oi": "https://nsearchives.nseindia.com/content/nsccl/fao_participant_oi_{dmy}.csv",
     "nse_cm_bhavcopy_legacy": (
         "https://nsearchives.nseindia.com/content/historical/EQUITIES/{yyyy}/{mon}/cm{dd}{mon}{yyyy}bhav.csv.zip"
     ),

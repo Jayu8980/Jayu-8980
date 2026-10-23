@@ -4,8 +4,8 @@ An institutional-grade, multi-agent trading system for NSE cash and F&O. LLM age
 and judge; deterministic code sizes, gates, vetoes and executes. Every decision is replayable
 from a hash-chained audit log.
 
-**Status:** Phase 3 (event-driven backtester, walk-forward validation) is done and awaiting
-review. Nothing in this package can place an order yet.
+**Status:** Phase 4 (analyst agents with offline evaluation) is done and awaiting review.
+Nothing in this package can place an order yet.
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Configuration decisions (assumed, pending confirmation)](docs/DECISIONS.md)
@@ -26,6 +26,12 @@ Load NSE files into the point-in-time store (idempotent, audited):
 
 ```bash
 python -m aitrader.backtest.backfill /path/to/nse/files --store data/pit.duckdb
+```
+
+Evaluate the analysts on stored history:
+
+```bash
+python -m aitrader.evaluation.run --store data/pit.duckdb --start 2019-01-01 --end 2025-12-31
 ```
 
 Secrets come only from the environment (see `.env.example`). Limits and parameters live in
