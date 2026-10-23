@@ -1,0 +1,13 @@
+# Macro and market event calendar used by the trend agent to publish event-risk flags.
+# Owner-maintained: add confirmed dates only (RBI MPC decisions, Union Budget, CPI/GDP
+# releases, elections, exchange holidays with special sessions). Dates are IST.
+#
+# Example entry (not a real date):
+#   - name: RBI MPC policy decision
+#     event_type: monetary_policy
+#     date: 2026-12-04
+#     block_new_entries: true
+#     exposure_multiplier: 0.5
+#     days_before: 1
+#     days_after: 0
+events: []

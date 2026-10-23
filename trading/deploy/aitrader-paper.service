@@ -1,0 +1,14 @@
+# One paper-trading step: ingest any EOD files that are out, run due sessions, checkpoint.
+# Install with the timer (systemctl enable --now aitrader-paper.timer); adjust paths.
+[Unit]
+Description=aitrader paper trading (run once)
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=aitrader
+WorkingDirectory=/opt/aitrader/trading
+EnvironmentFile=/opt/aitrader/trading/.env
+ExecStart=/opt/aitrader/trading/.venv/bin/python -m aitrader.paper run-once
+TimeoutStartSec=2h

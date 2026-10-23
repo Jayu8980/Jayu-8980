@@ -1,0 +1,14 @@
+# After NSE publishes the day's files (assumed 19:00 IST), with retries for late files.
+# Saturday morning catches a Friday whose files were late.
+[Unit]
+Description=aitrader paper trading schedule
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 19:45:00 Asia/Kolkata
+OnCalendar=Mon..Fri *-*-* 21:00:00 Asia/Kolkata
+OnCalendar=Mon..Fri *-*-* 23:30:00 Asia/Kolkata
+OnCalendar=Sat *-*-* 09:00:00 Asia/Kolkata
+Persistent=true
+
+[Install]
+WantedBy=timers.target

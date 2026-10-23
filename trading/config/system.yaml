@@ -1,0 +1,103 @@
+# System configuration. No secrets here: credentials come from environment variables
+# (see .env.example) or a secrets manager. Every value below is a Phase 1 default that the
+# owner has not yet confirmed; see docs/DECISIONS.md.
+
+stage: backtest  # backtest -> paper -> live_human_approval -> live_auto (no skipping)
+
+market:
+  exchanges: [NSE]
+  segments: [cash, fno]
+  universe: nifty500_plus_fno  # includes delisted names for backtests
+  timezone: Asia/Kolkata
+  allow_naked_option_writing: false
+  shorts_via: [future, put_option]  # cash shorts are intraday-only in India
+
+trading:
+  style: swing
+  decision_cycle:
+    scheduled_ist: ["15:45"]  # after the close, on EOD data
+    event_driven: true
+  entry_timing_timeframe: 15m
+
+data:
+  # Conservative IST publication times, applied identically in backtests and live.
+  availability_ist:
+    nse_cm_bhavcopy: "19:00"
+    nse_fo_bhavcopy: "19:00"
+    nse_index_close: "19:00"
+    nse_cm_bhavcopy_legacy: "19:00"
+    nse_participant_oi: "20:00"  # assumption: confirm NSE's publication time
+  calendar_reference: NIFTY_50  # sessions = days this index has a bar
+  cash_series: [EQ, BE]
+  publish_option_bars: false  # option chains are stored and queried, not broadcast
+  outlier_robust_z: 8.0
+  stale_warning_hours: 80  # Fri close -> Mon publication plus grace
+  stale_critical_hours: 128  # long weekend plus a missed day: freeze new entries
+  store_path: data/pit.duckdb
+
+broker:
+  name: zerodha_kite
+  max_orders_per_second: 8  # keep under the SEBI retail-algo OPS threshold; confirm current rules with the broker
+  static_ip_required: true
+  allow_market_orders: false
+  kill_switch_file: run/KILL  # relative to the working directory; see docs/ARCHITECTURE.md §20
+
+llm:
+  provider: anthropic
+  # Exact pinned model ids are an owner decision (docs/DECISIONS.md). Until both are set, LLM
+  # agents refuse to start and their deterministic fallbacks run instead.
+  models:
+    reasoning: UNSET  # boss, debate, trend
+    extraction: UNSET  # news extraction, high volume
+  # Current Claude models do not accept sampling parameters (temperature etc.); depth and
+  # spend are set with effort instead. Reproducibility comes from logging every prompt/output.
+  effort:
+    reasoning: high
+    extraction: low
+  max_output_tokens:
+    reasoning: 16000
+    extraction: 4000
+  # USD per million tokens for each pinned model id; required for budget enforcement.
+  pricing_usd_per_mtok: {}
+  request_timeout_seconds: 60
+  max_debate_rounds: 2
+  max_llm_calls_per_cycle: 60
+  daily_cost_budget_usd: 20.0
+
+timeouts_seconds:
+  analyst: 120
+  debate: 180
+  boss: 120
+  gate: 10
+
+bus:
+  backend: memory  # memory (tests/backtests) | redis_streams
+  redis_url_env: AITRADER_REDIS_URL
+
+state:
+  backend: memory  # memory | postgres
+  postgres_dsn_env: AITRADER_POSTGRES_DSN
+
+notifications:
+  channel: telegram
+  bot_token_env: AITRADER_TELEGRAM_BOT_TOKEN
+  chat_id_env: AITRADER_TELEGRAM_CHAT_ID
+
+paper:
+  feed: nse  # nse (download from the archives) | folder (files dropped by another process)
+  folder: data/eod
+  universe_index: NIFTY_500  # membership as of each decision, once index history is loaded
+  watchlist: []  # symbols to analyse while no membership data is loaded (owner decision)
+  start_date: null  # first session to trade; null = the first session after the service starts
+  checkpoint: postgres  # postgres | file (run_dir/checkpoint.json)
+  run_dir: run
+  poll_minutes: 15
+
+rollout:
+  # Promotion from paper to live_human_approval needs all of these and the owner's sign-off.
+  paper_exit:
+    min_sessions: 60
+    max_reconciliation_mismatch_days: 0
+    max_slippage_to_estimate_ratio: 2.0
+    min_tca_samples: 10
+    min_closed_trades: 20

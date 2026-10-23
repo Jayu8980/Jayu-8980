@@ -1,0 +1,144 @@
+# Indian transaction cost schedules (fractions of turnover unless stated otherwise).
+# Each schedule is complete and applies from effective_from until the next one. The cost tool
+# refuses trade dates earlier than the first schedule instead of guessing. Schedules marked
+# approximate are conservative estimates; results that use them say so.
+#
+# STATUS: rates compiled from public broker/exchange/budget notices; VERIFY against official
+# NSE circulars, the Finance Act and the broker's current tariff before paper trading.
+# Brokerage below models Zerodha's published retail tariff.
+
+schedules:
+  - effective_from: 2016-01-01
+    approximate: true
+    note: >-
+      APPROXIMATE and deliberately conservative (rounded up). Before July 2020 stamp duty was
+      state-specific, SEBI fees were higher until June 2020 and service tax (15%) preceded GST.
+      Backtests over this period are flagged as using approximate costs.
+    stt:
+      equity_delivery_buy: 0.001
+      equity_delivery_sell: 0.001
+      equity_intraday_sell: 0.00025
+      futures_sell: 0.0001
+      options_sell_premium: 0.0005
+      options_exercise: 0.00125
+    exchange_txn:
+      equity: 0.0000345
+      futures: 0.00002
+      options_premium: 0.00053
+    sebi_fee: 0.0000015
+    stamp_duty_buy:
+      equity_delivery: 0.00015
+      equity_intraday: 0.00003
+      futures: 0.00002
+      options: 0.00003
+    gst: 0.18
+    brokerage:
+      equity_delivery: {pct: 0.0, cap: 0.0}
+      equity_intraday: {pct: 0.0003, cap: 20.0}
+      futures: {pct: 0.0003, cap: 20.0}
+      options_flat: 20.0
+
+  - effective_from: 2020-07-01
+    approximate: true
+    note: "APPROXIMATE: uniform stamp duty from 2020-07-01; pre-2023 STT on F&O; exchange charges rounded up"
+    stt:
+      equity_delivery_buy: 0.001
+      equity_delivery_sell: 0.001
+      equity_intraday_sell: 0.00025
+      futures_sell: 0.0001
+      options_sell_premium: 0.0005
+      options_exercise: 0.00125
+    exchange_txn:
+      equity: 0.0000345
+      futures: 0.00002
+      options_premium: 0.00053
+    sebi_fee: 0.000001
+    stamp_duty_buy:
+      equity_delivery: 0.00015
+      equity_intraday: 0.00003
+      futures: 0.00002
+      options: 0.00003
+    gst: 0.18
+    brokerage:
+      equity_delivery: {pct: 0.0, cap: 0.0}
+      equity_intraday: {pct: 0.0003, cap: 20.0}
+      futures: {pct: 0.0003, cap: 20.0}
+      options_flat: 20.0
+
+  - effective_from: 2023-04-01
+    note: "STT on F&O raised by Finance Act 2023; pre-Oct-2024 NSE slab charges approximated by top slab"
+    stt:
+      equity_delivery_buy: 0.001
+      equity_delivery_sell: 0.001
+      equity_intraday_sell: 0.00025
+      futures_sell: 0.000125
+      options_sell_premium: 0.000625
+      options_exercise: 0.00125
+    exchange_txn:
+      equity: 0.0000322
+      futures: 0.000019
+      options_premium: 0.0005
+    sebi_fee: 0.000001  # Rs 10 per crore
+    stamp_duty_buy:
+      equity_delivery: 0.00015
+      equity_intraday: 0.00003
+      futures: 0.00002
+      options: 0.00003
+    gst: 0.18  # on brokerage + exchange transaction charges + SEBI fee
+    brokerage:
+      equity_delivery: {pct: 0.0, cap: 0.0}
+      equity_intraday: {pct: 0.0003, cap: 20.0}
+      futures: {pct: 0.0003, cap: 20.0}
+      options_flat: 20.0
+
+  - effective_from: 2024-10-01
+    note: "STT on F&O raised (Budget 2024); NSE flat transaction charges"
+    stt:
+      equity_delivery_buy: 0.001
+      equity_delivery_sell: 0.001
+      equity_intraday_sell: 0.00025
+      futures_sell: 0.0002
+      options_sell_premium: 0.001
+      options_exercise: 0.00125
+    exchange_txn:
+      equity: 0.0000297
+      futures: 0.0000173
+      options_premium: 0.0003503
+    sebi_fee: 0.000001
+    stamp_duty_buy:
+      equity_delivery: 0.00015
+      equity_intraday: 0.00003
+      futures: 0.00002
+      options: 0.00003
+    gst: 0.18
+    brokerage:
+      equity_delivery: {pct: 0.0, cap: 0.0}
+      equity_intraday: {pct: 0.0003, cap: 20.0}
+      futures: {pct: 0.0003, cap: 20.0}
+      options_flat: 20.0
+
+  - effective_from: 2026-04-01
+    note: "STT on F&O raised (Budget 2026-27): futures 0.05%, options premium 0.15%, exercise 0.15%"
+    stt:
+      equity_delivery_buy: 0.001
+      equity_delivery_sell: 0.001
+      equity_intraday_sell: 0.00025
+      futures_sell: 0.0005
+      options_sell_premium: 0.0015
+      options_exercise: 0.0015
+    exchange_txn:
+      equity: 0.0000297
+      futures: 0.0000173
+      options_premium: 0.0003503
+    sebi_fee: 0.000001
+    stamp_duty_buy:
+      equity_delivery: 0.00015
+      equity_intraday: 0.00003
+      futures: 0.00002
+      options: 0.00003
+    gst: 0.18
+    brokerage:
+      equity_delivery: {pct: 0.0, cap: 0.0}
+      equity_intraday: {pct: 0.0003, cap: 20.0}
+      futures: {pct: 0.0003, cap: 20.0}
+      options_flat: 20.0

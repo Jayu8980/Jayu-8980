@@ -1,0 +1,59 @@
+# Lint, type-check and test the Python trading system. Runs only when trading/ changes.
+name: Trading system CI
+
+on:
+  push:
+    branches: ["**"]
+    paths: ["trading/**", ".github/workflows/trading-ci.yml"]
+  pull_request:
+    paths: ["trading/**", ".github/workflows/trading-ci.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trading-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: trading
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.13"]
+    # Disposable servers for the durable-backend contract tests (Phase 6).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      AITRADER_TEST_POSTGRES_DSN: "host=localhost port=5432 user=postgres password=ci dbname=postgres"
+      AITRADER_TEST_REDIS_URL: "redis://localhost:6379/0"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: pip install -e ".[dev,infra]"
+      - name: Format
+        run: ruff format --check .
+      - name: Lint
+        run: ruff check .
+      - name: Type-check
+        run: mypy src tests
+      - name: Test
+        run: pytest

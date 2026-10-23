@@ -1,0 +1,71 @@
+# Hard risk limits. Deterministic code enforces these; no agent can override them.
+# Percentages are fractions of current equity unless stated otherwise.
+
+capital_inr: 1000000  # placeholder starting capital
+
+per_trade:
+  max_risk_fraction: 0.01  # loss at the stop, after costs
+  max_position_fraction: 0.10
+  human_approval_above_risk_fraction: 0.005  # 50% of the per-trade cap
+
+portfolio:
+  max_gross_exposure: 1.00
+  max_net_exposure: 0.60
+  max_sector_exposure: 0.25
+  max_pairwise_correlation_cluster: 0.40  # combined weight of names with rho > 0.7
+  max_leverage: 1.0
+  max_open_positions: 15
+
+drawdown:
+  daily_limit: 0.03  # breach: freeze new orders until a human clears it
+  total_limit: 0.10  # breach: freeze and flatten per runbook; human clears
+  tighten_from_fraction_of_limit: 0.5  # limits scale down once half a limit is used
+
+liquidity:
+  max_fraction_of_adv: 0.05
+  max_participation_rate: 0.10
+  max_days_to_liquidate: 1.0
+  assumed_spread_bps: 10.0  # no order-book data yet; replaced by live depth in paper trading
+  thin_adv_value_inr: 50000000  # below Rs 5 crore a day a name counts as thin
+  impact_coefficient: 1.0  # square-root law Y; recalibrated from TCA
+  adv_sessions: 20
+  freeze_quantity: {}  # F&O symbol -> exchange freeze quantity (units); orders are sliced below it
+
+var:
+  confidence: 0.99
+  horizon_days: 1
+  max_var_fraction: 0.02
+  max_cvar_fraction: 0.03
+
+risk_reward:
+  holding_sessions: 10  # horizon for event-risk and gap checks
+  setup_prior_strength: 30  # pseudo-trades of the barrier model before history dominates
+  min_rr_after_costs:
+    breakout: 2.0
+    pullback: 1.8
+    mean_reversion: 1.5
+    range: 1.5
+  min_stop_atr_multiple: 0.75  # stops inside normal noise are rejected
+
+stress:
+  index_shock: -0.10  # one-day index move every portfolio must survive
+  max_stress_loss_fraction: 0.06
+
+degradation:
+  # Limit multiplier applied when agents are missing; multipliers compound per missing agent.
+  missing_agent_multiplier: 0.75
+  missing_trend_agent_multiplier: 0.5
+  min_agents_for_new_entries: 3
+
+execution:
+  max_order_value_inr: 200000
+  max_price_deviation_bps: 100
+  # How long a signed approval may wait before execution redeems it. Instructions themselves
+  # are valid until the close of the next session (Friday approvals trade on Monday).
+  approval_token_ttl_seconds: 57600
+  reconciliation_interval_seconds: 60
+  protective_stop_limit_bps: 200  # a stop-limit 2% beyond the trigger; a wider gap leaves it unfilled
+  fno_margin_fraction: 0.25  # conservative stand-in for SPAN + exposure margin
+
+regime:
+  max_exposure_change_per_cycle: 0.20  # exposure shifts gradually, never all at once
