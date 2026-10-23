@@ -48,7 +48,7 @@ must confirm or change each one before the phase that depends on it.**
 | Price adjustment | Back-adjust splits, bonuses and dividends as of read time; rights, mergers and demergers are manual | `agents/data/adjust.py` |
 | Cost model | Dated schedules; refuses dates before 2023-04-01 | `config/costs.yaml` |
 
-## Needed from you before Phase 3
+## Needed from you before Phase 3 (still open)
 
 1. **Historical data source** for the backtester: NSE bhavcopy archives (free, EOD, cash and
    F&O since 2024 in UDiFF format, older files in the legacy format) or a paid vendor. Either
@@ -60,3 +60,26 @@ must confirm or change each one before the phase that depends on it.**
    Older UDiFF-incompatible files need a legacy-format parser. Cost schedules must be extended
    before 2023-04-01.
 4. **Verify the cost rates** in `config/costs.yaml` against the broker's current tariff.
+
+## Phase 3 decisions taken (defaults; change via config/backtest.yaml)
+
+| Decision | Choice |
+|----------|--------|
+| Fill model | Orders decided after the close fill at the next open |
+| Slippage | 5 bps half-spread + square-root impact (Y = 1.0), minimum 2 bps, 20-session ADV |
+| Participation | At most 10% of the fill day's volume; the remainder is cancelled |
+| Stop vs target in one bar | Stop first (pessimistic) |
+| Dividends | Credited on the ex-date |
+| Walk-forward objective | Sharpe on the training window; ties go to the earliest grid entry |
+| Pre-2023 costs | Conservative approximate schedules, flagged in results |
+
+## Needed from you before Phase 4 (analyst agents)
+
+1. **Data access** (same as above): this session cannot reach NSE; a new session with the
+   allowed domains, or uploaded files, unblocks real backtests and the analysts' offline
+   evaluation.
+2. **LLM model ids** for the news and trend agents (`llm.models` in system.yaml), and the
+   daily budget.
+3. **News sources:** NSE/BSE announcement feeds are the default. Should anything paid be added?
+4. **FII/DII and participant-OI history** for the smart money engine: NSE publishes both daily.
+   Do you want backfill from NSE archives once access works?

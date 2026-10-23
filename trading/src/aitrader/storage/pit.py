@@ -15,11 +15,12 @@ idempotent and safe to retry.
 
 from __future__ import annotations
 
+import bisect
 import json
 from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Protocol
 
 import duckdb
 from pydantic import Field, model_validator
@@ -72,6 +73,9 @@ CREATE SEQUENCE IF NOT EXISTS pit_seq START 1;
 """
 
 
+_CHUNK = 500  # rows per multi-row INSERT (7 parameters each)
+
+
 def _naive(ts: datetime) -> datetime:
     return ts.astimezone(UTC).replace(tzinfo=None)
 
@@ -107,14 +111,22 @@ class PitStore:
         before = self.count()
         self._con.execute("BEGIN TRANSACTION")
         try:
-            self._con.executemany(
-                """
-                INSERT INTO pit_records
-                SELECT nextval('pit_seq'), ?, ?, ?, ?, ?, ?, ?
-                ON CONFLICT DO NOTHING
-                """,
-                rows,
-            )
+            for i in range(0, len(rows), _CHUNK):
+                chunk = rows[i : i + _CHUNK]
+                values = ", ".join(["(?, ?, ?, ?, ?, ?, ?)"] * len(chunk))
+                params = [value for row in chunk for value in row]
+                # Duplicates inside one batch are collapsed first; ON CONFLICT skips existing rows.
+                self._con.execute(
+                    f"""
+                    INSERT INTO pit_records
+                    SELECT nextval('pit_seq'), * FROM (
+                        SELECT DISTINCT * FROM (VALUES {values})
+                            AS v(dataset, entity, event_time, available_at, ingested_at, payload_sha, payload)
+                    )
+                    ON CONFLICT DO NOTHING
+                    """,
+                    params,
+                )
             self._con.execute("COMMIT")
         except Exception:
             self._con.execute("ROLLBACK")
@@ -192,3 +204,74 @@ class PitStore:
             [dataset, _naive(as_of)],
         ).fetchall()
         return [r[0] for r in rows]
+
+
+class PitReader(Protocol):
+    def read_as_of(
+        self,
+        dataset: str,
+        as_of: datetime,
+        *,
+        entities: Sequence[str] | None = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
+    ) -> list[PitRow]: ...
+
+    def latest_available_at(self, dataset: str, entity: str | None = None) -> datetime | None: ...
+
+
+def _versions(store: PitStore, dataset: str, entity: str) -> list[PitRow]:
+    rows = store._con.execute(
+        """
+        SELECT dataset, entity, event_time, available_at, payload FROM pit_records
+        WHERE dataset = ? AND entity = ? ORDER BY event_time, available_at, seq
+        """,
+        [dataset, entity],
+    ).fetchall()
+    return [
+        PitRow(dataset=ds, entity=e, event_time=_aware(et), available_at=_aware(av), payload=json.loads(p))
+        for ds, e, et, av, p in rows
+    ]
+
+
+class CachedPitReader:
+    """Read-only, in-memory view of a ``PitStore`` for backtests, with exactly the same as-of
+    semantics as ``PitStore.read_as_of``. Each (dataset, entity) history is loaded once, so it
+    must not be used while the underlying store is still being written to."""
+
+    def __init__(self, store: PitStore) -> None:
+        self._store = store
+        self._cache: dict[tuple[str, str], tuple[list[datetime], list[PitRow]]] = {}
+
+    def _history(self, dataset: str, entity: str) -> tuple[list[datetime], list[PitRow]]:
+        key = (dataset, entity)
+        if key not in self._cache:
+            rows = _versions(self._store, dataset, entity)
+            self._cache[key] = ([r.event_time for r in rows], rows)
+        return self._cache[key]
+
+    def read_as_of(
+        self,
+        dataset: str,
+        as_of: datetime,
+        *,
+        entities: Sequence[str] | None = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
+    ) -> list[PitRow]:
+        if entities is None:
+            return self._store.read_as_of(dataset, as_of, start=start, end=end)
+        out: list[PitRow] = []
+        for entity in sorted(set(entities)):
+            times, rows = self._history(dataset, entity)
+            lo = bisect.bisect_left(times, start) if start is not None else 0
+            hi = bisect.bisect_right(times, end) if end is not None else len(times)
+            latest: dict[datetime, PitRow] = {}
+            for row in rows[lo:hi]:
+                if row.available_at <= as_of:
+                    latest[row.event_time] = row  # rows are ordered, so the last visible version wins
+            out.extend(latest[t] for t in sorted(latest))
+        return out
+
+    def latest_available_at(self, dataset: str, entity: str | None = None) -> datetime | None:
+        return self._store.latest_available_at(dataset, entity)

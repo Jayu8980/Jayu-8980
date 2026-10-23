@@ -73,3 +73,28 @@ def test_persists_to_disk(tmp_path: Path) -> None:
     reopened = PitStore(path)
     assert reopened.read_as_of("d", T)[0].payload == {"v": 1}
     assert reopened.latest_available_at("d", "A") == T
+
+
+def test_cached_reader_matches_the_store_exactly() -> None:
+    import random
+
+    from aitrader.storage import CachedPitReader
+
+    store = PitStore()
+    rng = random.Random(0)
+    records = []
+    for entity in ("A", "B"):
+        for day in range(40):
+            event = T + timedelta(days=day)
+            records.append(rec(entity, event, event + timedelta(hours=rng.randint(0, 30)), day))
+            if rng.random() < 0.2:  # a later correction
+                records.append(rec(entity, event, event + timedelta(days=rng.randint(1, 10)), 1000 + day))
+    store.write(records, ingested_at=T)
+    cached = CachedPitReader(store)
+    for _ in range(300):
+        as_of = T + timedelta(hours=rng.randint(0, 60 * 24))
+        start = T + timedelta(days=rng.randint(0, 20)) if rng.random() < 0.5 else None
+        end = T + timedelta(days=rng.randint(20, 45)) if rng.random() < 0.5 else None
+        entities = rng.choice([["A"], ["B"], ["A", "B"]])
+        expected = store.read_as_of("d", as_of, entities=entities, start=start, end=end)
+        assert cached.read_as_of("d", as_of, entities=entities, start=start, end=end) == expected

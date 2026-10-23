@@ -25,6 +25,7 @@ from aitrader.agents.data.sources.nse import (
     ParsedBars,
     SourceFormatError,
     parse_index_close,
+    parse_legacy_cm_bhavcopy,
     parse_udiff_bhavcopy,
 )
 from aitrader.agents.data.universe import Universe
@@ -41,7 +42,7 @@ from aitrader.schemas.market import (
     Severity,
 )
 from aitrader.schemas.risk import AlertType, RiskAlert
-from aitrader.storage.pit import PitRecord, PitStore
+from aitrader.storage.pit import CachedPitReader, PitReader, PitRecord, PitStore
 
 BARS = "bars"
 CORPORATE_ACTIONS = "corporate_actions"
@@ -67,9 +68,15 @@ class BarSeries:
 
 
 class MarketData:
-    def __init__(self, store: PitStore, calendar_reference: str = "NIFTY_50") -> None:
+    def __init__(self, store: PitReader, calendar_reference: str = "NIFTY_50") -> None:
         self._store = store
         self._reference = calendar_reference
+        self._parsed: dict[tuple[str, datetime, datetime], Bar] = {}
+
+    @classmethod
+    def for_backtest(cls, store: PitStore, calendar_reference: str = "NIFTY_50") -> MarketData:
+        """Same answers, served from memory: for replaying a store that is no longer written to."""
+        return cls(CachedPitReader(store), calendar_reference)
 
     def raw_bars(
         self,
@@ -83,7 +90,14 @@ class MarketData:
         rows = self._store.read_as_of(
             BARS, as_of, entities=[bar_entity(instrument, timeframe)], start=start, end=end
         )
-        return [Bar.model_validate(r.payload) for r in rows]
+        out = []
+        for r in rows:
+            key = (r.entity, r.event_time, r.available_at)
+            bar = self._parsed.get(key)
+            if bar is None:
+                bar = self._parsed[key] = Bar.model_validate(r.payload)
+            out.append(bar)
+        return out
 
     def corporate_actions(self, instrument: Instrument, as_of: datetime) -> list[CorporateAction]:
         rows = self._store.read_as_of(CORPORATE_ACTIONS, as_of, entities=[instrument.key])
@@ -147,6 +161,7 @@ PARSERS: dict[str, Callable[[str, frozenset[str]], ParsedBars]] = {
     "nse_cm_bhavcopy": lambda text, series: parse_udiff_bhavcopy(text, cash_series=series),
     "nse_fo_bhavcopy": lambda text, series: parse_udiff_bhavcopy(text, cash_series=series),
     "nse_index_close": lambda text, _series: parse_index_close(text),
+    "nse_cm_bhavcopy_legacy": lambda text, series: parse_legacy_cm_bhavcopy(text, cash_series=series),
 }
 
 
@@ -164,7 +179,9 @@ class DataAgent:
     def available_at(self, source: str, trade_date: date) -> datetime:
         return ist_datetime(trade_date, parse_hhmm(self._config.availability_ist[source]))
 
-    async def ingest_eod(self, source: str, text: str) -> IngestReport:
+    async def ingest_eod(self, source: str, text: str, *, publish: bool = True) -> IngestReport:
+        """Parse, validate and store one EOD file. ``publish=False`` (historical backfill)
+        stores without broadcasting each bar; the caller audits the batch instead."""
         if source not in PARSERS:
             raise KeyError(f"unknown source {source}")
         try:
@@ -200,7 +217,7 @@ class DataAgent:
         ]
         written = self._store.write(records, ingested_at=now)
         published = 0
-        if written:
+        if written and publish:
             for bar, record in zip(parsed.bars, records, strict=True):
                 if (
                     bar.instrument.instrument_type is InstrumentType.OPTION

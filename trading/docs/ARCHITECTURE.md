@@ -1,6 +1,6 @@
 # Architecture: Multi-Agent AI Trading System
 
-Status: **Phase 2 done** (data agent, point-in-time storage, institutional tool layer), awaiting review.
+Status: **Phase 3 done** (event-driven backtester, walk-forward validation), awaiting review.
 Phase reports: [PROGRESS.md](PROGRESS.md).
 Scope assumed for Phase 1: NSE cash plus F&O, swing horizon, Zerodha Kite Connect, Python 3.11+.
 Every assumption is listed in [DECISIONS.md](DECISIONS.md) and is config-driven.
@@ -282,7 +282,7 @@ trading/
 
 ## 14. Tool layer
 
-59 registered tools (`tools/catalogue.py`). Each is a pure function. Its Pydantic input
+63 registered tools (`tools/catalogue.py`). Each is a pure function. Its Pydantic input
 model is derived from the signature, so unknown fields and NaN/inf inputs are rejected, and it
 returns a Pydantic output model. A registry self-test runs every tool's example twice and checks
 determinism and JSON-safe output.
@@ -300,15 +300,70 @@ determinism and JSON-safe output.
 | `portfolio` | risk parity, HRP, constrained mean-variance (name, sector and turnover caps), Black-Litterman | — |
 | `fundamentals` | Piotroski, Beneish, two-stage DCF | statement parsing, revisions, surprises (needs a data source) |
 | macro | — | yield curve, rate sensitivity (needs a data source) |
-| validation | — | walk-forward, MC resampling, deflated Sharpe (Phase 3 backtester) |
+| `validation` | probabilistic and deflated Sharpe, Monte Carlo trade resampling, return statistics | — |
 
 Deterministic pipelines such as the data agent call library functions directly and audit at
 the envelope level. LLM agents (Phase 4+) can reach tools only through `ToolRunner`.
 
-## 15. Known limitations (as of Phase 2)
+## 15. Backtester
 
-- **NSE formats are unverified against live files.** This environment's network policy blocks
-  nsearchives.nseindia.com. The parsers follow NSE's published UDiFF and index-close layouts
+`backtest/engine.py` runs any `Strategy` (a reference baseline now; the agent chain in
+Phase 5) through this timeline for every session *d*:
+
+1. **Before the open:** corporate actions with ex-date *d* are applied to holdings and to pending
+   orders (splits and bonuses rescale quantity, price, stop and target; dividends are credited).
+   Delisted positions close at their last close; expired futures settle at theirs.
+2. **At the open:** orders decided after the previous close fill at *d*'s open. Each fill gets:
+   - square-root slippage, estimated at decision time from data available then;
+   - a cap at 10% of *d*'s volume, with any shortfall reported as a partial fill;
+   - a cash check for cash-segment buys;
+   - the cost schedule in force on *d*.
+3. **During the session:**
+   - a gap through a stop fills at the open, not at the stop;
+   - a bar that spans both stop and target is assumed to hit the stop;
+   - targets fill at the target level.
+4. **At the close:** positions are marked to *d*'s close.
+5. **After EOD publication (20:00 IST):** the strategy decides through a `PitView` that has no
+   way to ask for data after the decision time.
+
+**Guarantees, all tested:**
+- results are bit-identical whether or not data after the end date exists (`run_digest`);
+- runs are deterministic;
+- `final = initial + Σ trade net P&L + dividends`;
+- costs match the dated schedule.
+
+Cash-segment shorts and position flips are rejected.
+
+**Walk-forward** (`backtest/walkforward.py`):
+- parameters are chosen on each training window only, with an optional embargo, then run on
+  the following unseen window;
+- the stitched out-of-sample curve is judged with the deflated Sharpe ratio, using the number
+  of parameter sets tried and the variance of their Sharpe ratios;
+- a test checks the selection cannot see the test window.
+
+**Performance:** `MarketData.for_backtest` serves the immutable store from memory with
+identical as-of semantics; a property test checks it against SQL. One 5-symbol, 240-session
+run takes about 0.6 s.
+
+**Backfill:** `python -m aitrader.backtest.backfill <dir>` loads NSE files by their file names,
+audits each file (SHA-256, rows written) and is idempotent.
+
+## 16. Known limitations (as of Phase 3)
+
+- **No historical data loaded yet.** Every backtest so far runs on synthetic markets. The NSE
+  archive host is still refused by this session's network gateway.
+- **Fill model:** daily bars only; next-open fills; one slippage model for all names. Futures
+  margin and leverage are not simulated (cash is checked for the cash segment only).
+  Dividends are credited on the ex-date, not the payment date.
+- **Option expiry** settles at the last traded price; exercise STT is not simulated.
+- **Pre-2023 costs** are conservative approximations, and results using them say so
+  (`approximate_costs_used`).
+- **F&O history before July 2024** needs a legacy F&O parser plus lot-size history (not built).
+
+From earlier phases:
+
+- **NSE formats (UDiFF, index close, legacy cash) are unverified against live files.** This
+  session's network gateway still refuses nsearchives.nseindia.com. The parsers follow NSE's published UDiFF and index-close layouts
   and fail closed on missing columns, but they must be run once against real files.
 - **Availability times are conservative policy, not observed.** EOD files are stamped 19:00
   IST. The same rule applies in backtest and live, so the two cannot diverge.
@@ -320,7 +375,8 @@ the envelope level. LLM agents (Phase 4+) can reach tools only through `ToolRunn
 - **Cost rates** in `config/costs.yaml` come from public notices and must be verified against
   official circulars and the broker tariff. Pre-October-2024 exchange charges approximate the
   slab structure with its top slab.
-- **PIT storage** keeps payloads as JSON in a single DuckDB table. That is correct and simple,
-  but a typed bar table will be needed for fast multi-year cross-sectional backtests (Phase 3).
+- **PIT storage** keeps payloads as JSON in one DuckDB table. Backtests read through the
+  in-memory cache, and writes are batched. A full NIFTY 500 × 10-year run has not been
+  benchmarked yet.
 - **The Redis Streams bus and Postgres state store are not built yet.** In-memory backends
   serve tests and backtests; paper trading needs the durable ones.

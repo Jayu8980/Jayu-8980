@@ -10,4 +10,5 @@ from aitrader.tools import (  # noqa: F401
     sizing,
     stats,
     technical,
+    validation,
 )

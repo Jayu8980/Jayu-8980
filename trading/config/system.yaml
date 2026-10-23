@@ -25,6 +25,7 @@ data:
     nse_cm_bhavcopy: "19:00"
     nse_fo_bhavcopy: "19:00"
     nse_index_close: "19:00"
+    nse_cm_bhavcopy_legacy: "19:00"
   calendar_reference: NIFTY_50  # sessions = days this index has a bar
   cash_series: [EQ, BE]
   publish_option_bars: false  # option chains are stored and queried, not broadcast

@@ -93,3 +93,26 @@ def test_fetcher_unzips_and_retries() -> None:
         NseArchiveFetcher(down, retries=2, backoff_seconds=0).fetch_text(
             "nse_index_close", date(2026, 10, 21)
         )
+
+
+def test_legacy_cash_bhavcopy() -> None:
+    from aitrader.agents.data.sources.nse import parse_legacy_cm_bhavcopy
+
+    parsed = parse_legacy_cm_bhavcopy((FIXTURES / "cm21OCT2019bhav.csv").read_text())
+    assert parsed.trade_date == date(2019, 10, 21)
+    assert [b.instrument.symbol for b in parsed.bars] == ["RELIANCE", "TCS"]  # N1 series skipped
+    assert parsed.bars[1].close == Decimal("2071.25") and parsed.rejects == []
+
+
+def test_legacy_archive_url() -> None:
+    seen: list[str] = []
+
+    def capture(url: str) -> bytes:
+        seen.append(url)
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w") as archive:
+            archive.writestr("cm.csv", "x")
+        return buffer.getvalue()
+
+    NseArchiveFetcher(capture, backoff_seconds=0).fetch_text("nse_cm_bhavcopy_legacy", date(2019, 10, 1))
+    assert seen[0].endswith("/historical/EQUITIES/2019/OCT/cm01OCT2019bhav.csv.zip")

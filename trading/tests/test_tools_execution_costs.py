@@ -50,7 +50,18 @@ def test_buy_side_options_pay_no_stt_but_stamp() -> None:
 
 def test_dates_before_first_schedule_refuse_to_guess() -> None:
     with pytest.raises(ValueError, match="no cost schedule"):
-        schedule_for(date(2020, 1, 1))
+        schedule_for(date(2015, 12, 31))
+
+
+def test_older_rates_are_flagged_approximate() -> None:
+    old = india_costs(
+        segment="equity_delivery", side="BUY", price=100, quantity=10, trade_date=date(2018, 5, 2)
+    )
+    new = india_costs(
+        segment="equity_delivery", side="BUY", price=100, quantity=10, trade_date=date(2024, 5, 2)
+    )
+    assert old.approximate_rates and not new.approximate_rates
+    assert old.total >= new.total  # approximations err on the expensive side
 
 
 def test_round_trip_and_cash_short_rule() -> None:

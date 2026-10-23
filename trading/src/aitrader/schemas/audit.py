@@ -53,7 +53,9 @@ class ToolCallRecord(StrictModel):
 class AuditRecord(StrictModel):
     sequence: Annotated[int, Field(ge=0)]
     recorded_at: UtcDatetime
-    record_type: Literal["envelope", "llm_call", "tool_call", "config_snapshot", "human_action"]
+    record_type: Literal[
+        "envelope", "llm_call", "tool_call", "config_snapshot", "human_action", "ingest_batch"
+    ]
     body_json: str  # canonical JSON of the recorded object
     body_sha256: HexDigest
     prev_hash: HexDigest

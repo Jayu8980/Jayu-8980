@@ -1,0 +1,23 @@
+# Backtest simulation settings. Fills are simulated, so every assumption is explicit here.
+
+initial_capital_inr: 1000000
+decision_time_ist: "20:00"  # after EOD data is available (19:00)
+benchmark: NIFTY_50
+start: 2016-01-01  # default proposal; needs historical data loaded
+universe_index: NIFTY_500
+
+fills:
+  model: next_open  # orders decided after the close fill at the next session's open
+  max_participation_of_bar_volume: 0.10  # larger orders fill partially; the rest is cancelled
+  order_validity_sessions: 1
+  stop_and_target_same_bar: stop_first  # pessimistic: when a bar spans both, assume the stop hit
+  clamp_to_bar_range: true
+
+slippage:
+  half_spread_bps: 5.0
+  impact_coefficient: 1.0  # square-root law: Y * sigma_daily * sqrt(qty / ADV)
+  min_bps: 2.0
+  adv_lookback_sessions: 20
+
+corporate_actions:
+  dividends: credit_on_ex_date  # approximation: real payment comes weeks later

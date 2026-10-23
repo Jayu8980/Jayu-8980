@@ -62,6 +62,7 @@ class Brokerage(_Frozen):
 
 class CostSchedule(_Frozen):
     effective_from: date
+    approximate: bool = False
     note: str = ""
     stt: Stt
     exchange_txn: ExchangeTxn
@@ -101,6 +102,7 @@ class CostBreakdown(ToolOutput):
     total: float
     total_bps: float
     schedule_effective_from: date
+    approximate_rates: bool
 
 
 @tool(
@@ -164,6 +166,7 @@ def india_costs(
         total=total,
         total_bps=total / turnover * 1e4,
         schedule_effective_from=s.effective_from,
+        approximate_rates=s.approximate,
     )
 
 

@@ -157,6 +157,46 @@ def parse_udiff_bhavcopy(text: str, *, cash_series: frozenset[str] = DEFAULT_CAS
     return result
 
 
+LEGACY_CM_REQUIRED = ("SYMBOL", "SERIES", "OPEN", "HIGH", "LOW", "CLOSE", "TOTTRDQTY", "TIMESTAMP")
+
+
+def parse_legacy_cm_bhavcopy(text: str, *, cash_series: frozenset[str] = DEFAULT_CASH_SERIES) -> ParsedBars:
+    """Parse the pre-July-2024 cash bhavcopy (cmDDMONYYYYbhav.csv)."""
+    result = ParsedBars()
+    for line_no, row in enumerate(_reader(text, LEGACY_CM_REQUIRED), start=2):
+        try:
+            row = {k: (v or "").strip() for k, v in row.items() if k}
+            if row["SERIES"] not in cash_series:
+                continue
+            trade_date = datetime.strptime(row["TIMESTAMP"].title(), "%d-%b-%Y").date()
+            if result.trade_date is None:
+                result.trade_date = trade_date
+            elif trade_date != result.trade_date:
+                raise ValueError(f"mixed trade dates {result.trade_date} and {trade_date}")
+            start, end = daily_bar_window(trade_date)
+            result.bars.append(
+                Bar(
+                    instrument=Instrument(
+                        exchange=Exchange.NSE,
+                        segment=Segment.CASH,
+                        symbol=row["SYMBOL"],
+                        instrument_type=InstrumentType.EQUITY,
+                    ),
+                    timeframe=Timeframe.D1,
+                    bar_start=start,
+                    bar_end=end,
+                    open=_decimal(row["OPEN"]),
+                    high=_decimal(row["HIGH"]),
+                    low=_decimal(row["LOW"]),
+                    close=_decimal(row["CLOSE"]),
+                    volume=_int(row["TOTTRDQTY"]),
+                )
+            )
+        except (ValueError, KeyError, ValidationError) as exc:
+            result.rejects.append((line_no, _reason(exc)))
+    return result
+
+
 def index_symbol(name: str) -> str:
     return re.sub(r"_+", "_", re.sub(r"[^A-Z0-9]", "_", name.strip().upper())).strip("_")
 
@@ -200,6 +240,9 @@ ARCHIVE_URLS = {
     "nse_cm_bhavcopy": "https://nsearchives.nseindia.com/content/cm/BhavCopy_NSE_CM_0_0_0_{ymd}_F_0000.csv.zip",
     "nse_fo_bhavcopy": "https://nsearchives.nseindia.com/content/fo/BhavCopy_NSE_FO_0_0_0_{ymd}_F_0000.csv.zip",
     "nse_index_close": "https://nsearchives.nseindia.com/content/indices/ind_close_all_{dmy}.csv",
+    "nse_cm_bhavcopy_legacy": (
+        "https://nsearchives.nseindia.com/content/historical/EQUITIES/{yyyy}/{mon}/cm{dd}{mon}{yyyy}bhav.csv.zip"
+    ),
 }
 
 Transport = Callable[[str], bytes]
@@ -224,7 +267,11 @@ class NseArchiveFetcher:
 
     def fetch_text(self, source: str, trade_date: date) -> str:
         url = ARCHIVE_URLS[source].format(
-            ymd=trade_date.strftime("%Y%m%d"), dmy=trade_date.strftime("%d%m%Y")
+            ymd=trade_date.strftime("%Y%m%d"),
+            dmy=trade_date.strftime("%d%m%Y"),
+            dd=trade_date.strftime("%d"),
+            mon=trade_date.strftime("%b").upper(),
+            yyyy=trade_date.strftime("%Y"),
         )
         last_error: Exception | None = None
         for attempt in range(self._retries):
