@@ -24,11 +24,14 @@ from aitrader.agents.risk_reward.agent import RiskRewardAgent
 from aitrader.agents.smart_money.engine import SmartMoneyEngine
 from aitrader.agents.trend.agent import TrendAgent, load_events
 from aitrader.audit.interface import AuditLog
+from aitrader.bus.interface import MessageBus
 from aitrader.bus.memory import InMemoryBus
-from aitrader.config.settings import RiskLimits, SystemConfig
+from aitrader.config.settings import RiskLimits, SystemConfig, secret
+from aitrader.execution.orderbook import InMemoryOrderBook, OrderBook
 from aitrader.llm.caller import StructuredCaller
 from aitrader.llm.client import LlmClient
 from aitrader.orchestrator.cycle import CycleTimeouts, DecisionCycle
+from aitrader.state.interface import StateStore
 from aitrader.state.memory import InMemoryStateStore
 from aitrader.storage.pit import PitReader
 
@@ -37,9 +40,32 @@ from aitrader.storage.pit import PitReader
 class System:
     cycle: DecisionCycle
     signer: TokenSigner
-    state: InMemoryStateStore
-    bus: InMemoryBus
+    state: StateStore
+    bus: MessageBus
+    book: OrderBook
     llm_enabled: bool
+
+
+def backends(config: SystemConfig, audit: AuditLog) -> tuple[MessageBus, StateStore, OrderBook]:
+    """The configured bus, state store and order book. Durable backends read their
+    connection strings from the environment variables named in system.yaml."""
+    bus: MessageBus
+    state: StateStore
+    book: OrderBook
+    if config.bus.backend == "redis_streams":
+        from aitrader.bus.redis_streams import RedisStreamsBus
+
+        bus = RedisStreamsBus.from_url(secret(config.bus.redis_url_env), audit)
+    else:
+        bus = InMemoryBus(audit)
+    if config.state.backend == "postgres":
+        from aitrader.state.postgres import PostgresOrderBook, PostgresStateStore, connect
+
+        dsn = secret(config.state.postgres_dsn_env)
+        state, book = PostgresStateStore(connect(dsn)), PostgresOrderBook(connect(dsn))
+    else:
+        state, book = InMemoryStateStore(), InMemoryOrderBook()
+    return bus, state, book
 
 
 def build_system(
@@ -55,8 +81,7 @@ def build_system(
 ) -> System:
     market = MarketData(reader, config.data.calendar_reference)
     universe = Universe(reader)
-    state = InMemoryStateStore()
-    bus = InMemoryBus(audit)
+    bus, state, book = backends(config, audit)
     caller = None
     if llm_client is not None and config.llm.pinned:
         caller = StructuredCaller(llm_client, config.llm, audit, clock)
@@ -84,7 +109,7 @@ def build_system(
         timeouts=CycleTimeouts(analyst=t.analyst, debate=t.debate, boss=t.boss),
         max_revisions=2,
     )
-    return System(cycle=cycle, signer=signer, state=state, bus=bus, llm_enabled=caller is not None)
+    return System(cycle=cycle, signer=signer, state=state, bus=bus, book=book, llm_enabled=caller is not None)
 
 
 def default_signer(limits: RiskLimits) -> TokenSigner:

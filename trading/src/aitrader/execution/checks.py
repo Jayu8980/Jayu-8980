@@ -32,15 +32,17 @@ class MarketPhase(StrEnum):
 
 class MarketClock:
     """NSE session times on trading days. ``sessions`` (when given) is the exact set of
-    trading days, as the paper runner knows it; otherwise weekdays minus ``holidays``."""
+    trading days, as the paper runner knows it; other days are weekdays minus ``holidays``."""
 
     def __init__(self, holidays: Iterable[date] = (), sessions: Iterable[date] | None = None) -> None:
         self._holidays = frozenset(holidays)
         self._sessions = frozenset(sessions) if sessions is not None else None
+        self._last_session = max(self._sessions) if self._sessions else None
 
     def is_session(self, day: date) -> bool:
-        if self._sessions is not None:
+        if self._sessions is not None and (self._last_session is None or day <= self._last_session):
             return day in self._sessions
+        # Beyond the known sessions (the paper runner's last day), assume weekdays.
         return day.weekday() < 5 and day not in self._holidays
 
     def phase(self, now: datetime) -> MarketPhase:

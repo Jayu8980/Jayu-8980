@@ -81,6 +81,7 @@ class BrokerConfig(StrictModel):
     max_orders_per_second: Annotated[int, Field(ge=1, le=10)]
     static_ip_required: bool
     allow_market_orders: bool
+    kill_switch_file: str  # creating this file engages the kill switch ("flatten" in it also flattens)
 
 
 class LlmModels(StrictModel):

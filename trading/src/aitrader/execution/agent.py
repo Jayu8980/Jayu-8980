@@ -35,7 +35,7 @@ from typing import Literal
 from uuid import UUID, uuid5
 
 from aitrader.agents.publishing import publish
-from aitrader.agents.risk.tokens import TokenError, TokenSigner
+from aitrader.agents.risk.tokens import TokenError, TokenForgeryError, TokenReplayError, TokenSigner
 from aitrader.bus.interface import MessageBus
 from aitrader.config.settings import BrokerConfig, RiskLimits
 from aitrader.execution.broker import (
@@ -224,13 +224,13 @@ class ExecutionAgent:
             return None
         try:
             self.signer.verify(instruction, now, self.state)
+        except TokenReplayError as exc:  # a duplicate, not an error
+            self.notes.append(f"replayed instruction {instruction.instruction_id} ignored: {exc}")
+            return None
         except TokenError as exc:
             reason = str(exc)
-            if "already" in reason:  # replayed token or idempotency key: a duplicate, not an error
-                self.notes.append(f"replayed instruction {instruction.instruction_id} ignored: {reason}")
-                return None
             await self._reject_instruction(instruction, f"approval refused: {reason}", now)
-            if "signature" in reason or "key" in reason:
+            if isinstance(exc, TokenForgeryError):
                 await self._alert(
                     AlertType.KILL_SWITCH,
                     f"instruction {instruction.instruction_id} failed authentication: {reason}",
@@ -249,7 +249,7 @@ class ExecutionAgent:
             self._failures = 0
         except BrokerUnavailableError as exc:
             await self._broker_failure("pre-trade data", exc, now)
-        except OrderRejectedError as exc:
+        except BrokerError as exc:  # e.g. no quote for this symbol: the checks reject it
             self.notes.append(f"{inst.key}: {exc}")
         price = (
             float(instruction.limit_price)
@@ -387,7 +387,17 @@ class ExecutionAgent:
             )
             try:
                 broker_id = self.broker.place_order(request)
-            except OrderRejectedError as exc:
+            except BrokerUnavailableError as exc:
+                await self._broker_failure(f"place {child.child_order_id}", exc, now)
+                await self.retry_delay(attempt)
+                found = self._lookup(child.child_order_id)
+                if isinstance(found, BrokerOrder):
+                    await self._adopt(child, found.broker_order_id, now)
+                    return
+                if found == "unknown":
+                    break  # cannot tell whether it is live: never send it again blind
+                continue  # the broker does not have it: safe to retry with the same tag
+            except BrokerError as exc:  # refused, or never sent (e.g. unknown symbol)
                 self._failures = 0
                 await self._update(
                     child,
@@ -401,16 +411,6 @@ class ExecutionAgent:
                     now,
                 )
                 return
-            except BrokerUnavailableError as exc:
-                await self._broker_failure(f"place {child.child_order_id}", exc, now)
-                await self.retry_delay(attempt)
-                found = self._lookup(child.child_order_id)
-                if isinstance(found, BrokerOrder):
-                    await self._adopt(child, found.broker_order_id, now)
-                    return
-                if found == "unknown":
-                    break  # cannot tell whether it is live: never send it again blind
-                continue  # the broker does not have it: safe to retry with the same tag
             self._failures = 0
             await self._adopt(child, broker_id, now)
             return
@@ -567,15 +567,15 @@ class ExecutionAgent:
                     product=protection.product,
                 )
             )
-        except OrderRejectedError as exc:
+        except BrokerUnavailableError as exc:
+            await self._broker_failure(f"protect {key}", exc, now)
+            return  # stays pending; the next sync adopts it or places it again
+        except BrokerError as exc:
             self.book.put_protection(protection.model_copy(update={"status": "cancelled", "updated_at": now}))
             await self._alert(
                 AlertType.LIQUIDITY_COLLAPSE, f"{key}: protective stop refused by the broker: {exc}", now
             )
             return
-        except BrokerUnavailableError as exc:
-            await self._broker_failure(f"protect {key}", exc, now)
-            return  # stays pending; the next sync adopts it or places it again
         self.book.put_protection(
             protection.model_copy(
                 update={"status": "active", "broker_protective_id": broker_id, "updated_at": now}

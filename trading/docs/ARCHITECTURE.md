@@ -1,6 +1,7 @@
 # Architecture: Multi-Agent AI Trading System
 
-Status: **Phase 5 done** (debate, boss, gates, full decision chain in backtest), awaiting review.
+Status: **Phase 6 done** (execution in paper mode, reconciliation, kill switch, durable backends,
+monitoring dashboard), awaiting review.
 Phase reports: [PROGRESS.md](PROGRESS.md).
 Scope assumed for Phase 1: NSE cash plus F&O, swing horizon, Zerodha Kite Connect, Python 3.11+.
 Every assumption is listed in [DECISIONS.md](DECISIONS.md) and is config-driven.
@@ -162,24 +163,32 @@ by `decision_id` and `cycle_id`. Interrupts for alerts and the kill switch.
    change to quantity, price, side, stop or key after approval invalidates it (tested).
 4. Execution verifies the HMAC and expiry, then atomically consumes `token_id`
    (`StateStore.consume_token`) and claims the `idempotency_key` before any broker call.
-5. The broker adapter is private to the execution package. Its only public entry point is
-   `execute(OrderInstruction)`, which performs steps 4 and 5 and checks the freeze flag. A
-   Phase 6 static test fails CI if any module outside `execution/` imports the broker client.
-6. The kill switch is a `risk.alerts` interrupt (`KILL_SWITCH`). It sets the freeze flag in the
-   state store, which execution checks before every child order. Only a human action can clear it
-   (`clear_freeze(cleared_by_human=True)`). A file-based switch also works when the bus is down.
+5. Only the execution package talks to a broker. `test_no_bypass.py` fails CI if any module
+   outside `execution/` imports the live adapter or the order-request types, or calls a
+   broker's place or cancel methods. Every broker call goes through `AuditedBroker`, which
+   records the request and the response or error in the audit log.
+6. The kill switch is a `risk.alerts` interrupt (`KILL_SWITCH`). Engaging it writes the freeze
+   to the state store directly, so it works with the bus down. Execution cancels resting entry
+   orders and refuses new entries, and keeps exits and protective stops. Only a human can
+   release it (`clear_freeze(cleared_by_human=True)`), and the file switch only once its file
+   is gone. Details in §20.
 
 ## 6. Orders
 
 - State machine: `pending → placed → partially_filled → filled`, with `cancelled` and
-  `rejected` as terminal states. Transitions are validated (`ALLOWED_TRANSITIONS`, `OrderUpdate`).
-- One idempotency key per instruction leg. Child orders use `<key>:<slice>` as the broker order
-  tag. Retries after a timeout first query the broker by tag and never blindly re-send.
-- Fills are deduplicated on `broker_trade_id`.
-- Reconciliation runs every 60 s comparing positions and orders with the broker. Any mismatch
-  raises `RECONCILIATION_MISMATCH`, which freezes trading.
-- Sanity caps: order value, order rate (≤ broker OPS cap), and price deviation from the last
-  traded price. Freeze-quantity splits for F&O. Market orders are disabled by default.
+  `rejected` as terminal states. The order book enforces it on every update
+  (`IllegalTransitionError`), in memory and in Postgres.
+- Each child order's broker tag is a deterministic 20-character hash of the instruction id
+  and slice (Kite's tag limit). After a lost acknowledgement, execution looks the order up by
+  tag and adopts it. If the lookup also fails, it never re-sends: the child is marked
+  "outcome unknown" and trading freezes until a sync finds or rules out the order.
+- Fills are booked once per `broker_trade_id`.
+- Reconciliation compares the fill ledger with broker positions and open orders after every
+  session (paper) or every `reconciliation_interval_seconds` (live). Any difference, or a
+  trade or order the system did not place, raises `RECONCILIATION_MISMATCH` and freezes.
+- Sanity caps: order value (slicing), order rate (token bucket at the broker OPS limit), price
+  deviation from the last price, the price band, margin, freeze-quantity slicing for F&O.
+  Market orders are disabled.
 
 ## 7. Point-in-time data
 
@@ -270,13 +279,16 @@ trading/
   src/aitrader/
     schemas/         every message and tool schema (Phase 1, done)
     config/          typed config loader and validation (Phase 1, done)
-    agents/<name>/   one package per agent; SPEC now, implementation Phases 2–5
-    bus/ state/ audit/   contracts now; backends Phase 2–3
+    agents/<name>/   one package per agent (Phases 2–5)
+    bus/             contract, in-memory and Redis Streams backends
+    state/           contract, in-memory and Postgres state store and order book
+    audit/           hash-chained audit log
     tools/           institutional tool layer (Phase 2)
     backtest/        event-driven backtester (Phase 3)
     orchestrator/    decision cycle (Phase 5)
-    execution/       order execution, reconciliation, kill switch (Phase 6)
-    feedback/        TCA and attribution (Phases 5–7)
+    execution/       execution agent, paper broker, Kite adapter, checks, kill switch (Phase 6)
+    paper/           paper-trading runner (Phase 6)
+    feedback/        TCA agent and live per-agent scores (Phase 6); attribution (Phase 7)
     monitoring/      dashboard (Phase 6)
     prompts/         versioned prompts
   tests/
@@ -486,5 +498,119 @@ From earlier phases:
 - **PIT storage** keeps payloads as JSON in one DuckDB table. Backtests read through the
   in-memory cache, and writes are batched. A full NIFTY 500 × 10-year run has not been
   benchmarked yet.
-- **The Redis Streams bus and Postgres state store are not built yet.** In-memory backends
-  serve tests and backtests; paper trading needs the durable ones.
+
+## 20. Execution and paper trading (Phase 6)
+
+**Execution agent** (`execution/agent.py`). For each instruction it receives on the bus:
+1. It ignores ids already in the order book.
+2. It verifies the token: signature, key, digest, decision and expiry. It then consumes the
+   token and claims the idempotency key atomically. A replay raises `TokenReplayError` and is
+   ignored. A forgery raises `TokenForgeryError`, is rejected and freezes trading.
+3. It runs the pre-trade checks (`execution/checks.py`) against a live quote, margin and broker
+   positions:
+   - tradable instrument, no market orders, not expiring before it can trade;
+   - the freeze (entries only), no cash shorts;
+   - price band, fat-finger deviation, margin;
+   - no flipping a position; exits no larger than the position.
+4. It slices with `micro.slicer`: strictly below the freeze quantity, within the order-value
+   cap, and spread over the horizon for TWAP/VWAP/POV.
+5. It places each child idempotently under the rate limiter. Outside market hours children
+   go in as after-market orders.
+
+**Protection.** Every open position is covered by broker-held protective orders: Kite GTT,
+a single stop or a two-leg OCO. They sit at the stop and first target the risk agent signed.
+- The stop is a limit order once triggered, `protective_stop_limit_bps` (2%) past the trigger.
+  A gap beyond that leaves it unfilled. Execution then raises an alert, freezes entries and
+  re-arms the stop.
+- An exit first cancels enough protection that stops plus exits never exceed the position, so
+  a stop and an exit cannot both sell the same shares. Remaining quantity is re-protected after
+  partial exits.
+
+**Sync and reconciliation.** `sync` maps broker states onto the order state machine, books
+each trade once as a `Fill` and tops up protection. `reconcile` compares the ledger with the
+broker.
+
+**Kill switch** (`execution/killswitch.py`):
+- Manual: `engage()`.
+- File: creating `broker.kill_switch_file` (default `run/KILL`) engages it, and a file whose
+  text contains "flatten" also flattens.
+- Automatic: execution freezes on three consecutive broker failures, unknown placement
+  outcomes, reconciliation mismatches, refused or unfilled stops and failed authentication.
+  The risk agent freezes on drawdown breaches.
+- Flattening never bypasses the risk agent. `RiskAgent.flatten_instructions` signs one exit
+  per holding, with ids derived from the alert, and those exits pass through execution like
+  any other instruction.
+
+**Brokers** (`execution/broker.py` contract):
+- `PaperBroker` simulates the exchange on daily bars. Queued orders trade at the open, and
+  stops and targets are checked against the open and then the day's range (stop first). It
+  applies a participation cap, slippage (half spread plus square-root impact) and dated Indian
+  costs. Like a real broker it refuses limits outside the band, CNC sells of shares not held
+  and orders without margin. Faults can be injected per method: "down", or "lost_ack" (the
+  broker acts but the answer is lost).
+- `KiteBroker` maps the contract onto Kite Connect v3: orders and AMO, trades, holdings plus
+  net positions, margins, quotes, and GTT. It is built from the documentation and tested
+  against recorded response shapes only.
+
+**Durable backends:**
+- `state/postgres.py`: state store and order book. Single use is enforced by primary keys
+  across processes; child updates take a row lock and are checked against the state machine.
+- `bus/redis_streams.py`: one stream per topic plus an interrupt stream read first. Consumer
+  groups acknowledge after the handler, with per-group deduplication. A poison message goes
+  to a dead-letter stream after three attempts.
+- `system.backends()` picks them from `system.yaml`. Paper and live refuse the in-memory ones.
+- A test runs the same paper window on Redis and Postgres and on the in-memory stack and
+  requires identical fills.
+
+**Paper runner** (`paper/runner.py`). One `run_day` per session on a simulated IST clock:
+
+| Time | Step |
+|------|------|
+| 09:00 | kill-file check |
+| 09:15 | open |
+| 09:16 | sync (fills, protection) |
+| 15:30 | session simulated |
+| 15:31 | reconcile and TCA |
+| decision time | kill check, then one decision cycle on the broker's portfolio |
+
+Execution receives instructions only through the bus.
+
+**Feedback and monitoring:**
+- `feedback/tca.py` compares the fills of each finished instruction with the arrival price
+  and the liquidity estimate.
+- `feedback/live_scores.py` scores chart and smart-money signals against realised 5-session
+  returns.
+- `monitoring/dashboard.py` renders a self-contained HTML page. It shows status, headline
+  numbers, equity, drawdown against its limit, exposure, positions with their stops, agent
+  health, latency and accuracy, LLM cost per decision, TCA, fills and alerts, in light and
+  dark themes, with a table view.
+
+## 21. Known limitations (as of Phase 6)
+
+- **Paper trading is a replay, not live.** The runner drives the paper broker from stored
+  daily bars on a simulated clock. Live paper trading needs a wall-clock scheduler, live
+  quotes and daily data ingestion (Phase 7), and real data is still blocked by network access.
+- **The Kite adapter has never talked to Kite.** Status strings, holdings/positions netting,
+  GTT payloads, the AMO window and error types must be checked against a live account. The
+  daily access token needs Kite's interactive login.
+- **Daily-bar execution model.** No intraday path, so fill timing inside the day, TWAP/VWAP
+  schedules and intraday stop ordering are approximations. Slices of one instruction all
+  trade at the same session open in paper mode.
+- **Margin is approximated:** cash for delivery, a fixed 25% of notional for futures and
+  short options. SPAN data is not wired.
+- **Corporate actions on held positions are not simulated** by the paper broker or the
+  ledger. A split on a held name would show up as a reconciliation mismatch (and freeze) in
+  live trading, and a human would resolve it. The exchange's cancellation of orders and GTTs
+  on ex-dates is not modelled.
+- **Exit protection timing.** Between cancelling a stop and the exit filling, that quantity
+  is protected only by the resting exit order. If the exit expires unfilled, the stop is
+  re-armed at the next sync.
+- **Per-agent accuracy on the dashboard is a monitoring view** (hit rate and IC against
+  5-session returns). The attribution agent, with regime splits and credibility shrinkage
+  feeding the boss, is Phase 7.
+- **Notifications are not sent.** Alerts are on the bus, in the audit log and on the
+  dashboard; the Telegram channel is unbuilt pending credentials.
+- **Lookups after a lost acknowledgement assume the broker's order book is consistent
+  within the retry delay** (0.5 s, doubling). If an order surfaces later than that, a
+  duplicate is possible in principle. Its trades would match no order in the book, so sync
+  would flag a mismatch and freeze, but only once it trades.

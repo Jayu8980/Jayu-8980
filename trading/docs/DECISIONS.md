@@ -117,7 +117,7 @@ must confirm or change each one before the phase that depends on it.**
 | Stress test | -10% index shock, max 6% loss of equity |
 | Limit orders | Marketable limit at ±1% of the last close; larger gaps at the open go unfilled |
 
-## Needed from you before Phase 6 (execution in paper mode, reconciliation, kill switch)
+## Needed from you before Phase 6 (execution in paper mode, reconciliation, kill switch) (still open)
 
 1. **Broker:** confirm Zerodha Kite Connect and that you have API access. The paper
    broker comes first, but its interface follows the real one.
@@ -127,3 +127,38 @@ must confirm or change each one before the phase that depends on it.**
    will run but the R:R gate will (correctly) reject every entry.
 4. **Alerts:** Telegram bot token and chat id for freeze alerts and approvals (or another
    channel).
+
+## Phase 6 decisions taken (defaults)
+
+| Decision | Choice |
+|----------|--------|
+| Broker | Zerodha Kite Connect adapter, plus a paper broker behind the same contract |
+| Durable infrastructure | Redis Streams bus and Postgres state store and order book (both start locally; CI runs them as services) |
+| Protective orders | Broker-held GTT: stop alone or stop plus first target (OCO), at the signed levels |
+| Stop-limit slippage allowance | 2% past the trigger (`protective_stop_limit_bps: 200`) |
+| F&O margin estimate | 25% of notional until SPAN data is wired |
+| Outside market hours | Orders go in as after-market orders for the next open |
+| Order tags | Deterministic 20-character hash of instruction and slice (Kite limit) |
+| Unknown placement outcome | Never re-send; freeze until a sync finds or rules out the order |
+| Automatic freeze | 3 consecutive broker failures, reconciliation mismatch, refused or unfilled stop, failed authentication |
+| Kill file | `run/KILL`; text containing "flatten" also exits every position via risk-signed exits |
+| Limit rounding | Buy limits round down and sell limits round up to the tick, so they never exceed the 1% deviation guard |
+
+## Needed from you before Phase 7 (paper trading)
+
+1. **Data access.** Paper trading on real prices needs the NSE archives reachable from
+   wherever it runs, or daily files delivered to it. With no measured setup edge, the R:R
+   gate will (correctly) reject every entry.
+2. **A Kite Connect account check (read-only is enough).** Run the adapter's read
+   calls (orders, trades, holdings, positions, margins, quote, GTT list) once to confirm
+   the response shapes. Who performs the daily login that issues the access token?
+3. **Where paper trading runs.** A machine or VM with Redis and Postgres, a static IP if
+   live trading will follow (SEBI and broker rules), and a daily schedule. The runner's
+   steps map to IST times (§20).
+4. **Alert channel.** A Telegram bot token and chat id, or another channel, for freezes,
+   kill switches and fills.
+5. **Paper-to-live exit criteria.** Proposed defaults: at least 60 sessions; zero
+   reconciliation mismatches not explained by a documented cause; realised slippage within
+   2× the estimate; drawdown within limits; every fill traced to a token. Confirm or change.
+6. **Margin and capital.** Starting capital for paper (default ₹10 lakh), and whether F&O
+   is in scope for the first paper run (the default excludes it until SPAN margin is wired).

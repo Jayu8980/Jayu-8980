@@ -27,6 +27,14 @@ class TokenError(PermissionError):
     """The instruction may not be executed."""
 
 
+class TokenForgeryError(TokenError):
+    """Unknown key or bad signature: the instruction did not come from the risk agent."""
+
+
+class TokenReplayError(TokenError):
+    """The token or the idempotency key was already used: a duplicate delivery."""
+
+
 class TokenSigner:
     def __init__(self, key: bytes, key_id: str = "k1", ttl: timedelta = timedelta(minutes=5)) -> None:
         if len(key) < 32:
@@ -61,15 +69,15 @@ class TokenSigner:
         """Check everything, then atomically consume the token and the idempotency key."""
         token = instruction.approval
         if token.key_id != self.key_id:
-            raise TokenError(f"unknown signing key {token.key_id!r}")
+            raise TokenForgeryError(f"unknown signing key {token.key_id!r}")
         body = token.model_dump(mode="json", exclude={"signature"})
         if not hmac.compare_digest(self._signature(body), token.signature):
-            raise TokenError("approval signature is invalid")
+            raise TokenForgeryError("approval signature is invalid")
         if token.instruction_digest != instruction.digest() or token.decision_id != instruction.decision_id:
             raise TokenError("approval does not cover this instruction")
         if not token.issued_at <= now < token.expires_at:
             raise TokenError("approval token expired or not yet valid")
         if not state.consume_token(token.token_id):
-            raise TokenError("approval token already used")
+            raise TokenReplayError("approval token already used")
         if not state.claim_idempotency_key(instruction.idempotency_key):
-            raise TokenError(f"instruction {instruction.idempotency_key} already executed")
+            raise TokenReplayError(f"instruction {instruction.idempotency_key} already executed")

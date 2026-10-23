@@ -40,6 +40,7 @@ broker:
   max_orders_per_second: 8  # keep under the SEBI retail-algo OPS threshold; confirm current rules with the broker
   static_ip_required: true
   allow_market_orders: false
+  kill_switch_file: run/KILL  # relative to the working directory; see docs/ARCHITECTURE.md §20
 
 llm:
   provider: anthropic

@@ -131,7 +131,7 @@ explicit acceptance tests in `tests/test_lookahead_survivorship.py`:
   Labels now follow the top scenario.
 - The chart evaluator compared levels in different price bases across splits.
 
-## Phase 5: debate, boss, gates and the full chain in backtest (done, awaiting review)
+## Phase 5: debate, boss, gates and the full chain in backtest (done)
 
 **Built** (details in ARCHITECTURE.md §17)
 - In-memory state store with an atomic token and idempotency-key ledger, and a freeze that
@@ -173,3 +173,64 @@ explicit acceptance tests in `tests/test_lookahead_survivorship.py`:
 - Random message ids made replays differ; ids are now derived from the cycle and payload.
 - The trend agent refitted its regime model every cycle (0.36 s). It now refits weekly and
   filters in between (6 ms).
+
+## Phase 6: execution in paper mode, reconciliation, kill switch (done, awaiting review)
+
+**Built** (details in ARCHITECTURE.md §20)
+- **Execution agent:**
+  - token verification with typed replay and forgery errors;
+  - pre-trade checks: band, deviation, margin, freeze, hours, position, cash shorts;
+  - slicing (`micro.slicer` tool) and idempotent tagged placement under an OPS rate limiter;
+  - broker-held protective stops and targets at the signed levels, with exits that cancel
+    protection first;
+  - sync, fill booking, reconciliation and freeze alerts.
+- **Paper broker:** a daily-bar exchange simulator with costs, slippage, participation caps,
+  broker-style refusals and fault injection. **Kite Connect adapter** (orders, AMO, GTT, positions,
+  quotes, instrument master), unverified against a live account.
+- **Kill switch** (manual, file, automatic) and risk-signed flatten instructions.
+- **Postgres** state store and order book, and a **Redis Streams** bus (interrupt stream,
+  consumer groups, dead-lettering). `system.backends()` selects them from config.
+- **Paper-trading runner, TCA agent, live per-agent scores and the monitoring dashboard**
+  (self-contained HTML, light and dark, table view).
+- A static test that nothing outside `execution/` places or cancels orders. CI now runs
+  Postgres 16 and Redis 7 services.
+
+**Tests:** 528 passing on Python 3.11 and 3.13 against real Postgres and Redis (the backend
+tests skip without them); ruff and strict mypy clean. New tests cover:
+- duplicates: replayed instructions and envelopes never create a second order, and trades are
+  booked once however often sync runs;
+- broker faults: a lost acknowledgement is adopted by tag, a pre-send failure is retried, and
+  an unknown outcome freezes instead of re-sending;
+- refused instructions: forged and foreign tokens (refused with an alert), expired tokens,
+  and every pre-trade check;
+- freezes: entries are blocked and resting entries cancelled while stops and exits stay;
+- protection: exits cancel stops first, partial exits re-protect, stops and targets execute,
+  and a gap through the stop limit alerts and re-arms;
+- reconciliation catching a manual trade; illegal state transitions; value-cap slicing;
+- the slicer, market clock, rate limiter, kill file and human-only release, and flatten
+  signing;
+- the Kite request mapping and parsing;
+- state-store and order-book contracts on memory and Postgres, 8 connections racing for one
+  token, persistence across restart;
+- the Redis bus: once per group, interrupts first, redelivery and dead-lettering, invalid
+  envelopes never written;
+- paper trading end to end: reconciled every day, every fill traced to a verified token,
+  every position covered by a stop, reproducible, identical on the durable stack;
+- the kill file halting entries mid-run, and a flatten kill exiting every position;
+- dashboard escaping and self-containment.
+
+**Defects found and fixed while testing**
+- Rounding a buy limit to the tick could push it just past the 1% deviation guard, so some
+  approved instructions were refused at execution. The risk agent now rounds limits
+  conservatively (buys down, sells up).
+- The market clock raised when a trade was decided after the last known session. Beyond the
+  known sessions it now falls back to weekdays.
+- Replay and forgery were told apart by error text. They are now typed exceptions.
+- A broker error that was neither a refusal nor a transport failure (e.g. a symbol missing
+  from the Kite master) escaped the placement path. It is now a definitive refusal.
+
+**Known limitations:** ARCHITECTURE.md §21. In short: the paper run is a replay on stored
+daily bars, the Kite adapter is unverified live, margin is approximated, corporate actions on
+held positions are not simulated, and notifications are not sent yet.
+
+**Decisions needed before Phase 7:** DECISIONS.md, "Needed from you before Phase 7".

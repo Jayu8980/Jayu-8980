@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{title}</title><style>{style}</style></head>
+<body><main>
+<header><h1>{title}</h1><div class="meta">Stage: {stage} · {sessions} sessions · generated {generated}</div></header>
+<div class="banner">{banner}</div>
+<section class="tiles">{tiles}</section>
+<div class="controls" role="group" aria-label="Chart range"><span>Chart range</span>
+<button type="button" data-range="0" aria-pressed="true">All</button>
+<button type="button" data-range="60" aria-pressed="false">Last 60 sessions</button>
+<button type="button" data-range="20" aria-pressed="false">Last 20 sessions</button></div>
+<section class="grid">
+<div class="card"><h2>Equity</h2><div class="chart" id="chart-equity" aria-label="Equity by session"></div></div>
+<div class="card"><h2>Drawdown from peak</h2><div class="chart" id="chart-drawdown" aria-label="Drawdown from peak equity by session, with the total drawdown limit"></div></div>
+<div class="card"><h2>Exposure (share of equity)</h2>
+<div class="legend"><span><span class="key" style="background:var(--s1)"></span>Gross</span><span><span class="key" style="background:var(--s2)"></span>Net</span></div>
+<div class="chart" id="chart-exposure" aria-label="Gross and net exposure by session"></div></div>
+</section>
+<section class="card" style="margin-bottom:12px"><h2>Open positions and broker-held stops</h2>{positions}</section>
+<section class="card" style="margin-bottom:12px"><h2>Agent health, latency and accuracy</h2>{agents}
+<p class="meta">Accuracy: each signal scored against the realised 5-session return; hit rate counts |score| ≥ 0.2, IC needs 10 scored signals.</p></section>
+<section class="grid">
+<div class="card"><h2>Execution quality (TCA)</h2>{tca}</div>
+<div class="card"><h2>Recent fills</h2>{fills}</div>
+</section>
+<section class="card"><h2>Alerts</h2>{alerts}</section>
+<details class="card" style="margin-top:12px"><summary>Chart data (table view)</summary><div class="table-wrap" id="data-table"></div></details>
+</main>
+<script type="application/json" id="dash-data">{data}</script>
+<script>{script}</script>
+</body></html>
