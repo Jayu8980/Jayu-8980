@@ -34,3 +34,29 @@ must confirm or change each one before the phase that depends on it.**
   (`max_orders_per_second`, hard-limited to ≤ 10 in code). Confirm the current rules with the
   broker.
 - Cash-segment short selling is intraday-only, so overnight shorts use F&O.
+
+## Phase 2 decisions taken (defaults; change via config)
+
+| Decision | Choice | Where |
+|----------|--------|-------|
+| PIT storage engine | DuckDB file, single append-only bitemporal table | `data.store_path` |
+| EOD availability rule | 19:00 IST for NSE bhavcopies and index closes, same in backtest and live | `data.availability_ist` |
+| Trading calendar | Days the NIFTY 50 index has a bar (no hand-maintained holiday list) | `data.calendar_reference` |
+| Cash series kept | EQ, BE | `data.cash_series` |
+| Option bars | Stored, not broadcast on the bus | `data.publish_option_bars` |
+| Feed staleness | Warning after 80 h, freeze after 128 h | `data.stale_*_hours` |
+| Price adjustment | Back-adjust splits, bonuses and dividends as of read time; rights, mergers and demergers are manual | `agents/data/adjust.py` |
+| Cost model | Dated schedules; refuses dates before 2023-04-01 | `config/costs.yaml` |
+
+## Needed from you before Phase 3
+
+1. **Historical data source** for the backtester: NSE bhavcopy archives (free, EOD, cash and
+   F&O since 2024 in UDiFF format, older files in the legacy format) or a paid vendor. Either
+   way, this environment's network policy must allow the host, or data is loaded elsewhere and
+   uploaded.
+2. **Corporate actions, index membership history and the security master**: the source for
+   each. Without membership history, backtests cannot be survivorship-free.
+3. **Backtest period and universe**: the default proposal is 2016 onward on the NIFTY 500.
+   Older UDiFF-incompatible files need a legacy-format parser. Cost schedules must be extended
+   before 2023-04-01.
+4. **Verify the cost rates** in `config/costs.yaml` against the broker's current tariff.

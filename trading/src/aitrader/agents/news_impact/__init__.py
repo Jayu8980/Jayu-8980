@@ -12,7 +12,7 @@ SPEC = AgentSpec(
     ),
     consumes=(Topic.NEWS_EVENTS, Topic.DATA_BARS, Topic.REGIME_OUTLOOK),
     publishes=(Topic.NEWS_IMPACT,),
-    tools=("stats.event_study", "stats.rolling_beta", "risk.stress_scenario_from_library"),
+    tools=("stats.event_study", "stats.rolling_beta", "risk.stress_test"),
     timeout_key="analyst",
     failure_mode=FailureMode.SKIP,
     failure_behaviour=(

@@ -15,8 +15,7 @@ SPEC = AgentSpec(
     tools=(
         "flows.fii_dii",
         "flows.participant_oi",
-        "derivs.pcr",
-        "derivs.max_pain",
+        "derivs.chain_levels",
         "derivs.oi_buildup",
         "flows.delivery_pct",
     ),

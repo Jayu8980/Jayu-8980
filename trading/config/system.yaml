@@ -19,6 +19,20 @@ trading:
     event_driven: true
   entry_timing_timeframe: 15m
 
+data:
+  # Conservative IST publication times, applied identically in backtests and live.
+  availability_ist:
+    nse_cm_bhavcopy: "19:00"
+    nse_fo_bhavcopy: "19:00"
+    nse_index_close: "19:00"
+  calendar_reference: NIFTY_50  # sessions = days this index has a bar
+  cash_series: [EQ, BE]
+  publish_option_bars: false  # option chains are stored and queried, not broadcast
+  outlier_robust_z: 8.0
+  stale_warning_hours: 80  # Fri close -> Mon publication plus grace
+  stale_critical_hours: 128  # long weekend plus a missed day: freeze new entries
+  store_path: data/pit.duckdb
+
 broker:
   name: zerodha_kite
   max_orders_per_second: 8  # keep under the SEBI retail-algo OPS threshold; confirm current rules with the broker

@@ -13,7 +13,7 @@ SPEC = AgentSpec(
     consumes=(Topic.BOSS_DECISION, Topic.DATA_BARS, Topic.TCA_RESULTS),
     publishes=(Topic.LIQUIDITY_PLAN,),
     tools=(
-        "micro.adv",
+        "micro.liquidation",
         "micro.spread_depth",
         "micro.impact_sqrt",
         "micro.almgren_chriss",

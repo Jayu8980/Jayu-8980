@@ -73,3 +73,39 @@ def test_tool_names_follow_registry_convention() -> None:
     for spec in ALL_SPECS.values():
         for tool in spec.tools:
             assert pattern.match(tool), f"{spec.agent_id}: {tool}"
+
+
+# Tools named in agent specs that later phases implement. Listing them here keeps any
+# drift between specs and the registry visible: a spec cannot name a tool nobody owns.
+PLANNED_TOOLS = {
+    "news.cluster": 4,
+    "news.entity_link": 4,
+    "news.verify_excerpt": 4,
+    "calendar.corporate_events": 4,
+    "calendar.macro_events": 4,
+    "flows.fii_dii": 4,
+    "flows.participant_oi": 4,
+    "flows.delivery_pct": 4,
+    "derivs.oi_buildup": 4,
+    "breadth.compute": 4,
+    "micro.volume_curve": 5,
+    "derivs.freeze_qty": 5,
+    "rr.compute": 5,
+    "rr.expected_value": 5,
+    "attribution.credibility_weights": 5,
+    "attribution.weighted_consensus": 5,
+    "broker.place": 6,
+    "broker.cancel": 6,
+    "broker.positions": 6,
+    "broker.orders": 6,
+    "micro.slicer": 6,
+}
+
+
+def test_spec_tools_exist_or_are_planned() -> None:
+    from aitrader.tools import registry
+
+    registered = set(registry())
+    named = {tool for spec in ALL_SPECS.values() for tool in spec.tools}
+    assert named - registered - set(PLANNED_TOOLS) == set()
+    assert not set(PLANNED_TOOLS) & registered, "implemented tools must leave the planned list"

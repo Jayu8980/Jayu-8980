@@ -56,6 +56,26 @@ class TradingConfig(StrictModel):
     entry_timing_timeframe: Literal["15m", "1h"]
 
 
+class DataConfig(StrictModel):
+    availability_ist: dict[str, Annotated[str, Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")]]
+    calendar_reference: str
+    cash_series: tuple[str, ...]
+    publish_option_bars: bool
+    outlier_robust_z: Annotated[float, Field(gt=3)]
+    stale_warning_hours: Annotated[float, Field(gt=0)]
+    stale_critical_hours: Annotated[float, Field(gt=0)]
+    store_path: str
+
+    @model_validator(mode="after")
+    def _ordering(self) -> DataConfig:
+        if self.stale_critical_hours <= self.stale_warning_hours:
+            raise ValueError("stale_critical_hours must exceed stale_warning_hours")
+        for source, hhmm in self.availability_ist.items():
+            if hhmm < "15:30":
+                raise ValueError(f"{source}: EOD data cannot be available before the 15:30 close")
+        return self
+
+
 class BrokerConfig(StrictModel):
     name: str
     max_orders_per_second: Annotated[int, Field(ge=1, le=10)]
@@ -110,6 +130,7 @@ class SystemConfig(StrictModel):
     stage: Stage
     market: MarketConfig
     trading: TradingConfig
+    data: DataConfig
     broker: BrokerConfig
     llm: LlmConfig
     timeouts_seconds: TimeoutsConfig

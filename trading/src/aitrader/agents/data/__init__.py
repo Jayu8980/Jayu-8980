@@ -12,13 +12,7 @@ SPEC = AgentSpec(
     ),
     consumes=(),
     publishes=(Topic.DATA_BARS, Topic.DATA_CORPORATE_ACTIONS, Topic.DATA_QUALITY, Topic.RISK_ALERTS),
-    tools=(
-        "pit_store.write",
-        "pit_store.read_as_of",
-        "corporate_actions.adjust",
-        "quality.detect_gaps",
-        "quality.detect_outliers",
-    ),
+    tools=(),  # deterministic pipeline: storage/pit.py, agents/data/{adjust,quality}.py
     timeout_key=None,
     failure_mode=FailureMode.FREEZE,
     failure_behaviour=(

@@ -27,7 +27,6 @@ SPEC = AgentSpec(
         "risk.var_historical",
         "risk.var_parametric",
         "risk.var_monte_carlo",
-        "risk.cvar",
         "risk.stress_test",
         "risk.exposure_decomposition",
         "sizing.fixed_fractional",

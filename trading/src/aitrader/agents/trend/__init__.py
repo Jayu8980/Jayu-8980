@@ -14,7 +14,7 @@ SPEC = AgentSpec(
     publishes=(Topic.REGIME_OUTLOOK, Topic.NEWS_RISK_FLAGS),
     tools=(
         "stats.regime_hmm",
-        "stats.change_point",
+        "stats.change_points",
         "breadth.compute",
         "calendar.macro_events",
         "stats.brier",

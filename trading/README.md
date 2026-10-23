@@ -4,11 +4,12 @@ An institutional-grade, multi-agent trading system for NSE cash and F&O. LLM age
 and judge; deterministic code sizes, gates, vetoes and executes. Every decision is replayable
 from a hash-chained audit log.
 
-**Status:** Phase 1 (architecture, schemas, skeleton) is done and awaiting review. Nothing in
-this package can place an order yet.
+**Status:** Phase 2 (data agent, point-in-time store, institutional tool layer) is done and
+awaiting review. Nothing in this package can place an order yet.
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Configuration decisions (assumed, pending confirmation)](docs/DECISIONS.md)
+- [Phase reports](docs/PROGRESS.md)
 
 ## Development
 

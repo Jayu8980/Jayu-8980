@@ -13,7 +13,7 @@ TCA_SPEC = AgentSpec(
     ),
     consumes=(Topic.ORDERS_FILLS, Topic.LIQUIDITY_PLAN, Topic.DATA_BARS),
     publishes=(Topic.TCA_RESULTS,),
-    tools=("micro.tca", "micro.vwap_benchmark"),
+    tools=("micro.tca", "micro.vwap"),
     failure_mode=FailureMode.SKIP,
     failure_behaviour="Impact models keep their last calibration; results are backfilled later.",
     performance_metrics=("tca_backlog",),

@@ -1,6 +1,7 @@
 # Architecture: Multi-Agent AI Trading System
 
-Status: **Phase 1 (architecture, schemas, skeleton), awaiting review.**
+Status: **Phase 2 done** (data agent, point-in-time storage, institutional tool layer), awaiting review.
+Phase reports: [PROGRESS.md](PROGRESS.md).
 Scope assumed for Phase 1: NSE cash plus F&O, swing horizon, Zerodha Kite Connect, Python 3.11+.
 Every assumption is listed in [DECISIONS.md](DECISIONS.md) and is config-driven.
 
@@ -12,8 +13,8 @@ Every assumption is listed in [DECISIONS.md](DECISIONS.md) and is config-driven.
 |---|-----------|-----------------------|-------------|
 | 1 | LLMs research and judge; they never sit in the execution hot path or do arithmetic | Agent specs mark LLM agents, which cannot publish on gate, risk or order topics (`TOPIC_PUBLISHERS`). The boss outputs a *risk-budget fraction* and deterministic sizing computes quantities | `test_agent_registry.py::test_llm_agents_never_touch_gates_or_orders`, `test_unauthorised_publishers_are_rejected` |
 | 2 | Risk limits, sizing and execution are deterministic | Liquidity, R:R, risk, execution and orchestrator are `DETERMINISTIC`. Limits are validated on load (`config/settings.py`) | `test_gates_and_execution_are_deterministic`, `test_config.py` |
-| 3 | Everything logged immutably and replayably | Every envelope, LLM call (full prompt, model, seed), tool call, config snapshot and human action goes to a hash-chained append-only log (`schemas/audit.py`, `audit/interface.py`) | Phase 2: chain-tamper tests |
-| 4 | Point-in-time correctness | Envelope requires `event_time <= available_at <= produced_at`. Storage reads are as-of `available_at` | `test_lookahead_timestamps_are_rejected`. Phase 2–3: explicit lookahead and survivorship tests |
+| 3 | Everything logged immutably and replayably | Every envelope, LLM call (full prompt, model, seed), tool call, config snapshot and human action goes to a hash-chained append-only log (`audit/chain.py`). The bus audits before delivery, and `ToolRunner` audits every call, failures included | `test_audit.py`, `test_bus.py`, `test_runner_audits_success_and_failure` |
+| 4 | Point-in-time correctness | Envelope requires `event_time <= available_at <= produced_at`. The bitemporal store (`storage/pit.py`) reads as of `available_at`. Corporate actions are adjusted only once known. Pivots carry `confirmed_at` | `test_lookahead_survivorship.py`, `test_pit_store.py` |
 | 5 | External text is untrusted | Strict schemas with `extra="forbid"`. Claims must quote a source document. Prompts wrap external text in data blocks. Outputs must parse or are discarded | `test_news_schemas.py`, `test_free_text_payload_is_rejected` |
 | 6 | Safe degradation | Every spec declares a `FailureMode`. Missing agents apply limit multipliers. Safety-critical components `FREEZE` | `test_safety_critical_components_freeze_on_failure`. Phase 5: failure-injection tests |
 | 7 | Staged rollout | `stage` in config; paper/live require durable backends; risk rule `STAGE_NOT_PERMITTED` | `test_paper_and_live_need_durable_backends` |
@@ -279,28 +280,47 @@ trading/
   tests/
 ```
 
-## 14. Tool layer (Phase 2 catalogue)
+## 14. Tool layer
 
-| Domain | Tools | Library |
-|--------|-------|---------|
-| Quant/stats | regression, cointegration, rolling β/ρ, HMM and change-point regimes, ARIMA, GARCH, event study, Brier, IC | statsmodels, arch, hmmlearn, ruptures |
-| Risk | historical/parametric/MC VaR and CVaR, stress, drawdown and tail metrics, exposure decomposition | numpy, scipy |
-| Derivatives | Black-Scholes and binomial pricing, Greeks, IV and its surface, skew, term structure, IV percentile, GEX, PCR, max pain, payoff | QuantLib (or py_vollib) |
-| Microstructure | book imbalance, spread and depth, square-root and Almgren-Chriss impact, VWAP/TWAP, TCA | numpy |
-| Fundamentals | DCF, relative valuation, Piotroski, Beneish, revisions, surprises | pandas |
-| Portfolio | MV, risk parity, Black-Litterman, HRP, Kelly and vol-target sizing, constrained optimiser | Riskfolio-Lib or PyPortfolioOpt |
-| Costs | Indian equity and F&O cost model: brokerage, STT, exchange charges, SEBI fee, stamp duty, GST | in-house, versioned rates by date |
-| Validation | walk-forward, MC trade resampling, deflated Sharpe | in-house |
+59 registered tools (`tools/catalogue.py`). Each is a pure function. Its Pydantic input
+model is derived from the signature, so unknown fields and NaN/inf inputs are rejected, and it
+returns a Pydantic output model. A registry self-test runs every tool's example twice and checks
+determinism and JSON-safe output.
 
-Every tool is a pure function with Pydantic input and output, a version string, and a
-`ToolCallRecord` per call.
+| Domain | Implemented (Phase 2) | Later |
+|--------|-----------------------|-------|
+| `stats` | OLS, rolling β/ρ, Engle-Granger cointegration, GARCH(1,1), ARIMA, Markov-switching regimes (filtered, no lookahead), change points, event study, Brier (binary and multiclass), IC | factor models (Phase 4) |
+| `attribution` | beta-binomial credibility shrinkage | credibility weights, weighted consensus (Phase 5) |
+| `risk` | historical, parametric (Cornish-Fisher) and Monte Carlo (Student-t, seeded) VaR/CVaR; drawdown and tail metrics; stress tests; exposure decomposition | — |
+| `derivs` | Black-Scholes and Greeks, implied vol, CRR binomial (American), IV percentile, smile skew, term structure, PCR, max pain, OI walls, dealer GEX, multi-leg payoff, barrier-hit and terminal probabilities | IV surface fitting, OI build-up (Phase 4) |
+| `micro` | spread/depth/imbalance, square-root impact, Almgren-Chriss, VWAP/TWAP, TCA, liquidation horizon | volume curves, slicer (Phases 5–6) |
+| `costs` | Indian cost model with dated schedules (`config/costs.yaml`), round-trip costs | — |
+| `ta` | ATR, swing pivots, market structure and failed breakouts, S/R clustering, anchored VWAP, relative strength, volatility state, volume profile, gaps, timeframe alignment | — |
+| `sizing` | fixed-fractional (lot-rounded, cost-aware), vol-target, fractional Kelly | — |
+| `portfolio` | risk parity, HRP, constrained mean-variance (name, sector and turnover caps), Black-Litterman | — |
+| `fundamentals` | Piotroski, Beneish, two-stage DCF | statement parsing, revisions, surprises (needs a data source) |
+| macro | — | yield curve, rate sensitivity (needs a data source) |
+| validation | — | walk-forward, MC resampling, deflated Sharpe (Phase 3 backtester) |
 
-## 15. Known limitations at Phase 1
+Deterministic pipelines such as the data agent call library functions directly and audit at
+the envelope level. LLM agents (Phase 4+) can reach tools only through `ToolRunner`.
 
-- Bus, state and audit are contracts only, with no backend yet. Tokens are specified and
-  schema-bound, but HMAC sign/verify lives in tests until the risk and execution packages
-  implement it.
-- No market data has been sourced. Point-in-time quality depends on the data decisions in
-  DECISIONS.md.
-- Compliance: the order-rate cap is set below 10 OPS, but current SEBI retail-algo and broker
-  requirements must be confirmed before live trading.
+## 15. Known limitations (as of Phase 2)
+
+- **NSE formats are unverified against live files.** This environment's network policy blocks
+  nsearchives.nseindia.com. The parsers follow NSE's published UDiFF and index-close layouts
+  and fail closed on missing columns, but they must be run once against real files.
+- **Availability times are conservative policy, not observed.** EOD files are stamped 19:00
+  IST. The same rule applies in backtest and live, so the two cannot diverge.
+- **Corporate actions:** splits, bonuses and dividends are adjusted. Rights issues, mergers and
+  demergers are flagged for manual terms, not guessed.
+- **No ingestion source yet** for corporate actions, the security master, index membership
+  history, FII/DII, participant OI or fundamentals. Their schemas and storage exist; sourcing
+  them is a decision for you (DECISIONS.md).
+- **Cost rates** in `config/costs.yaml` come from public notices and must be verified against
+  official circulars and the broker tariff. Pre-October-2024 exchange charges approximate the
+  slab structure with its top slab.
+- **PIT storage** keeps payloads as JSON in a single DuckDB table. That is correct and simple,
+  but a typed bar table will be needed for fast multi-year cross-sectional backtests (Phase 3).
+- **The Redis Streams bus and Postgres state store are not built yet.** In-memory backends
+  serve tests and backtests; paper trading needs the durable ones.
