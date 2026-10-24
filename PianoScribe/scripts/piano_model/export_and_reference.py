@@ -105,6 +105,36 @@ seg = np.zeros((1, SEG), np.float32); seg[0, :min(SEG, len(y))] = y[:SEG]
 with torch.no_grad():
     ref = [t.numpy() for t in Wrap(note)(torch.from_numpy(seg))]
 
+# ---- Diagnostics: export the stages separately and compare each with PyTorch ----
+def stage_diff(name, module, inp, input_name="x"):
+    path = os.path.join(out, f"stage_{name}.onnx")
+    with torch.no_grad():
+        want = module(inp)
+        torch.onnx.export(module, inp, path, input_names=[input_name], opset_version=17, do_constant_folding=True)
+    sess = ort.InferenceSession(path, providers=["CPUExecutionProvider"])
+    got = sess.run(None, {input_name: inp.numpy()})[0]
+    want = want[0] if isinstance(want, (tuple, list)) else want
+    print(f"STAGE {name}: shape {tuple(want.shape)} max abs diff {float(np.abs(want.numpy() - got).max()):.3g}, max |value| {float(np.abs(want.numpy()).max()):.3g}")
+    os.remove(path)
+
+class Front(torch.nn.Module):
+    def __init__(self, m): super().__init__(); self.m = m
+    def forward(self, audio):
+        x = self.m.logmel_extractor(self.m.spectrogram_extractor(audio))
+        return self.m.bn0(x.transpose(1, 3)).transpose(1, 3)
+
+seg_t = torch.from_numpy(seg)
+with torch.no_grad():
+    stage_diff("spectrogram", note.spectrogram_extractor, seg_t)
+    front = Front(note).eval()
+    stage_diff("front", front, seg_t)
+    feat = front(seg_t)
+    stage_diff("frame_model", note.frame_model, feat)
+    class Gru(torch.nn.Module):
+        def __init__(self, g): super().__init__(); self.g = g
+        def forward(self, x): return self.g(x)[0]
+    stage_diff("frame_gru", Gru(note.frame_gru).eval(), torch.rand(1, 1001, 264))
+
 no_opt = ort.SessionOptions()
 no_opt.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL
 for p in (fp32, int8):
