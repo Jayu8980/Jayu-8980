@@ -1,10 +1,12 @@
 """Export the high-resolution piano transcription note model (Kong et al. 2021, ByteDance,
-Apache-2.0 code / CC BY 4.0 weights) to ONNX for on-device use, quantise it, and write
-reference transcriptions of the evaluation set with the official PyTorch pipeline.
+Apache-2.0 code / CC BY 4.0 weights) to ONNX for on-device use and write reference
+transcriptions of the evaluation set with the official PyTorch pipeline. (Dynamic int8
+quantisation was tried and dropped: it wrecks this model's outputs and is no faster.)
 
 Usage: python export_and_reference.py <checkpoint.pth> <eval_dir> <out_dir>
-Writes: out_dir/piano_fp32.onnx, out_dir/piano_int8.onnx, out_dir/reference/*.json,
-        out_dir/eval22k/*.f32 (evaluation audio, mono 22050 Hz float32, for the Kotlin tests).
+Writes: out_dir/piano_fp32.onnx, out_dir/reference/*.json, and the evaluation audio as mono
+        float32 for the Kotlin tests: out_dir/eval22k/*.f32 (22050 Hz, what the app gets) and
+        out_dir/eval16k/*.f32 (the exact 16 kHz input of the reference transcriptions).
 """
 import json, os, sys, time
 import numpy as np
@@ -13,7 +15,6 @@ import librosa
 import soundfile as sf
 import onnx
 import onnxruntime as ort
-from onnxruntime.quantization import quantize_dynamic, QuantType
 from piano_transcription_inference import PianoTranscription
 from piano_transcription_inference.models import Regress_onset_offset_frame_velocity_CRNN
 
@@ -87,16 +88,8 @@ def optimize(src, dst):
 
 fp32 = os.path.join(out, "piano_fp32.onnx")
 optimize(raw, fp32)
-# int8 for the big matrix products only: the CPU backend has no int8 version of the
-# spectrogram's convolution, and GRUs are not dynamically quantised.
-q = os.path.join(out, "piano_int8_raw.onnx")
-quantize_dynamic(raw, q, weight_type=QuantType.QInt8, op_types_to_quantize=["MatMul", "Gemm"])
-int8 = os.path.join(out, "piano_int8.onnx")
-optimize(q, int8)
-for p in (raw, q):
-    os.remove(p)
-for p in (fp32, int8):
-    print(f"MODEL {os.path.basename(p)} {os.path.getsize(p) / 1e6:.1f} MB")
+os.remove(raw)
+print(f"MODEL {os.path.basename(fp32)} {os.path.getsize(fp32) / 1e6:.1f} MB")
 
 # ---- 2. Check the ONNX graphs against PyTorch on one real segment ----
 first = sorted(f for f in os.listdir(eval_dir) if f.endswith(".flac"))[0]
@@ -110,24 +103,25 @@ with torch.no_grad():
 
 no_opt = ort.SessionOptions()
 no_opt.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL
-for p in (fp32, int8):
-    s = ort.InferenceSession(p, no_opt, providers=["CPUExecutionProvider"])
-    s.run(None, {"audio": seg})
-    t0 = time.time(); got = s.run(None, {"audio": seg}); dt = time.time() - t0
-    errs = [float(np.abs(a - b).max()) for a, b in zip(ref, got)]
-    print(f"PARITY {os.path.basename(p)} max abs diff onset/offset/frame/velocity {errs} ({dt:.2f} s per 10 s segment on this CPU)")
-    if p == fp32 and max(errs) > 1e-3:
-        sys.exit("fp32 ONNX does not match PyTorch")
+s = ort.InferenceSession(fp32, no_opt, providers=["CPUExecutionProvider"])
+s.run(None, {"audio": seg})
+t0 = time.time(); got = s.run(None, {"audio": seg}); dt = time.time() - t0
+errs = [float(np.abs(a - b).max()) for a, b in zip(ref, got)]
+print(f"PARITY {os.path.basename(fp32)} max abs diff onset/offset/frame/velocity {errs} ({dt:.2f} s per 10 s segment on this CPU)")
+if max(errs) > 1e-3:
+    sys.exit("fp32 ONNX does not match PyTorch")
 
 # ---- 3. Reference transcriptions with the official pipeline ----
 tr = PianoTranscription(device="cpu", checkpoint_path=ckpt_path)
 os.makedirs(os.path.join(out, "reference"), exist_ok=True)
 os.makedirs(os.path.join(out, "eval22k"), exist_ok=True)
+os.makedirs(os.path.join(out, "eval16k"), exist_ok=True)
 for f in sorted(os.listdir(eval_dir)):
     if not f.endswith(".flac"):
         continue
     name = f[:-5]
     y16, _ = librosa.load(os.path.join(eval_dir, f), sr=16000, mono=True)
+    y16.astype("<f4").tofile(os.path.join(out, "eval16k", name + ".f32"))
     res = tr.transcribe(y16, None)
     notes = [{"pitch": int(e["midi_note"]), "start": float(e["onset_time"]), "end": float(e["offset_time"]), "velocity": int(e["velocity"])}
              for e in res["est_note_events"]]

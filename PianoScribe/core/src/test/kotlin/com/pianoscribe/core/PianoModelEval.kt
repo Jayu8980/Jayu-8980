@@ -48,8 +48,10 @@ class PianoModelEval {
         return NotePostProcessor.process(asm.activations, TranscriptionSettings(), NoteIdGenerator())
     }
 
-    private fun piano(s: OrtSession, audio22k: FloatArray): PianoModel.Output {
-        val audio = StreamingResampler.resample(audio22k, BasicPitch.SAMPLE_RATE, PianoModel.SAMPLE_RATE)
+    private fun piano(s: OrtSession, audio22k: FloatArray): PianoModel.Output =
+        piano16k(s, StreamingResampler.resample(audio22k, BasicPitch.SAMPLE_RATE, PianoModel.SAMPLE_RATE))
+
+    private fun piano16k(s: OrtSession, audio: FloatArray): PianoModel.Output {
         val seg = FloatArray(PianoModel.SEGMENT_SAMPLES)
         val segments = (0 until PianoModel.segmentCount(audio.size)).map { i ->
             PianoModel.fillSegment(audio, i, seg)
@@ -81,6 +83,30 @@ class PianoModelEval {
         return Triple(p, r, if (p + r == 0.0) 0.0 else 2 * p * r / (p + r))
     }
 
+    /** Why each unmatched estimated note is wrong, counted by kind. */
+    private fun falsePositives(est: List<Note>, truth: List<Truth>, into: MutableMap<String, Int>) {
+        val used = BooleanArray(truth.size)
+        val extra = ArrayList<Note>()
+        for (n in est.sortedBy { it.start }) {
+            val i = truth.indices.firstOrNull { !used[it] && truth[it].pitch == n.pitch && abs(truth[it].start - n.start) <= 0.05 }
+            if (i != null) used[i] = true else extra += n
+        }
+        for (n in extra) {
+            val kind = when {
+                truth.any { it.pitch == n.pitch && abs(it.start - n.start) <= 0.05 } -> "duplicate onset"
+                truth.any { it.pitch == n.pitch && abs(it.start - n.start) <= 0.15 } -> "onset 50-150 ms off"
+                truth.any { it.pitch == n.pitch && n.start > it.start && n.start < it.end + 0.1 } -> "re-onset inside a held note"
+                truth.any { abs(it.pitch - n.pitch) == 12 && abs(it.start - n.start) <= 0.05 } -> "octave"
+                truth.any { abs(it.pitch - n.pitch) in setOf(7, 19, 24, 28) && abs(it.start - n.start) <= 0.05 } -> "harmonic (5th/12th/2 oct/3rd)"
+                truth.any { abs(it.pitch - n.pitch) <= 2 && abs(it.start - n.start) <= 0.05 } -> "neighbour key"
+                else -> "other"
+            }
+            into[kind] = (into[kind] ?: 0) + 1
+            into["(total)"] = (into["(total)"] ?: 0) + 1
+            into["(short < 60 ms)"] = (into["(short < 60 ms)"] ?: 0) + if (n.duration < 0.06) 1 else 0
+        }
+    }
+
     @Test fun evaluate() {
         val pianoPath = System.getenv("PIANO_ONNX"); val bpPath = System.getenv("BASIC_PITCH_ONNX"); val data = System.getenv("EVAL_DATA")
         assumeTrue("set PIANO_ONNX, BASIC_PITCH_ONNX and EVAL_DATA to run", pianoPath != null && bpPath != null && data != null)
@@ -95,6 +121,7 @@ class PianoModelEval {
         val sums = LinkedHashMap<String, DoubleArray>()
         fun add(k: String, v: Triple<Double, Double, Double>) = sums.getOrPut(k) { DoubleArray(4) }.let { it[0] += v.first; it[1] += v.second; it[2] += v.third; it[3]++ }
         var parityWorst = 1.0
+        val fps = LinkedHashMap<String, MutableMap<String, Int>>()
         for (f in evalDir.resolve("eval22k").listFiles()!!.filter { it.name.endsWith(".f32") }.sortedBy { it.name }) {
             val name = f.name.removeSuffix(".f32")
             val piece = name.substringBefore("-")
@@ -104,30 +131,36 @@ class PianoModelEval {
             val audio = f32(f)
             val bpNotes = basicPitch(bp, audio)
             add("$cond | Basic Pitch", f1(bpNotes, truth))
+            falsePositives(bpNotes, truth, fps.getOrPut("$cond | Basic Pitch") { sortedMapOf() })
             for ((mName, s) in models) {
                 val t0 = System.nanoTime()
                 val out = piano(s, audio)
                 val ms = (System.nanoTime() - t0) / 1e6
                 val hr = PianoModel.notes(out).filter { it.start < audio.size.toDouble() / BasicPitch.SAMPLE_RATE }
                 add("$cond | $mName", f1(hr, truth))
+                falsePositives(hr, truth, fps.getOrPut("$cond | $mName") { sortedMapOf() })
                 add("$cond | $mName (with offsets)", f1(hr, truth, offsets = true))
                 val ens = PianoEnsemble.combine(hr, out, bpNotes)
                 add("$cond | $mName + Basic Pitch combined", f1(ens, truth))
                 println("EVAL $name $mName: ${"%.0f".format(ms)} ms for ${"%.1f".format(audio.size / 22050.0)} s")
-                // Port check against the official Python pipeline (fp32 model only).
+                // Port check against the official Python pipeline, on its exact 16 kHz input.
                 val refFile = evalDir.resolve("reference/$name.json")
-                if (mName.contains("fp32") && refFile.exists()) {
+                val in16 = evalDir.resolve("eval16k/$name.f32")
+                if (refFile.exists() && in16.exists()) {
                     val ref = Regex("""\{"pitch": (\d+), "start": ([\d.e-]+), "end": ([\d.e-]+)""").findAll(refFile.readText())
                         .map { Truth(it.groupValues[1].toInt(), it.groupValues[2].toDouble(), it.groupValues[3].toDouble()) }.toList()
-                    val agree = f1(hr, ref).third
+                    val y16 = f32(in16)
+                    val port = PianoModel.notes(piano16k(s, y16)).filter { it.start < y16.size.toDouble() / PianoModel.SAMPLE_RATE }
+                    val agree = f1(port, ref).third
                     parityWorst = minOf(parityWorst, agree)
-                    println("PARITY $name: Kotlin port vs Python reference F1 ${"%.3f".format(agree)} (${hr.size} vs ${ref.size} notes)")
+                    println("PARITY $name: Kotlin port vs Python reference F1 ${"%.3f".format(agree)} (${port.size} vs ${ref.size} notes)")
                 }
             }
         }
         println("RESULTS (onset within 50 ms; P / R / F1, mean over pieces)")
         for ((k, v) in sums) println("RESULT %-62s P %.3f  R %.3f  F1 %.3f".format(k, v[0] / v[3], v[1] / v[3], v[2] / v[3]))
+        for ((k, v) in fps) println("FALSEPOS %-40s %s".format(k, v.entries.joinToString("  ") { "${it.key} ${it.value}" }))
         println("PARITY worst %.3f".format(parityWorst))
-        if (models.keys.any { it.contains("fp32") }) assert(parityWorst > 0.97) { "Kotlin post-processing differs from the reference" }
+        assert(parityWorst > 0.99) { "Kotlin post-processing differs from the reference" }
     }
 }

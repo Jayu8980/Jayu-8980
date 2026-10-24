@@ -102,7 +102,7 @@ jobs:
 
       - name: Accuracy of the transcription models on the evaluation set
         env:
-          PIANO_ONNX: ${{ github.workspace }}/PianoScribe/piano-model-out/piano_fp32.onnx,${{ github.workspace }}/PianoScribe/piano-model-out/piano_int8.onnx
+          PIANO_ONNX: ${{ github.workspace }}/PianoScribe/piano-model-out/piano_fp32.onnx
           BASIC_PITCH_ONNX: ${{ github.workspace }}/PianoScribe/piano-model-out/basic_pitch.onnx
           EVAL_DATA: ${{ github.workspace }}/PianoScribe/piano-model-out
           EVAL_TRUTH: ${{ github.workspace }}/PianoScribe/eval
@@ -113,7 +113,7 @@ jobs:
       - name: Bundle the piano model
         run: |
           mkdir -p app/src/main/assets/models
-          cp piano-model-out/${PIANO_MODEL_FILE:-piano_int8.onnx} app/src/main/assets/models/piano_transcription.onnx
+          cp piano-model-out/piano_fp32.onnx app/src/main/assets/models/piano_transcription.onnx
           ls -la app/src/main/assets/models
 
       - name: Decode release keystore (if provided)
@@ -234,7 +234,7 @@ jobs:
       - name: Bundle the piano model
         run: |
           mkdir -p app/src/main/assets/models
-          cp piano-model-out/${PIANO_MODEL_FILE:-piano_int8.onnx} app/src/main/assets/models/piano_transcription.onnx
+          cp piano-model-out/piano_fp32.onnx app/src/main/assets/models/piano_transcription.onnx
           ls -la app/src/main/assets/models
 
       - name: Build the debug app and test APKs
