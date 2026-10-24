@@ -29,6 +29,22 @@ fun sharedAudio(asset: String): Uri {
     return FileProvider.getUriForFile(app, app.packageName + ".files", f)
 }
 
+/** A 3-minute stereo WAV (the test melody repeated), shared like [sharedAudio]: long enough that slow work shows. */
+fun sharedLongSong(): Uri {
+    val app = TestFixtures.app
+    val src = InstrumentationRegistry.getInstrumentation().context.assets.open("test_melody.wav").use { it.readBytes() }
+    val pcm = src.copyOfRange(44, src.size)
+    val repeats = 38
+    val f = File(File(app.cacheDir, "exports").apply { mkdirs() }, "long_song.wav")
+    f.outputStream().buffered().use { o ->
+        val dataBytes = pcm.size * repeats
+        fun i32(v: Int) = byteArrayOf(v.toByte(), (v shr 8).toByte(), (v shr 16).toByte(), (v shr 24).toByte())
+        o.write(src.copyOfRange(0, 4)); o.write(i32(36 + dataBytes)); o.write(src.copyOfRange(8, 40)); o.write(i32(dataBytes))
+        repeat(repeats) { o.write(pcm) }
+    }
+    return FileProvider.getUriForFile(app, app.packageName + ".files", f)
+}
+
 fun mimeOf(asset: String) = when (asset.substringAfterLast('.')) { "mp3" -> "audio/mpeg"; "m4a" -> "audio/mp4"; else -> "audio/wav" }
 
 /** The whole user flow: open an audio file with the app, reach the trim screen, convert, see the result. */
@@ -51,10 +67,19 @@ class ImportFlowTest {
                 android.util.Log.i("PianoScribeTest", "Imported and converted $asset")
             }
         }
+        // A 3-minute song must open (decoding runs off the main thread) and convert.
+        val long = Intent(Intent.ACTION_VIEW).setDataAndType(sharedLongSong(), "audio/wav")
+            .setClass(app, MainActivity::class.java).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        ActivityScenario.launch<MainActivity>(long).use {
+            waitForText("Decoding audio", 20_000, substring = true)
+            waitForText("Trim the start and end", 120_000, substring = true)
+            compose.onNode(hasText("Convert to piano notes") and hasClickAction()).performScrollTo().performClick()
+            waitForText("Piano Roll", 600_000)
+        }
         // Remove the projects this test made.
         runBlocking {
             val repo = (app.applicationContext as PianoScribeApp).container.repository
-            repo.projects.first().filter { it.name.startsWith("test_melody") }.forEach { repo.delete(it.id) }
+            repo.projects.first().filter { it.name.startsWith("test_melody") || it.name.startsWith("long_song") }.forEach { repo.delete(it.id) }
         }
     }
 }

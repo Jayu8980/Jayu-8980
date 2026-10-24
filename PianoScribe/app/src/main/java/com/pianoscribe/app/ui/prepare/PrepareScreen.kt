@@ -89,8 +89,12 @@ class PrepareViewModel(app: Application, private val container: AppContainer, ur
                 show(draft)
                 // The audio studio replaces the draft with an edited version: show that one.
                 container.draft.collect { d -> if (d != null && d.file != _state.value.draft?.file) show(d) }
-            } catch (e: Exception) {
-                _state.value = _state.value.copy(decoding = false, error = e.message ?: "Couldn't read this file")
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: OutOfMemoryError) {
+                _state.value = _state.value.copy(decoding = false, error = "Not enough memory to open this file. Try a shorter recording.")
+            } catch (e: Throwable) {
+                _state.value = _state.value.copy(decoding = false, error = e.message ?: "Couldn't read this file (${e.javaClass.simpleName})")
             }
         }
     }
@@ -110,7 +114,8 @@ class PrepareViewModel(app: Application, private val container: AppContainer, ur
         val file = File(ctx.cacheDir, "draft.f32")
         val left = File(ctx.cacheDir, "draft_left.f32")
         val right = File(ctx.cacheDir, "draft_right.f32")
-        val r = AudioDecoder(ctx).decode(uri, file, left to right) { p -> _state.value = _state.value.copy(progress = p) }
+        // Decoding a whole song takes seconds: never on the main thread, or Android closes the app as not responding.
+        val r = withContext(Dispatchers.IO) { AudioDecoder(ctx).decode(uri, file, left to right) { p -> _state.value = _state.value.copy(progress = p) } }
         return Draft(file, AudioDecoder.displayName(ctx, uri), "Imported file", r.samples, left = left.takeIf { r.stereo }, right = right.takeIf { r.stereo })
     }
 
