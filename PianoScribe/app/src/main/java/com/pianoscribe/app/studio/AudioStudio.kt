@@ -76,7 +76,7 @@ class AudioStudio(context: Context, original: Draft) {
             if (v.file != base.file) v.file.delete()
         }
         // Unique names: the draft this studio started from may itself be an earlier studio version.
-        val file = File.createTempFile("v", ".f32", dir)
+        val file = File.createTempFile("version", ".f32", dir)
         withContext(Dispatchers.IO) { PcmFile.Writer(file).use { it.write(out) } }
         versions += Version(file, label, out.size)
         index = versions.size - 1
