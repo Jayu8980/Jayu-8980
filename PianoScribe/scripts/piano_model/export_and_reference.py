@@ -40,14 +40,50 @@ with torch.no_grad():
                       output_names=["onset", "offset", "frame", "velocity"], opset_version=17, do_constant_folding=True)
 onnx.checker.check_model(raw)
 
+def batchnorm_to_affine(path):
+    """Rewrites each BatchNormalization that does not follow a Conv as Mul + Add with folded
+    constants: exactly the same maths, and it removes the MatMul -> BatchNorm pattern that ONNX
+    Runtime's MatMulBnFusion mishandles on this model (rank-3 input). Conv + BatchNorm stays, so
+    the usual Conv-BN fusion still applies."""
+    from onnx import helper, numpy_helper, shape_inference
+    m = shape_inference.infer_shapes(onnx.load(path))
+    g = m.graph
+    inits = {i.name: i for i in g.initializer}
+    producer = {o: n for n in g.node for o in n.output}
+    ranks = {vi.name: len(vi.type.tensor_type.shape.dim) for vi in list(g.value_info) + list(g.input) + list(g.output)}
+    nodes, changed = [], 0
+    for n in g.node:
+        src = producer.get(n.input[0]) if n.op_type == "BatchNormalization" else None
+        if src is None or src.op_type == "Conv":
+            nodes.append(n); continue
+        eps = next((a.f for a in n.attribute if a.name == "epsilon"), 1e-5)
+        gamma, beta, mean, var = (numpy_helper.to_array(inits[i]) for i in n.input[1:5])
+        scale = gamma / np.sqrt(var + eps)
+        shift = beta - mean * scale
+        rank = ranks.get(n.input[0], 3)
+        shape = [1, len(scale)] + [1] * (rank - 2)
+        sn, bn_ = n.name + "_scale", n.name + "_shift"
+        g.initializer.extend([numpy_helper.from_array(scale.reshape(shape).astype(np.float32), sn),
+                              numpy_helper.from_array(shift.reshape(shape).astype(np.float32), bn_)])
+        tmp = n.output[0] + "_scaled"
+        nodes.append(helper.make_node("Mul", [n.input[0], sn], [tmp], name=n.name + "_mul"))
+        nodes.append(helper.make_node("Add", [tmp, bn_], [n.output[0]], name=n.name + "_add"))
+        changed += 1
+    del g.node[:]
+    g.node.extend(nodes)
+    onnx.checker.check_model(m)
+    onnx.save(m, path)
+    print(f"BATCHNORM {changed} BatchNormalization nodes rewritten as Mul + Add")
+
+batchnorm_to_affine(raw)
+
 def optimize(src, dst):
-    """Optimise offline, without MatMulBnFusion (it breaks on this model's transposed
-    fc5 -> BatchNorm1d). The app then loads the result with optimisation off. EXTENDED, not ALL,
-    so no CPU-specific layouts end up in the file."""
+    """Optimise offline; the app loads the result with optimisation off. EXTENDED, not ALL, so
+    no CPU-specific layouts end up in the file."""
     so = ort.SessionOptions()
     so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_EXTENDED
     so.optimized_model_filepath = dst
-    ort.InferenceSession(src, so, providers=["CPUExecutionProvider"], disabled_optimizers=["MatMulBnFusion"])
+    ort.InferenceSession(src, so, providers=["CPUExecutionProvider"])
 
 fp32 = os.path.join(out, "piano_fp32.onnx")
 optimize(raw, fp32)
