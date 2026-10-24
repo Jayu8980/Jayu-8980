@@ -1,6 +1,10 @@
 package com.pianoscribe.app
 
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -63,7 +67,8 @@ class UiSmokeTest {
                 compose.onNodeWithText(name).performClick()
                 waitForText("Piano Roll")
                 for (tab in listOf("Falling Notes", "Sheet", "Notes", "Analyser", "Compare", "Piano Roll")) {
-                    compose.onNodeWithText(tab).performScrollTo().performClick()
+                    // "Notes" is also the play-mode button, so match the tab itself.
+                    compose.onNode(hasText(tab) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)).performScrollTo().performClick()
                     compose.waitForIdle()
                 }
                 // Instrument picker.

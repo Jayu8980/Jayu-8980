@@ -44,7 +44,7 @@ class PipelineTest {
         private val container get() = (TestFixtures.app.applicationContext as PianoScribeApp).container
 
         @BeforeClass @JvmStatic
-        fun transcribeOnce() = runBlocking {
+        fun transcribeOnce() = runBlocking<Unit> {
             pcm = File(TestFixtures.app.cacheDir, "test_decoded.f32")
             AudioDecoder(TestFixtures.app).decode(TestFixtures.wavUri(), pcm) {}
             val t0 = System.currentTimeMillis()
@@ -74,18 +74,18 @@ class PipelineTest {
         android.util.Log.i("PianoScribeTest", "Transcribed ${TestFixtures.DURATION_SEC} s in $transcribeMs ms, ${notes.size} notes, recall $r")
     }
 
-    @Test fun fullSongModeRunsAndKeepsTheNotes() = runBlocking {
+    @Test fun fullSongModeRunsAndKeepsTheNotes() = runBlocking<Unit> {
         val result = TranscriptionEngine(TestFixtures.app).transcribe(pcm, AppSettings(audioType = AudioType.FULL_SONG)) { _, _ -> }
         assertTrue(result.songMode)
         assertTrue("song-mode recall ${recall(result.notes)}", recall(result.notes) >= 0.7)
     }
 
-    @Test fun autoModeTreatsSoloPianoAsSoloPiano() = runBlocking {
+    @Test fun autoModeTreatsSoloPianoAsSoloPiano() = runBlocking<Unit> {
         val result = TranscriptionEngine(TestFixtures.app).transcribe(pcm, AppSettings(audioType = AudioType.AUTO)) { _, _ -> }
         assertTrue("solo piano should not switch to song mode", !result.songMode)
     }
 
-    @Test fun projectRoundTripsThroughRoom() = runBlocking {
+    @Test fun projectRoundTripsThroughRoom() = runBlocking<Unit> {
         val repo = container.repository
         val now = System.currentTimeMillis()
         val id = repo.create(ProjectEntity(name = "Pipeline test", createdAt = now, updatedAt = now, audioPath = "", durationSec = TestFixtures.DURATION_SEC,
@@ -97,7 +97,7 @@ class PipelineTest {
         assertEquals(null, repo.load(id))
     }
 
-    @Test fun everyExportProducesAValidFile() = runBlocking {
+    @Test fun everyExportProducesAValidFile() = runBlocking<Unit> {
         val preset = container.soundFonts.preset(Instrument.PIANO)
         assertNotNull("bundled piano SoundFont loads", preset)
         val exporter = Exporter(TestFixtures.app)
@@ -125,7 +125,7 @@ class PipelineTest {
         }
     }
 
-    @Test fun compareAndAutoFixRun() = runBlocking {
+    @Test fun compareAndAutoFixRun() = runBlocking<Unit> {
         val ce = CompareEngine(TestFixtures.app, pcm, songMode = false) { container.soundFonts.preset(it) }
         val report = ce.compare(notes) { _, _ -> }
         assertTrue(report.confirmedShare in 0.0..1.0)
@@ -137,7 +137,7 @@ class PipelineTest {
         android.util.Log.i("PianoScribeTest", "Compare: confirmed ${report.confirmedShare}, timbre ${report.timbre}, fix ${fix.changes} accepted=${fix.accepted}")
     }
 
-    @Test fun playbackEngineRunsEveryMode() = runBlocking {
+    @Test fun playbackEngineRunsEveryMode() = runBlocking<Unit> {
         val preset = container.soundFonts.preset(Instrument.PIANO)
         val engine = PlaybackEngine(preset, pcm, Instrument.PIANO)
         try {
