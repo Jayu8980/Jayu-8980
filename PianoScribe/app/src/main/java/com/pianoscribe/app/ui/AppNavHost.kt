@@ -14,6 +14,7 @@ import com.pianoscribe.app.ui.record.RecordScreen
 import com.pianoscribe.app.ui.result.ResultScreen
 import com.pianoscribe.app.ui.settings.LicensesScreen
 import com.pianoscribe.app.ui.settings.SettingsScreen
+import com.pianoscribe.app.ui.studio.StudioScreen
 
 object Routes {
     const val HOME = "home"
@@ -23,6 +24,7 @@ object Routes {
     const val RESULT = "result/{id}"
     const val SETTINGS = "settings"
     const val LICENSES = "licenses"
+    const val STUDIO = "studio"
 
     fun prepare(uri: String?) = if (uri == null) "prepare" else "prepare?uri=" + android.net.Uri.encode(uri)
     fun convert(start: Int, end: Int) = "convert/$start/$end"
@@ -53,8 +55,10 @@ fun AppNavHost(container: AppContainer) {
                 uri = entry.arguments?.getString("uri"),
                 onBack = { nav.popBackStack() },
                 onConvert = { s, e -> nav.navigate(Routes.convert(s, e)) },
+                onStudio = { nav.navigate(Routes.STUDIO) },
             )
         }
+        composable(Routes.STUDIO) { StudioScreen(container, onDone = { nav.popBackStack() }) }
         composable(Routes.CONVERT, arguments = listOf(navArgument("start") { type = NavType.IntType }, navArgument("end") { type = NavType.IntType })) { entry ->
             ConvertScreen(
                 container,

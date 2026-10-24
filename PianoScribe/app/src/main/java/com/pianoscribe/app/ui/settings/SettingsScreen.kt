@@ -69,6 +69,14 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, onLicenses: () -
             val w = Modifier.widthIn(max = 720.dp).fillMaxWidth()
             Section("Transcription", w) {
                 AudioTypeSelector(s.audioType, { t -> store.update { it.copy(audioType = t) } })
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Remove hum before converting", style = MaterialTheme.typography.bodyLarge)
+                        Text("Checks the recording for 50/60 Hz mains hum and low rumble and filters them out first. Clean recordings are left as they are.",
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                    Switch(s.autoClean, { v -> store.update { it.copy(autoClean = v) } })
+                }
                 LabeledSlider("Onset threshold", s.onsetThreshold, String.format(Locale.US, "%.2f", s.onsetThreshold), 0.05f..0.95f,
                     { v -> store.update { it.copy(onsetThreshold = v) } }, help = "Lower finds more note starts (and more false ones).")
                 LabeledSlider("Note threshold", s.frameThreshold, String.format(Locale.US, "%.2f", s.frameThreshold), 0.05f..0.95f,

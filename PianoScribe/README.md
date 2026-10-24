@@ -18,6 +18,7 @@
 | Input | Import MP3, WAV, M4A, AAC, OGG, FLAC with the system file picker (Storage Access Framework, no storage permission), or record from the microphone (live waveform, max 10 min). Trim start and end with a preview before converting. You can also "Share" or "Open with" audio into the app. |
 | Transcription | MediaExtractor + MediaCodec decode → mono → 22 050 Hz (band-limited resampler) → Spotify **Basic Pitch** in overlapping 2 s windows on a background thread with progress and cancel → note extraction (onset, note and contour outputs) → pitch, start, duration, velocity, confidence and tuning in cents. |
 | Full songs | **Audio type: Auto / Solo piano / Full song.** Auto runs a quick harmonic/percussive separation on three excerpts and switches to full-song mode when drums are present. Full-song mode removes the drums before the model listens (median-filter HPSS), then drops overtone ghosts (octave / octave+fifth above a clearly louder note), faint background notes (below 55% of the loudest nearby note) and extra simultaneous notes (max 4 RH / 3 LH). If any audio gives too few notes, a more sensitive pass runs automatically. |
+| Audio studio | **Edit & clean audio** on the trim screen. **Check** measures background noise, 50/60 Hz mains hum, room echo (decay time), clipping and level, and suggests what to fix. **Clean up**: remove hum, rumble filter, noise reduction, echo reduction, normalise. **Separate**: remove drums / drums only; remove vocals / vocals only for stereo songs (stereo centre); melody only, bass only, accompaniment only or remove the melody (finds the notes, then keeps or removes that part's harmonics). **Edit** the selection: cut, keep only, silence, fade in/out, volume, normalise; change tempo (50–200%, same pitch) or pitch (±12 semitones, same length). Every step is undoable, "Compare with before" plays the previous version, and the result can be saved or shared as WAV. Converting also removes mains hum and rumble automatically when it finds them (Settings → "Remove hum before converting"). |
 | Settings | Onset threshold, note threshold, minimum note length (ms), pitch range limited to piano A0–C8 (MIDI 21–108), "piano only" quantisation to 1/8 or 1/16 with auto-detected tempo (editable BPM), RH/LH split point (default middle C). |
 | Views | Piano roll (scroll, pinch-zoom, keyboard on the left, colour by hand, playhead), Synthesia-style falling notes with an on-screen keyboard and finger numbers, simple grand-staff sheet music, note list with Western (C D E) or Indian Sargam (Sa Re Ga) names. |
 | Editing | Tap to select, drag to move, drag the end to resize, long-press to delete, double-tap to add (edit mode), undo/redo, transpose ±12, tempo change (re-grid or stretch), quantise, hand split. |
@@ -145,6 +146,38 @@ Android Studio alternative: **Build → Generate Signed App Bundle / APK → APK
    general: no resynthesis sounds exactly like a real instrument in a real room, and notes hidden under others or
    under drums can't always be recovered.
 
+### Audio clean-up and separation: what helps
+
+Measured like the compare section: synthetic piano pieces with known notes, damaged on purpose, transcribed by the
+real model before and after; numbers are note F1 (onset within 50 ms) averaged over 5 pieces that were **not** used
+for tuning.
+
+| Recording | As recorded | After the automatic clean-up |
+|---|---|---|
+| Clean | 0.72 | 0.72 (left alone) |
+| 50 Hz hum at -20 dB | 0.64 | **0.72** |
+| 60 Hz hum at -14 dB | 0.61 | **0.73** |
+| White noise 15 dB / pink noise 10 dB below the music | 0.77 / 0.74 | unchanged (not needed) |
+| Room echo 0.5 / 0.9 / 1.5 s | 0.69 / 0.57 / 0.45 | unchanged (see below) |
+
+Noise and echo reduction are in the studio for listening, but they are not applied automatically: the model copes
+with steady noise better than with the changes a noise reducer makes, and both spectral echo subtraction and
+WPE de-reverberation (also tried) helped some pieces and hurt others, because they also remove the sustain of
+held notes. Room echo is still the hardest case for transcription.
+
+Separation, on a synthetic stereo song (stereo piano spread left/right plus a centre-panned bowed "voice" at the
+same level), F1 against the part you want:
+
+| Task | Without | With |
+|---|---|---|
+| Piano notes in a song with a lead voice | 0.50 | **0.59** (remove vocals) |
+| The voice's notes | 0.20 | **0.60** (vocals only) |
+| Melody of a piano piece | 0.36 | **0.60** (melody only) |
+| Bass line of a piano piece | 0.10 | **0.22** (bass only: low notes share many harmonics with the rest) |
+
+Centre separation needs a stereo file where the voice is in the middle and the instruments are not; a mono file
+or a mono piano can't be separated this way.
+
 Performance: a 5-minute song is about 185 model windows; on a mid-range phone conversion takes well under two minutes.
 Audio is processed in chunks and read from disk by range to avoid running out of memory.
 
@@ -176,7 +209,11 @@ melodia trick, pitch range, inferred onsets), quantiser, tempo detection, chord 
 cents calculation and measurement, bar:beat conversion, harmonic/percussive separation (tones kept, drums removed,
 solo piano vs. piano + drums detection), song clean-up (overtone ghosts, quiet notes, polyphony limit), note values, intervals, Sargam, MusicXML well-formedness and
 measure layout, analyser steps/filters, CSV export, fingering, undo/redo and edit operations, SF2 write/read and
-playback, time-stretch and YIN.
+playback, time-stretch and YIN, STFT resynthesis, filters, hum/noise/echo analysis and clean-up, stereo centre and
+note-based separation, and the audio edits (cut, crop, silence, fades, gain, normalise, tempo, pitch, WAV).
+On a device or emulator, `./gradlew connectedDebugAndroidTest` decodes a stereo test recording and runs the real
+model, Room, every export, compare/auto-fix, playback, hum removal before converting, every studio operation with
+undo/redo and WAV export, and the main screens including the audio studio.
 
 ## Limitations
 

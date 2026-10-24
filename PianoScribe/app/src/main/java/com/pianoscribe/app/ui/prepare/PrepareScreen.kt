@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -53,6 +54,7 @@ import com.pianoscribe.app.ui.components.Waveform
 import com.pianoscribe.app.ui.components.formatTime
 import com.pianoscribe.core.transcribe.BasicPitch
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -77,26 +79,39 @@ class PrepareViewModel(app: Application, private val container: AppContainer, ur
     val state: StateFlow<UiState> = _state.asStateFlow()
     private var player: PlaybackEngine? = null
 
+    private var playerJob: Job? = null
+
     init {
         viewModelScope.launch {
             try {
                 val draft = if (uri != null) decode(Uri.parse(uri)) else container.draft.value ?: error("Nothing to convert")
                 container.draft.value = draft
-                val wf = withContext(Dispatchers.IO) { PcmFile.waveform(draft.file, 400) }
-                _state.value = _state.value.copy(decoding = false, draft = draft, waveform = wf, trimStart = 0f, trimEnd = draft.durationSec.toFloat())
-                player = PlaybackEngine(null, draft.file).apply { mode = PlayMode.ORIGINAL; duration = draft.durationSec }
-                player!!.state.collect { s -> _state.value = _state.value.copy(playing = s.playing, position = s.position) }
+                show(draft)
+                // The audio studio replaces the draft with an edited version: show that one.
+                container.draft.collect { d -> if (d != null && d.file != _state.value.draft?.file) show(d) }
             } catch (e: Exception) {
                 _state.value = _state.value.copy(decoding = false, error = e.message ?: "Couldn't read this file")
             }
         }
     }
 
+    private suspend fun show(draft: Draft) {
+        val wf = withContext(Dispatchers.IO) { PcmFile.waveform(draft.file, 400) }
+        _state.value = _state.value.copy(decoding = false, draft = draft, waveform = wf, trimStart = 0f, trimEnd = draft.durationSec.toFloat(), playing = false, position = 0.0)
+        playerJob?.cancel()
+        player?.release()
+        val p = PlaybackEngine(null, draft.file).apply { mode = PlayMode.ORIGINAL; duration = draft.durationSec }
+        player = p
+        playerJob = viewModelScope.launch { p.state.collect { s -> _state.value = _state.value.copy(playing = s.playing, position = s.position) } }
+    }
+
     private suspend fun decode(uri: Uri): Draft {
         val ctx = getApplication<Application>()
         val file = File(ctx.cacheDir, "draft.f32")
-        val r = AudioDecoder(ctx).decode(uri, file) { p -> _state.value = _state.value.copy(progress = p) }
-        return Draft(file, AudioDecoder.displayName(ctx, uri), "Imported file", r.samples)
+        val left = File(ctx.cacheDir, "draft_left.f32")
+        val right = File(ctx.cacheDir, "draft_right.f32")
+        val r = AudioDecoder(ctx).decode(uri, file, left to right) { p -> _state.value = _state.value.copy(progress = p) }
+        return Draft(file, AudioDecoder.displayName(ctx, uri), "Imported file", r.samples, left = left.takeIf { r.stereo }, right = right.takeIf { r.stereo })
     }
 
     fun setTrim(start: Float, end: Float) {
@@ -138,7 +153,7 @@ class PrepareViewModel(app: Application, private val container: AppContainer, ur
 }
 
 @Composable
-fun PrepareScreen(container: AppContainer, uri: String?, onBack: () -> Unit, onConvert: (Int, Int) -> Unit) {
+fun PrepareScreen(container: AppContainer, uri: String?, onBack: () -> Unit, onConvert: (Int, Int) -> Unit, onStudio: () -> Unit = {}) {
     val vm: PrepareViewModel = viewModel { PrepareViewModel(container.app, container, uri) }
     val s by vm.state.collectAsStateWithLifecycle()
     val settings by container.settings.state.collectAsStateWithLifecycle()
@@ -198,8 +213,13 @@ fun PrepareScreen(container: AppContainer, uri: String?, onBack: () -> Unit, onC
                         Text("End ${formatTime(s.trimEnd.toDouble())}")
                     }
                     Text("Selected: ${formatTime((s.trimEnd - s.trimStart).toDouble())} of ${formatTime(d.durationSec)}", style = MaterialTheme.typography.bodySmall)
-                    OutlinedButton(onClick = vm::autoTrim) {
-                        Icon(Icons.Default.AutoAwesome, null); Text("  Trim silence")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = vm::autoTrim) {
+                            Icon(Icons.Default.AutoAwesome, null); Text("  Trim silence")
+                        }
+                        OutlinedButton(onClick = { vm.stopPreview(); onStudio() }) {
+                            Icon(Icons.Default.Tune, null); Text("  Edit & clean audio")
+                        }
                     }
                     AudioTypeSelector(settings.audioType, { t -> container.settings.update { it.copy(audioType = t) } }, width)
                     Button(onClick = { vm.stopPreview(); val (a, b) = vm.range(); onConvert(a, b) }, modifier = width.height(56.dp)) {

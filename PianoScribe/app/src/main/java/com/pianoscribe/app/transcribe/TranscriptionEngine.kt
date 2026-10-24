@@ -4,6 +4,7 @@ import android.content.Context
 import com.pianoscribe.app.audio.PcmFile
 import com.pianoscribe.app.data.AppSettings
 import com.pianoscribe.app.ml.ModelRunner
+import com.pianoscribe.core.audio.AudioCleaner
 import com.pianoscribe.core.audio.Hpss
 import com.pianoscribe.core.audio.Pcm
 import com.pianoscribe.core.audio.PitchAccuracy
@@ -35,6 +36,7 @@ class NoNotesException(songMode: Boolean = false) : IOException(
 /**
  * @param songMode true when the audio was treated as a full song (drums removed, clean-up applied)
  * @param retriedSensitive true when too few notes were found and lower thresholds were used
+ * @param cleanup what was filtered out before listening ("50 Hz hum removed"), if anything
  */
 data class TranscriptionResult(
     val notes: List<Note>,
@@ -42,6 +44,7 @@ data class TranscriptionResult(
     val key: KeyDetector.Key?,
     val songMode: Boolean = false,
     val retriedSensitive: Boolean = false,
+    val cleanup: List<String> = emptyList(),
 )
 
 /** Progress callback: step label and 0..1 overall progress. */
@@ -57,11 +60,31 @@ typealias ProgressListener = (step: String, progress: Float) -> Unit
  * a few excerpts.
  */
 class TranscriptionEngine(private val context: Context) {
-    suspend fun transcribe(pcm: File, settings: AppSettings, progress: ProgressListener): TranscriptionResult = withContext(Dispatchers.Default) {
-        val length = PcmFile.length(pcm)
+    suspend fun transcribe(input: File, settings: AppSettings, progress: ProgressListener): TranscriptionResult = withContext(Dispatchers.Default) {
+        val length = PcmFile.length(input)
         progress("Checking audio", 0f)
         if (length < BasicPitch.SAMPLE_RATE / 4) throw IOException("The audio is too short to transcribe.")
-        if (isSilent(pcm, length)) throw SilentAudioException()
+        if (isSilent(input, length)) throw SilentAudioException()
+
+        // 0. Mains hum and rumble confuse the model (measured: hum costs 10-15% of notes), so
+        // filter them out when the analysis finds them. Nothing else is changed.
+        var pcm = input
+        val cleanup = ArrayList<String>()
+        if (settings.autoClean) {
+            progress("Checking for hum and rumble", 0.005f)
+            val audio = PcmFile.readAll(input)
+            val report = AudioCleaner.analyze(audio, BasicPitch.SAMPLE_RATE)
+            val options = report.suggested().copy(normalize = false)
+            if (!options.isEmpty) {
+                progress(if (report.hasHum) "Removing ${report.humHz} Hz hum" else "Removing rumble", 0.008f)
+                val cleaned = AudioCleaner.clean(audio, BasicPitch.SAMPLE_RATE, options, report)
+                pcm = File(context.cacheDir, "cleaned.f32")
+                PcmFile.Writer(pcm).use { it.write(cleaned) }
+                if (options.removeHum) cleanup += "${report.humHz} Hz hum removed"
+                if (options.removeRumble) cleanup += "rumble removed"
+            }
+        }
+        coroutineContext.ensureActive()
 
         // 1. Decide how to treat the audio and, for songs, remove the drums.
         val songMode = when (settings.audioType) {
@@ -124,6 +147,7 @@ class TranscriptionEngine(private val context: Context) {
             n.copy(cents = c)
         }
         if (analysis != pcm) analysis.delete()
+        if (pcm != input) pcm.delete()
 
         coroutineContext.ensureActive()
         progress("Detecting tempo, hands and key", 0.94f)
@@ -132,7 +156,7 @@ class TranscriptionEngine(private val context: Context) {
         notes = HandSplitter.split(notes, settings.splitPoint)
         val key = KeyDetector.detect(notes)
         progress("Done", 1f)
-        TranscriptionResult(notes, grid, key, songMode, retried)
+        TranscriptionResult(notes, grid, key, songMode, retried, cleanup)
     }
 
     /**

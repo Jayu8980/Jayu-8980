@@ -9,14 +9,21 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.abs
 
-/** Decoded or recorded audio waiting to be trimmed and converted. */
+/**
+ * Decoded or recorded audio waiting to be trimmed and converted. [left]/[right] are the stereo
+ * channels of the original file (same length as [file]) when it had two, for stereo separation.
+ */
 data class Draft(
     val file: File,
     val name: String,
     val source: String,
     val lengthSamples: Int,
     val sampleRate: Int = BasicPitch.SAMPLE_RATE,
+    val left: File? = null,
+    val right: File? = null,
 ) {
+    val isStereo: Boolean get() = left != null && right != null
+
     val durationSec: Double get() = lengthSamples.toDouble() / sampleRate
 }
 

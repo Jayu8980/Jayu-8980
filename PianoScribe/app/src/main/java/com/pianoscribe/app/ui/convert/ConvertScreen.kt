@@ -71,7 +71,7 @@ class ConvertViewModel(app: Application, private val container: AppContainer, st
                         bpm = result.grid.bpm, beatsPerBar = result.grid.beatsPerBar, beatUnit = result.grid.beatUnit, gridOffset = result.grid.offset,
                         splitPoint = settings.splitPoint, quantizeDivision = if (settings.pianoOnly) settings.quantizeDivision else 0,
                         keyName = result.key?.name, noteCount = result.notes.size,
-                        source = draft.source + if (result.songMode) " · full song" else "",
+                        source = draft.source + (if (result.songMode) " · full song" else "") + result.cleanup.joinToString("") { " · $it" },
                     ),
                 )
                 val rel = "projects/$id/audio.f32"

@@ -19,12 +19,14 @@ class UnsupportedAudioException(message: String) : IOException(message)
 /**
  * Decodes any audio format the device supports (MP3, WAV, M4A/AAC, OGG/Opus/Vorbis, FLAC) with
  * MediaExtractor + MediaCodec, downmixes to mono and resamples to 22050 Hz while streaming
- * straight to a PCM file.
+ * straight to a PCM file. With [stereoOut], a two-channel file's left and right channels are
+ * also written (resampled the same way) for stereo separation.
  */
 class AudioDecoder(private val context: Context) {
-    data class Result(val samples: Int, val rms: Double, val peak: Float)
+    /** [stereo] is true when the left/right files were written. */
+    data class Result(val samples: Int, val rms: Double, val peak: Float, val stereo: Boolean = false)
 
-    suspend fun decode(uri: Uri, out: File, onProgress: (Float) -> Unit): Result {
+    suspend fun decode(uri: Uri, out: File, stereoOut: Pair<File, File>? = null, onProgress: (Float) -> Unit): Result {
         val extractor = MediaExtractor()
         try {
             try {
@@ -50,6 +52,12 @@ class AudioDecoder(private val context: Context) {
             var pcmEncoding = AudioFormat.ENCODING_PCM_16BIT
             var resampler = StreamingResampler(sampleRate, BasicPitch.SAMPLE_RATE)
             val writer = PcmFile.Writer(out)
+            // Stereo side files: only for two or more channels; dropped if the format changes channel count.
+            var stereo = stereoOut != null && channels >= 2
+            val lw = if (stereo) PcmFile.Writer(stereoOut!!.first) else null
+            val rw = if (stereo) PcmFile.Writer(stereoOut!!.second) else null
+            var lRes = StreamingResampler(sampleRate, BasicPitch.SAMPLE_RATE)
+            var rRes = StreamingResampler(sampleRate, BasicPitch.SAMPLE_RATE)
             try {
                 codec.start()
                 val info = MediaCodec.BufferInfo()
@@ -84,11 +92,15 @@ class AudioDecoder(private val context: Context) {
                             val of = codec.outputFormat
                             val newRate = of.getInteger(MediaFormat.KEY_SAMPLE_RATE)
                             channels = of.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+                            if (channels < 2) stereo = false
                             if (of.containsKey(MediaFormat.KEY_PCM_ENCODING)) pcmEncoding = of.getInteger(MediaFormat.KEY_PCM_ENCODING)
                             if (newRate != sampleRate) {
                                 writer.write(resampler.flush())
+                                if (stereo) { lw!!.write(lRes.flush()); rw!!.write(rRes.flush()) }
                                 sampleRate = newRate
                                 resampler = StreamingResampler(sampleRate, BasicPitch.SAMPLE_RATE)
+                                lRes = StreamingResampler(sampleRate, BasicPitch.SAMPLE_RATE)
+                                rRes = StreamingResampler(sampleRate, BasicPitch.SAMPLE_RATE)
                             }
                         }
                         outIdx >= 0 -> {
@@ -113,6 +125,10 @@ class AudioDecoder(private val context: Context) {
                                         frames = n / channels
                                     }
                                 }
+                                if (stereo) {
+                                    lw!!.write(lRes.process(channel(floatBuf, channels, frames, 0, leftBuf).also { leftBuf = it }))
+                                    rw!!.write(rRes.process(channel(floatBuf, channels, frames, 1, rightBuf).also { rightBuf = it }))
+                                }
                                 val mono = downmix(floatBuf, channels, frames)
                                 writer.write(resampler.process(mono))
                             }
@@ -122,20 +138,35 @@ class AudioDecoder(private val context: Context) {
                     }
                 }
                 writer.write(resampler.flush())
+                if (stereo) { lw!!.write(lRes.flush()); rw!!.write(rRes.flush()) }
             } finally {
                 writer.close()
+                lw?.close()
+                rw?.close()
                 runCatching { codec.stop() }
                 codec.release()
             }
             onProgress(1f)
             if (writer.samples == 0L) throw UnsupportedAudioException("The file decoded to no audio.")
-            return Result(writer.samples.toInt(), kotlin.math.sqrt(writer.sumSquares / writer.samples), writer.peak)
+            // The channel files must line up with the mono file sample for sample.
+            val stereoOk = stereo && lw!!.samples == writer.samples && rw!!.samples == writer.samples
+            if (!stereoOk && stereoOut != null) { stereoOut.first.delete(); stereoOut.second.delete() }
+            return Result(writer.samples.toInt(), kotlin.math.sqrt(writer.sumSquares / writer.samples), writer.peak, stereoOk)
         } finally {
             extractor.release()
         }
     }
 
     private var monoBuf = FloatArray(0)
+    private var leftBuf = FloatArray(0)
+    private var rightBuf = FloatArray(0)
+
+    /** Channel [c] of interleaved audio, reusing [buf] when it has the right size. */
+    private fun channel(x: FloatArray, channels: Int, frames: Int, c: Int, buf: FloatArray): FloatArray {
+        val out = if (buf.size == frames) buf else FloatArray(frames)
+        for (f in 0 until frames) out[f] = x[f * channels + c]
+        return out
+    }
 
     private fun downmix(x: FloatArray, channels: Int, frames: Int): FloatArray {
         if (monoBuf.size != frames) monoBuf = FloatArray(frames)

@@ -36,6 +36,8 @@ data class AppSettings(
     val instrument: Instrument = Instrument.PIANO,
     /** 0 = play exactly as written, 1 = most expressive (timing, dynamics, phrasing, vibrato). */
     val humanFeel: Float = 0.6f,
+    /** Remove mains hum and rumble before transcribing, when the analysis finds them. */
+    val autoClean: Boolean = true,
 ) {
     fun transcription() = TranscriptionSettings(
         onsetThreshold = onsetThreshold,
@@ -83,6 +85,7 @@ class SettingsStore(context: Context) {
             audioType = runCatching { AudioType.valueOf(prefs.getString("audioType", d.audioType.name)!!) }.getOrDefault(d.audioType),
             instrument = runCatching { Instrument.valueOf(prefs.getString("instrument", d.instrument.name)!!) }.getOrDefault(d.instrument),
             humanFeel = prefs.getFloat("humanFeel", d.humanFeel),
+            autoClean = prefs.getBoolean("autoClean", d.autoClean),
         )
     }
 
@@ -105,6 +108,7 @@ class SettingsStore(context: Context) {
             .putString("audioType", s.audioType.name)
             .putString("instrument", s.instrument.name)
             .putFloat("humanFeel", s.humanFeel)
+            .putBoolean("autoClean", s.autoClean)
             .apply()
     }
 }
