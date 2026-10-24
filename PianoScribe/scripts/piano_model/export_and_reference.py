@@ -36,7 +36,7 @@ class Wrap(torch.nn.Module):
 
 raw = os.path.join(out, "piano_raw.onnx")
 with torch.no_grad():
-    torch.onnx.export(Wrap(note), torch.zeros(1, SEG), raw, input_names=["audio"],
+    torch.onnx.export(Wrap(note).eval(), torch.zeros(1, SEG), raw, input_names=["audio"],
                       output_names=["onset", "offset", "frame", "velocity"], opset_version=17, do_constant_folding=True)
 onnx.checker.check_model(raw)
 
@@ -102,54 +102,11 @@ for p in (fp32, int8):
 first = sorted(f for f in os.listdir(eval_dir) if f.endswith(".flac"))[0]
 y, _ = librosa.load(os.path.join(eval_dir, first), sr=16000, mono=True)
 seg = np.zeros((1, SEG), np.float32); seg[0, :min(SEG, len(y))] = y[:SEG]
+# torch.onnx.export restores the wrapper's training flag on every submodule afterwards, so
+# compute the reference in eval mode explicitly.
+note.eval()
 with torch.no_grad():
-    ref = [t.numpy() for t in Wrap(note)(torch.from_numpy(seg))]
-
-# ---- Diagnostics: export the stages separately and compare each with PyTorch ----
-def stage_diff(name, module, inp, input_name="x"):
-    path = os.path.join(out, f"stage_{name}.onnx")
-    with torch.no_grad():
-        want = module(inp)
-        torch.onnx.export(module, inp, path, input_names=[input_name], opset_version=17, do_constant_folding=True)
-    batchnorm_to_affine(path)
-    sess = ort.InferenceSession(path, providers=["CPUExecutionProvider"])
-    got = sess.run(None, {input_name: inp.numpy()})[0]
-    want = want[0] if isinstance(want, (tuple, list)) else want
-    print(f"STAGE {name}: shape {tuple(want.shape)} max abs diff {float(np.abs(want.numpy() - got).max()):.3g}, max |value| {float(np.abs(want.numpy()).max()):.3g}")
-    os.remove(path)
-
-class Front(torch.nn.Module):
-    def __init__(self, m): super().__init__(); self.m = m
-    def forward(self, audio):
-        x = self.m.logmel_extractor(self.m.spectrogram_extractor(audio))
-        return self.m.bn0(x.transpose(1, 3)).transpose(1, 3)
-
-seg_t = torch.from_numpy(seg)
-with torch.no_grad():
-    stage_diff("spectrogram", note.spectrogram_extractor, seg_t)
-    front = Front(note).eval()
-    stage_diff("front", front, seg_t)
-    feat = front(seg_t)
-    am = note.frame_model
-    class Convs(torch.nn.Module):
-        def __init__(self, a): super().__init__(); self.a = a
-        def forward(self, x):
-            for blk in (self.a.conv_block1, self.a.conv_block2, self.a.conv_block3, self.a.conv_block4):
-                x = blk(x, pool_size=(1, 2), pool_type="avg")
-            return x
-    stage_diff("frame_model_convs", Convs(am).eval(), feat)
-    class Mid(torch.nn.Module):
-        def __init__(self, a): super().__init__(); self.a = a
-        def forward(self, x):
-            x = x.transpose(1, 2).flatten(2)
-            return torch.relu(self.a.bn5(self.a.fc5(x).transpose(1, 2)).transpose(1, 2))
-    convs_out = Convs(am).eval()(feat)
-    stage_diff("frame_model_fc5_bn5", Mid(am).eval(), convs_out)
-    stage_diff("frame_model", am, feat)
-    class Gru(torch.nn.Module):
-        def __init__(self, g): super().__init__(); self.g = g
-        def forward(self, x): return self.g(x)[0]
-    stage_diff("frame_gru", Gru(note.frame_gru).eval(), torch.rand(1, 1001, 264))
+    ref = [t.numpy() for t in Wrap(note).eval()(torch.from_numpy(seg))]
 
 no_opt = ort.SessionOptions()
 no_opt.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL
