@@ -569,18 +569,45 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
         return Exporter.Input(s.project?.name ?: "PianoScribe", history.current, s.grid, s.derived.key, settings.value.saPitchClass)
     }
 
+    private fun exportable(): Boolean {
+        if (history.current.isNotEmpty()) return true
+        msg("There are no notes to export yet")
+        return false
+    }
+
     fun share(format: ExportFormat) {
+        if (!exportable()) return
         viewModelScope.launch {
             runCatching { exporter.share(exporter.export(format, exportInput()), format) }
-                .onFailure { msg("Export failed: ${it.message}") }
+                .onFailure { msg("Export failed: ${it.message ?: it.javaClass.simpleName}") }
+        }
+    }
+
+    /** One-tap save into Downloads/PianoScribe. On Android 8-9 calls [onUnsupported] so the caller can fall back to "Save as". */
+    fun saveToDownloads(format: ExportFormat, onUnsupported: () -> Unit) {
+        if (!exportable()) return
+        viewModelScope.launch {
+            runCatching { exporter.saveToDownloads(exporter.export(format, exportInput()), format) }
+                .onSuccess { where -> if (where == null) onUnsupported() else msg("Saved to $where") }
+                .onFailure { msg("Save failed: ${it.message ?: it.javaClass.simpleName}") }
+        }
+    }
+
+    fun open(format: ExportFormat) {
+        if (!exportable()) return
+        viewModelScope.launch {
+            runCatching { exporter.open(exporter.export(format, exportInput()), format) }
+                .onSuccess { opened -> if (!opened) msg("No app on this phone can open ${format.ext.uppercase()} files. Use Save or Share instead.") }
+                .onFailure { msg("Export failed: ${it.message ?: it.javaClass.simpleName}") }
         }
     }
 
     fun saveTo(format: ExportFormat, uri: Uri) {
+        if (!exportable()) return
         viewModelScope.launch {
             runCatching { exporter.saveTo(exporter.export(format, exportInput()), uri) }
-                .onSuccess { msg("Saved") }
-                .onFailure { msg("Save failed: ${it.message}") }
+                .onSuccess { msg("Saved ${format.ext.uppercase()} file") }
+                .onFailure { msg("Save failed: ${it.message ?: it.javaClass.simpleName}") }
         }
     }
 

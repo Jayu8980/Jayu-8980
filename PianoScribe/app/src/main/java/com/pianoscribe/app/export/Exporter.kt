@@ -1,5 +1,8 @@
 package com.pianoscribe.app.export
 
+import android.content.ActivityNotFoundException
+import android.content.ClipData
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -9,6 +12,9 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import com.pianoscribe.core.analysis.AnalysisRow
 import com.pianoscribe.core.analysis.AnalysisTable
@@ -34,7 +40,7 @@ enum class ExportFormat(val label: String, val ext: String, val mime: String) {
     ANALYSIS_PDF("Analysis table (.pdf)", "pdf", "application/pdf"),
 }
 
-/** Writes exports into cache/exports and hands them to the share sheet or a chosen location. */
+/** Writes exports into cache/exports and hands them to Downloads, the share sheet, another app or a chosen location. */
 class Exporter(private val context: Context) {
     data class Input(val title: String, val notes: List<Note>, val grid: TimeGrid, val key: KeyDetector.Key?, val saPitchClass: Int)
 
@@ -55,15 +61,71 @@ class Exporter(private val context: Context) {
         file
     }
 
+    private fun contentUri(file: File): Uri = FileProvider.getUriForFile(context, context.packageName + ".files", file)
+
     fun share(file: File, format: ExportFormat) {
-        val uri = FileProvider.getUriForFile(context, context.packageName + ".files", file)
+        val uri = contentUri(file)
         val send = Intent(Intent.ACTION_SEND).apply {
             type = format.mime
             putExtra(Intent.EXTRA_STREAM, uri)
             putExtra(Intent.EXTRA_SUBJECT, file.name)
+            // ClipData carries the read grant through the chooser to whichever app is picked;
+            // EXTRA_STREAM alone is not always granted.
+            clipData = ClipData.newRawUri(file.name, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(send, "Share ${file.name}").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        val chooser = Intent.createChooser(send, "Share ${file.name}").apply {
+            clipData = send.clipData
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(chooser)
+    }
+
+    /** Opens the file in an app that plays it (for MIDI: a MIDI player or DAW). Returns false if none is installed. */
+    fun open(file: File, format: ExportFormat): Boolean {
+        val uri = contentUri(file)
+        val view = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, format.mime)
+            clipData = ClipData.newRawUri(file.name, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        return try {
+            context.startActivity(view)
+            true
+        } catch (e: ActivityNotFoundException) {
+            false
+        }
+    }
+
+    /**
+     * Copies an export into the public Downloads/PianoScribe folder (Android 10+), where every file
+     * manager and MIDI app can find it. Returns a human-readable location, or null when the
+     * platform has no MediaStore Downloads collection (Android 8-9: use [saveTo] instead).
+     */
+    suspend fun saveToDownloads(file: File, format: ExportFormat): String? = withContext(Dispatchers.IO) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return@withContext null
+        val resolver = context.contentResolver
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, file.name)
+            put(MediaStore.MediaColumns.MIME_TYPE, format.mime)
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/PianoScribe")
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+        val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val item = resolver.insert(collection, values) ?: error("Couldn't create the file in Downloads")
+        try {
+            resolver.openOutputStream(item)?.use { out -> file.inputStream().use { it.copyTo(out) } }
+                ?: error("Couldn't write to Downloads")
+            resolver.update(item, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+        } catch (e: Exception) {
+            resolver.delete(item, null, null)
+            throw e
+        }
+        // MediaStore may rename duplicates ("Song (1).mid"), so report the name it actually used.
+        val name = resolver.query(item, arrayOf(MediaStore.MediaColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+            if (c.moveToFirst()) c.getString(0) else null
+        } ?: file.name
+        "Downloads/PianoScribe/$name"
     }
 
     /** Copies an export to a location the user picked with the system "Save as" dialog. */
