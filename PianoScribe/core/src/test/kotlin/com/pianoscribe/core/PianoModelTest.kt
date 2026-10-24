@@ -77,4 +77,18 @@ class PianoModelTest {
         assertEquals(listOf(c4.id, late.id, e4.id), out.map { it.id })
         assertEquals(listOf(c4.id), PianoEnsemble.combine(listOf(c4, ghost, e4, late), bp, keepUnconfirmed = false).map { it.id })
     }
+
+    @Test fun agreementSeparatesPianoFromUnrelatedNotes() {
+        var id = 0L
+        fun n(pitch: Int, start: Double) = Note(id++, pitch, start, 0.3, 80, 0.9f)
+        val played = (0 until 20).map { n(60 + it % 12, it * 0.5) }
+        val same = played.map { n(it.pitch, it.start + 0.02) }
+        assertEquals(1.0, PianoEnsemble.agreement(played, same), 1e-9)
+        // Basic Pitch with twice as many notes (its usual extras) still agrees well enough.
+        val withExtras = same + played.map { n(it.pitch + 12, it.start + 0.2) }
+        assertTrue(PianoEnsemble.agreement(played, withExtras) > 0.6)
+        // The piano model hearing almost nothing of what was played: not trusted.
+        assertTrue(PianoEnsemble.agreement(played.take(2), same) < PianoEnsemble.MIN_AGREEMENT)
+        assertEquals(0.0, PianoEnsemble.agreement(emptyList(), same), 0.0)
+    }
 }

@@ -145,6 +145,7 @@ class TranscriptionEngine(private val context: Context) {
             val sensitive = NotePostProcessor.process(act, SongCleanup.sensitive(settings.transcription()), NoteIdGenerator())
             if (sensitive.size > notes.size) { notes = sensitive; retried = true }
         }
+        var usedPiano = false
         if (pianoOut != null) {
             progress("Combining the piano model with Basic Pitch", 0.85f)
             val ids = NoteIdGenerator()
@@ -152,7 +153,9 @@ class TranscriptionEngine(private val context: Context) {
                 .filter { it.start < durationSec && it.pitch in settings.minPitch..settings.maxPitch }
                 .map { if (it.end > durationSec) it.copy(duration = maxOf(0.02, durationSec - it.start)) else it }
             // The piano model leads; Basic Pitch is the second opinion that weeds out its overtone ghosts.
-            if (piano.isNotEmpty()) { notes = PianoEnsemble.combine(piano, notes); retried = false }
+            // If they hardly agree, this isn't audio the piano model knows: keep Basic Pitch's notes.
+            usedPiano = PianoEnsemble.agreement(piano, notes) >= PianoEnsemble.MIN_AGREEMENT
+            if (usedPiano) { notes = PianoEnsemble.combine(piano, notes); retried = false }
         }
         if (songMode) {
             progress("Full song: cleaning up notes", 0.86f)
@@ -183,7 +186,7 @@ class TranscriptionEngine(private val context: Context) {
         notes = HandSplitter.split(notes, settings.splitPoint)
         val key = KeyDetector.detect(notes)
         progress("Done", 1f)
-        TranscriptionResult(notes, grid, key, songMode, retried, cleanup, pianoModel = pianoOut != null)
+        TranscriptionResult(notes, grid, key, songMode, retried, cleanup, pianoModel = usedPiano)
     }
 
     /**

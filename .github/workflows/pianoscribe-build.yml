@@ -278,6 +278,20 @@ jobs:
             bash scripts/release-import-check.sh test_melody.m4a
             test ! -f tests-failed
 
+      - name: Show failed device tests in full
+        if: failure()
+        working-directory: PianoScribe
+        run: |
+          python3 - <<'PY'
+          import glob, xml.etree.ElementTree as ET
+          for f in glob.glob("app/build/outputs/androidTest-results/connected/**/*.xml", recursive=True):
+              for tc in ET.parse(f).getroot().iter("testcase"):
+                  for fail in tc.findall("failure"):
+                      print(f"FAILED {tc.get('classname')}.{tc.get('name')}")
+                      print("\n".join((fail.text or "").splitlines()[:60]))
+          PY
+          test -f logcat-tests.txt && grep -B2 -A40 "FATAL EXCEPTION\|performMeasureAndLayout" logcat-tests.txt | head -150 || true
+
       - name: Upload test reports and logcat
         if: always()
         uses: actions/upload-artifact@v4

@@ -15,12 +15,32 @@ import kotlin.math.abs
  *   ([keepUnconfirmed] = false drops every unconfirmed note).
  *
  * Basic Pitch's own extra notes are never added.
+ *
+ * The piano model only knows piano recordings. On other audio (another instrument, or a part
+ * separated by spectral masking, which strips the attacks it relies on) it finds little that
+ * Basic Pitch agrees with; below [MIN_AGREEMENT] the caller should keep Basic Pitch's notes.
  */
 object PianoEnsemble {
     /** Same pitch and onsets this close count as the same note. */
     private const val MATCH_SEC = 0.05
     /** Semitone distances (from the confirmed note) where the piano model hears overtones as notes. */
     private val OVERTONES = setOf(-12, 7, 12, 19, 24, 28)
+
+    /** Below this [agreement] the piano model is not trusted for the recording. */
+    const val MIN_AGREEMENT = 0.3
+
+    /** How much the two note lists agree, 0..1: 2 x matched / (sum of sizes), like an F1 between them. */
+    fun agreement(piano: List<Note>, basicPitch: List<Note>): Double {
+        if (piano.isEmpty() || basicPitch.isEmpty()) return 0.0
+        val byPitch = basicPitch.groupBy { it.pitch }.mapValues { (_, v) -> v.sortedBy { it.start } }
+        val used = HashSet<Note>()
+        var matched = 0
+        for (h in piano.sortedBy { it.start }) {
+            val m = byPitch[h.pitch].orEmpty().firstOrNull { it !in used && abs(it.start - h.start) <= MATCH_SEC } ?: continue
+            used += m; matched++
+        }
+        return 2.0 * matched / (piano.size + basicPitch.size)
+    }
 
     fun combine(piano: List<Note>, basicPitch: List<Note>, keepUnconfirmed: Boolean = true): List<Note> {
         val bpByPitch = basicPitch.groupBy { it.pitch }

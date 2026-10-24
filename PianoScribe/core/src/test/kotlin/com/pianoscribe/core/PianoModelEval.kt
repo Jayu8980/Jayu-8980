@@ -121,6 +121,7 @@ class PianoModelEval {
         val sums = LinkedHashMap<String, DoubleArray>()
         fun add(k: String, v: Triple<Double, Double, Double>) = sums.getOrPut(k) { DoubleArray(4) }.let { it[0] += v.first; it[1] += v.second; it[2] += v.third; it[3]++ }
         var parityWorst = 1.0
+        var minAgreement = 1.0
         val fps = LinkedHashMap<String, MutableMap<String, Int>>()
         for (f in evalDir.resolve("eval22k").listFiles()!!.filter { it.name.endsWith(".f32") }.sortedBy { it.name }) {
             val name = f.name.removeSuffix(".f32")
@@ -144,7 +145,9 @@ class PianoModelEval {
                 add("$cond | $mName + Basic Pitch combined", f1(ens, truth))
                 falsePositives(ens, truth, fps.getOrPut("$cond | combined") { sortedMapOf() })
                 add("$cond | $mName + Basic Pitch, agreed only", f1(PianoEnsemble.combine(hr, bpNotes, keepUnconfirmed = false), truth))
-                println("EVAL $name $mName: ${"%.0f".format(ms)} ms for ${"%.1f".format(audio.size / 22050.0)} s")
+                val agree = PianoEnsemble.agreement(hr, bpNotes)
+                minAgreement = minOf(minAgreement, agree)
+                println("EVAL $name $mName: ${"%.0f".format(ms)} ms for ${"%.1f".format(audio.size / 22050.0)} s, agreement with Basic Pitch ${"%.2f".format(agree)}")
                 // Port check against the official Python pipeline, on its exact 16 kHz input.
                 val refFile = evalDir.resolve("reference/$name.json")
                 val in16 = evalDir.resolve("eval16k/$name.f32")
@@ -163,6 +166,8 @@ class PianoModelEval {
         for ((k, v) in sums) println("RESULT %-62s P %.3f  R %.3f  F1 %.3f".format(k, v[0] / v[3], v[1] / v[3], v[2] / v[3]))
         for ((k, v) in fps) println("FALSEPOS %-40s %s".format(k, v.entries.joinToString("  ") { "${it.key} ${it.value}" }))
         println("PARITY worst %.3f".format(parityWorst))
+        println("RESULT lowest agreement between the models %.2f (piano model used above %.2f)".format(minAgreement, PianoEnsemble.MIN_AGREEMENT))
+        assert(minAgreement >= PianoEnsemble.MIN_AGREEMENT) { "the piano model would be skipped on a piano recording" }
         assert(parityWorst > 0.99) { "Kotlin post-processing differs from the reference" }
     }
 }
