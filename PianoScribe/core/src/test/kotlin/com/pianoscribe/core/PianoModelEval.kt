@@ -86,7 +86,11 @@ class PianoModelEval {
         assumeTrue("set PIANO_ONNX, BASIC_PITCH_ONNX and EVAL_DATA to run", pianoPath != null && bpPath != null && data != null)
         val opts = OrtSession.SessionOptions().apply { setIntraOpNumThreads(Runtime.getRuntime().availableProcessors()) }
         val bp = env.createSession(bpPath, opts)
-        val models = pianoPath!!.split(",").associate { File(it).name to env.createSession(it, opts) }
+        val noOpt = OrtSession.SessionOptions().apply {
+            setIntraOpNumThreads(Runtime.getRuntime().availableProcessors())
+            setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT)
+        }
+        val models = pianoPath!!.split(",").associate { File(it).name to env.createSession(it, noOpt) }
         val evalDir = File(data!!)
         val sums = LinkedHashMap<String, DoubleArray>()
         fun add(k: String, v: Triple<Double, Double, Double>) = sums.getOrPut(k) { DoubleArray(4) }.let { it[0] += v.first; it[1] += v.second; it[2] += v.third; it[3]++ }

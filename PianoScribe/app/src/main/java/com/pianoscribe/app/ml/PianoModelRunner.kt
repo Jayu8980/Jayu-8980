@@ -41,7 +41,8 @@ object PianoModelRunner {
         val env = OrtEnvironment.getEnvironment()
         val opts = OrtSession.SessionOptions().apply {
             setIntraOpNumThreads(Runtime.getRuntime().availableProcessors().coerceIn(1, 4))
-            setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
+            // The file is optimised offline (CI) without a fusion that breaks on this model; don't redo it.
+            setOptimizationLevel(OrtSession.SessionOptions.OptLevel.NO_OPT)
         }
         env.createSession(modelFile(context).path, opts).use { session ->
             val total = PianoModel.segmentCount(audio.size)

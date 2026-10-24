@@ -27,20 +27,6 @@ note = Regress_onset_offset_frame_velocity_CRNN(frames_per_second=100, classes_n
 note.load_state_dict(ckpt["model"]["note_model"], strict=False)
 note.eval()
 
-# Fold each acoustic model's fc5 -> BatchNorm1d into one Linear: same maths, and it avoids an
-# ONNX Runtime fusion (MatMulBnFusion) that breaks on this transposed layout.
-def fold_fc5_bn5(am):
-    bn, fc = am.bn5, am.fc5
-    scale = bn.weight.data / torch.sqrt(bn.running_var.data + bn.eps)
-    folded = torch.nn.Linear(fc.in_features, fc.out_features, bias=True)
-    folded.weight.data = fc.weight.data * scale[:, None]
-    folded.bias.data = bn.bias.data - bn.running_mean.data * scale
-    am.fc5 = folded
-    am.bn5 = torch.nn.Identity()
-
-for am in (note.frame_model, note.reg_onset_model, note.reg_offset_model, note.velocity_model):
-    fold_fc5_bn5(am)
-
 class Wrap(torch.nn.Module):
     def __init__(self, m):
         super().__init__(); self.m = m
@@ -48,13 +34,31 @@ class Wrap(torch.nn.Module):
         d = self.m(audio)
         return d["reg_onset_output"], d["reg_offset_output"], d["frame_output"], d["velocity_output"]
 
-fp32 = os.path.join(out, "piano_fp32.onnx")
+raw = os.path.join(out, "piano_raw.onnx")
 with torch.no_grad():
-    torch.onnx.export(Wrap(note), torch.zeros(1, SEG), fp32, input_names=["audio"],
+    torch.onnx.export(Wrap(note), torch.zeros(1, SEG), raw, input_names=["audio"],
                       output_names=["onset", "offset", "frame", "velocity"], opset_version=17, do_constant_folding=True)
-onnx.checker.check_model(fp32)
+onnx.checker.check_model(raw)
+
+def optimize(src, dst):
+    """Optimise offline, without MatMulBnFusion (it breaks on this model's transposed
+    fc5 -> BatchNorm1d). The app then loads the result with optimisation off. EXTENDED, not ALL,
+    so no CPU-specific layouts end up in the file."""
+    so = ort.SessionOptions()
+    so.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_EXTENDED
+    so.optimized_model_filepath = dst
+    ort.InferenceSession(src, so, providers=["CPUExecutionProvider"], disabled_optimizers=["MatMulBnFusion"])
+
+fp32 = os.path.join(out, "piano_fp32.onnx")
+optimize(raw, fp32)
+# int8 for the big matrix products only: the CPU backend has no int8 version of the
+# spectrogram's convolution, and GRUs are not dynamically quantised.
+q = os.path.join(out, "piano_int8_raw.onnx")
+quantize_dynamic(raw, q, weight_type=QuantType.QInt8, op_types_to_quantize=["MatMul", "Gemm"])
 int8 = os.path.join(out, "piano_int8.onnx")
-quantize_dynamic(fp32, int8, weight_type=QuantType.QInt8)
+optimize(q, int8)
+for p in (raw, q):
+    os.remove(p)
 for p in (fp32, int8):
     print(f"MODEL {os.path.basename(p)} {os.path.getsize(p) / 1e6:.1f} MB")
 
@@ -64,15 +68,17 @@ y, _ = librosa.load(os.path.join(eval_dir, first), sr=16000, mono=True)
 seg = np.zeros((1, SEG), np.float32); seg[0, :min(SEG, len(y))] = y[:SEG]
 with torch.no_grad():
     ref = [t.numpy() for t in Wrap(note)(torch.from_numpy(seg))]
-    official = Regress_onset_offset_frame_velocity_CRNN(frames_per_second=100, classes_num=88)
-    official.load_state_dict(ckpt["model"]["note_model"], strict=False); official.eval()
-    off = [t.numpy() for t in Wrap(official)(torch.from_numpy(seg))]
-    print("FOLD max abs diff vs official:", [float(np.abs(a - b).max()) for a, b in zip(ref, off)])
+
+no_opt = ort.SessionOptions()
+no_opt.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL
 for p in (fp32, int8):
-    s = ort.InferenceSession(p, providers=["CPUExecutionProvider"])
+    s = ort.InferenceSession(p, no_opt, providers=["CPUExecutionProvider"])
+    s.run(None, {"audio": seg})
     t0 = time.time(); got = s.run(None, {"audio": seg}); dt = time.time() - t0
     errs = [float(np.abs(a - b).max()) for a, b in zip(ref, got)]
     print(f"PARITY {os.path.basename(p)} max abs diff onset/offset/frame/velocity {errs} ({dt:.2f} s per 10 s segment on this CPU)")
+    if p == fp32 and max(errs) > 1e-3:
+        sys.exit("fp32 ONNX does not match PyTorch")
 
 # ---- 3. Reference transcriptions with the official pipeline ----
 tr = PianoTranscription(device="cpu", checkpoint_path=ckpt_path)
