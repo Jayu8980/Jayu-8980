@@ -52,27 +52,35 @@ object PianoModel {
      * the frames, so the padded tail is kept too; notes past the end are trimmed by the caller.)
      */
     fun stitch(segments: List<Segment>): Output {
-        fun join(pick: (Segment) -> Array<FloatArray>): Array<FloatArray> {
-            val rows = ArrayList<FloatArray>()
-            if (segments.size == 1) {
-                rows += pick(segments[0]).toList()
-            } else {
+        val st = Stitcher(segments.size)
+        for (seg in segments) st.add(seg)
+        return st.result()
+    }
+
+    /** [stitch] one segment at a time, keeping only the frames that end up in the result. */
+    class Stitcher(private val total: Int) {
+        private val onset = ArrayList<FloatArray>()
+        private val offset = ArrayList<FloatArray>()
+        private val frame = ArrayList<FloatArray>()
+        private val velocity = ArrayList<FloatArray>()
+        private var index = 0
+
+        fun add(s: Segment) {
+            val range = if (total == 1) s.frame.indices else {
                 val n = SEGMENT_FRAMES - 1
                 val q1 = (n * 0.25).toInt()
                 val q3 = (n * 0.75).toInt()
-                segments.forEachIndexed { i, s ->
-                    val m = pick(s)
-                    val range = when (i) {
-                        0 -> 0 until q3
-                        segments.size - 1 -> q1 until n
-                        else -> q1 until q3
-                    }
-                    for (f in range) rows += m[f]
+                when (index) {
+                    0 -> 0 until q3
+                    total - 1 -> q1 until n
+                    else -> q1 until q3
                 }
             }
-            return rows.toTypedArray()
+            for (f in range) { onset += s.onset[f]; offset += s.offset[f]; frame += s.frame[f]; velocity += s.velocity[f] }
+            index++
         }
-        return Output(join { it.onset }, join { it.offset }, join { it.frame }, join { it.velocity })
+
+        fun result() = Output(onset.toTypedArray(), offset.toTypedArray(), frame.toTypedArray(), velocity.toTypedArray())
     }
 
     /** Reference thresholds. */
