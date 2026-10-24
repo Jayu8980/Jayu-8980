@@ -1,5 +1,8 @@
 package com.pianoscribe.app.export
 
+import android.content.ActivityNotFoundException
+import android.content.ClipData
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -9,6 +12,9 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import com.pianoscribe.core.analysis.AnalysisRow
 import com.pianoscribe.core.analysis.AnalysisTable
@@ -17,15 +23,23 @@ import com.pianoscribe.core.midi.MusicXmlWriter
 import com.pianoscribe.core.model.Hand
 import com.pianoscribe.core.model.Note
 import com.pianoscribe.core.model.TimeGrid
+import com.pianoscribe.core.perform.Instrument
+import com.pianoscribe.core.perform.PlayedNote
+import com.pianoscribe.core.synth.OfflineRenderer
+import com.pianoscribe.core.synth.Sf2Preset
 import com.pianoscribe.core.theory.KeyDetector
 import com.pianoscribe.core.theory.Pitch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.BufferedOutputStream
 import java.io.File
+import java.io.FileOutputStream
 import java.util.Locale
 
 enum class ExportFormat(val label: String, val ext: String, val mime: String) {
     MIDI("MIDI file (.mid)", "mid", "audio/midi"),
+    MIDI_PERFORMED("MIDI as performed: instrument + human feel (.mid)", "mid", "audio/midi"),
+    WAV("Audio of the performance (.wav)", "wav", "audio/wav"),
     MUSICXML("MusicXML for MuseScore (.musicxml)", "musicxml", "application/vnd.recordare.musicxml+xml"),
     PNG("Piano roll image (.png)", "png", "image/png"),
     NOTES_PDF("Note list (.pdf)", "pdf", "application/pdf"),
@@ -34,17 +48,37 @@ enum class ExportFormat(val label: String, val ext: String, val mime: String) {
     ANALYSIS_PDF("Analysis table (.pdf)", "pdf", "application/pdf"),
 }
 
-/** Writes exports into cache/exports and hands them to the share sheet or a chosen location. */
+/** Writes exports into cache/exports and hands them to Downloads, the share sheet, another app or a chosen location. */
 class Exporter(private val context: Context) {
-    data class Input(val title: String, val notes: List<Note>, val grid: TimeGrid, val key: KeyDetector.Key?, val saPitchClass: Int)
+    /**
+     * @param performance the notes as played on [instrument] (MIDI_PERFORMED and WAV use it)
+     * @param preset SoundFont preset for [instrument], or null for the built-in synth model
+     */
+    data class Input(
+        val title: String,
+        val notes: List<Note>,
+        val grid: TimeGrid,
+        val key: KeyDetector.Key?,
+        val saPitchClass: Int,
+        val performance: List<PlayedNote> = notes.map(PlayedNote::of),
+        val instrument: Instrument = Instrument.PIANO,
+        val preset: Sf2Preset? = null,
+        val expression: Float = 0.6f,
+    )
 
     suspend fun export(format: ExportFormat, input: Input): File = withContext(Dispatchers.IO) {
         val dir = File(context.cacheDir, "exports").apply { mkdirs() }
-        val suffix = when (format) { ExportFormat.ANALYSIS_CSV, ExportFormat.ANALYSIS_PDF -> "-analysis"; ExportFormat.NOTES_PDF, ExportFormat.NOTES_TXT -> "-notes"; else -> "" }
-        val file = File(dir, safeName(input.title) + suffix + "." + format.ext)
+        val file = File(dir, fileName(input.title, format, input.instrument))
         val rows by lazy { AnalysisTable.rows(input.notes, input.grid, input.saPitchClass, input.key) }
         when (format) {
             ExportFormat.MIDI -> file.writeBytes(MidiWriter.write(input.notes, input.grid, input.title))
+            ExportFormat.MIDI_PERFORMED -> {
+                val played = input.performance.mapIndexed { i, p -> Note(i + 1L, p.pitch, p.start, p.duration, p.velocity, 1f, p.hand) }
+                file.writeBytes(MidiWriter.write(played, input.grid, "${input.title} (${input.instrument.label})", input.instrument.gmProgram))
+            }
+            ExportFormat.WAV -> BufferedOutputStream(FileOutputStream(file), 1 shl 16).use {
+                OfflineRenderer.render(input.performance, input.instrument, input.preset, WAV_RATE, it, input.expression)
+            }
             ExportFormat.MUSICXML -> file.writeText(MusicXmlWriter.write(input.notes, input.grid, input.title, input.key?.fifths ?: 0))
             ExportFormat.PNG -> writePianoRollPng(input.notes, input.grid, file)
             ExportFormat.NOTES_TXT -> file.writeText(AnalysisTable.text(rows, input.title, input.grid, input.key?.name))
@@ -55,15 +89,71 @@ class Exporter(private val context: Context) {
         file
     }
 
+    private fun contentUri(file: File): Uri = FileProvider.getUriForFile(context, context.packageName + ".files", file)
+
     fun share(file: File, format: ExportFormat) {
-        val uri = FileProvider.getUriForFile(context, context.packageName + ".files", file)
+        val uri = contentUri(file)
         val send = Intent(Intent.ACTION_SEND).apply {
             type = format.mime
             putExtra(Intent.EXTRA_STREAM, uri)
             putExtra(Intent.EXTRA_SUBJECT, file.name)
+            // ClipData carries the read grant through the chooser to whichever app is picked;
+            // EXTRA_STREAM alone is not always granted.
+            clipData = ClipData.newRawUri(file.name, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(send, "Share ${file.name}").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        val chooser = Intent.createChooser(send, "Share ${file.name}").apply {
+            clipData = send.clipData
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(chooser)
+    }
+
+    /** Opens the file in an app that plays it (for MIDI: a MIDI player or DAW). Returns false if none is installed. */
+    fun open(file: File, format: ExportFormat): Boolean {
+        val uri = contentUri(file)
+        val view = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, format.mime)
+            clipData = ClipData.newRawUri(file.name, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        return try {
+            context.startActivity(view)
+            true
+        } catch (e: ActivityNotFoundException) {
+            false
+        }
+    }
+
+    /**
+     * Copies an export into the public Downloads/PianoScribe folder (Android 10+), where every file
+     * manager and MIDI app can find it. Returns a human-readable location, or null when the
+     * platform has no MediaStore Downloads collection (Android 8-9: use [saveTo] instead).
+     */
+    suspend fun saveToDownloads(file: File, format: ExportFormat): String? = withContext(Dispatchers.IO) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return@withContext null
+        val resolver = context.contentResolver
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, file.name)
+            put(MediaStore.MediaColumns.MIME_TYPE, format.mime)
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/PianoScribe")
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+        val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val item = resolver.insert(collection, values) ?: error("Couldn't create the file in Downloads")
+        try {
+            resolver.openOutputStream(item)?.use { out -> file.inputStream().use { it.copyTo(out) } }
+                ?: error("Couldn't write to Downloads")
+            resolver.update(item, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+        } catch (e: Exception) {
+            resolver.delete(item, null, null)
+            throw e
+        }
+        // MediaStore may rename duplicates ("Song (1).mid"), so report the name it actually used.
+        val name = resolver.query(item, arrayOf(MediaStore.MediaColumns.DISPLAY_NAME), null, null, null)?.use { c ->
+            if (c.moveToFirst()) c.getString(0) else null
+        } ?: file.name
+        "Downloads/PianoScribe/$name"
     }
 
     /** Copies an export to a location the user picked with the system "Save as" dialog. */
@@ -72,7 +162,24 @@ class Exporter(private val context: Context) {
             ?: error("Couldn't write to the chosen location")
     }
 
-    private fun safeName(s: String) = s.replace(Regex("[^A-Za-z0-9 _\\-]"), "_").trim().ifEmpty { "PianoScribe" }.take(60)
+    companion object {
+        const val WAV_RATE = 44100
+
+        /** "Song.mid", "Song-notes.pdf", "Song-flute-performed.mid", "Song-flute.wav". */
+        fun fileName(title: String?, format: ExportFormat, instrument: Instrument = Instrument.PIANO): String {
+            val inst = instrument.label.lowercase().replace(' ', '-')
+            val suffix = when (format) {
+                ExportFormat.ANALYSIS_CSV, ExportFormat.ANALYSIS_PDF -> "-analysis"
+                ExportFormat.NOTES_PDF, ExportFormat.NOTES_TXT -> "-notes"
+                ExportFormat.MIDI_PERFORMED -> "-$inst-performed"
+                ExportFormat.WAV -> "-$inst"
+                else -> ""
+            }
+            return safeName(title ?: "PianoScribe") + suffix + "." + format.ext
+        }
+
+        private fun safeName(s: String) = s.replace(Regex("[^A-Za-z0-9 _\\-]"), "_").trim().ifEmpty { "PianoScribe" }.take(60)
+    }
 
     private fun writePianoRollPng(notes: List<Note>, grid: TimeGrid, file: File) {
         val end = (notes.maxOfOrNull { it.end } ?: 1.0) + 0.5

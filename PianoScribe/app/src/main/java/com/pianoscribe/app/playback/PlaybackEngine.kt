@@ -6,8 +6,11 @@ import android.media.AudioTrack
 import com.pianoscribe.app.audio.PcmFile
 import com.pianoscribe.core.audio.TimeStretch
 import com.pianoscribe.core.model.Note
+import com.pianoscribe.core.perform.Instrument
+import com.pianoscribe.core.perform.Performer
+import com.pianoscribe.core.perform.PlayedNote
 import com.pianoscribe.core.synth.NoteSequencer
-import com.pianoscribe.core.synth.PianoSynth
+import com.pianoscribe.core.synth.InstrumentSynth
 import com.pianoscribe.core.synth.Sf2Preset
 import com.pianoscribe.core.transcribe.BasicPitch
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +26,7 @@ enum class PlayMode { NOTES, ORIGINAL, BOTH }
  * so speed changes keep the pitch), or both mixed. Song time is the master clock; loops and
  * speed changes apply on the fly.
  */
-class PlaybackEngine(preset: Sf2Preset?, private val audioFile: File?) {
+class PlaybackEngine(preset: Sf2Preset?, private val audioFile: File?, instrument: Instrument = Instrument.PIANO) {
     companion object {
         const val OUT_RATE = 44100
         private const val BLOCK = 1024
@@ -32,10 +35,11 @@ class PlaybackEngine(preset: Sf2Preset?, private val audioFile: File?) {
 
     data class State(val playing: Boolean = false, val position: Double = 0.0)
 
-    private val synth = PianoSynth(preset, OUT_RATE)
-    private val previewSynth = PianoSynth(preset, OUT_RATE)
+    private var synth = InstrumentSynth(preset, OUT_RATE, instrument)
+    private var previewSynth = InstrumentSynth(preset, OUT_RATE, instrument)
+    private var currentPreset = preset
     private val lock = Object()
-    private var notes: List<Note> = emptyList()
+    private var notes: List<PlayedNote> = emptyList()
     private var sequencer = NoteSequencer(synth, emptyList())
     private var preview: NoteSequencer? = null
     private var previewEnd = 0.0
@@ -51,6 +55,8 @@ class PlaybackEngine(preset: Sf2Preset?, private val audioFile: File?) {
     val state: StateFlow<State> = _state.asStateFlow()
 
     @Volatile private var playing = false
+    /** Whether the AudioTrack is started; a seek pauses and flushes it, so the render loop restarts it. */
+    @Volatile private var trackPlaying = false
     @Volatile private var running = true
     private var songTime = 0.0
     private var framesWritten = 0L
@@ -73,10 +79,26 @@ class PlaybackEngine(preset: Sf2Preset?, private val audioFile: File?) {
 
     private val thread = Thread({ loop() }, "PianoScribe-playback").apply { priority = Thread.MAX_PRIORITY }
 
-    fun setNotes(n: List<Note>) = synchronized(lock) {
+    /** The part to play: transcribed notes as performed on the current instrument. */
+    fun setNotes(n: List<PlayedNote>) = synchronized(lock) {
         notes = n
         sequencer = NoteSequencer(synth, n)
         sequencer.seek(songTime)
+    }
+
+    /** Switches the instrument; [expression] scales vibrato of the built-in wind and string models. */
+    fun setInstrument(instrument: Instrument, preset: Sf2Preset?, expression: Float) = synchronized(lock) {
+        if (synth.instrument != instrument || currentPreset !== preset) {
+            currentPreset = preset
+            synth = InstrumentSynth(preset, OUT_RATE, instrument)
+            previewSynth = InstrumentSynth(preset, OUT_RATE, instrument)
+            liveKeys.clear()
+            preview = null
+            sequencer = NoteSequencer(synth, notes)
+            sequencer.seek(songTime)
+        }
+        synth.expression = expression
+        previewSynth.expression = expression
     }
 
     fun play() = synchronized(lock) {
@@ -106,6 +128,7 @@ class PlaybackEngine(preset: Sf2Preset?, private val audioFile: File?) {
         fifo.clear()
         upPhase = 0.0
         runCatching { track.pause(); track.flush() }
+        trackPlaying = false
         framesWritten = 0
         basePosition = t
     }
@@ -114,7 +137,7 @@ class PlaybackEngine(preset: Sf2Preset?, private val audioFile: File?) {
     fun preview(n: List<Note>) = synchronized(lock) {
         if (n.isEmpty()) return@synchronized
         val t0 = n.minOf { it.start }
-        val shifted = n.map { it.copy(start = it.start - t0) }
+        val shifted = n.map { PlayedNote.of(it).copy(start = it.start - t0, pitch = Performer.fold(it.pitch, previewSynth.instrument)) }
         previewSynth.allNotesOff(immediate = true)
         preview = NoteSequencer(previewSynth, shifted).also { it.seek(0.0) }
         previewEnd = shifted.maxOf { it.end }.coerceAtMost(4.0) + 1.0
@@ -135,7 +158,6 @@ class PlaybackEngine(preset: Sf2Preset?, private val audioFile: File?) {
 
     private fun loop() {
         val out = FloatArray(BLOCK)
-        var trackPlaying = false
         var lastPublish = 0L
         while (running) {
             var wrote = false
@@ -167,9 +189,12 @@ class PlaybackEngine(preset: Sf2Preset?, private val audioFile: File?) {
                 }
             }
             if (wrote) {
-                if (!trackPlaying) { track.play(); trackPlaying = true }
-                track.write(out, 0, BLOCK, AudioTrack.WRITE_BLOCKING)
-                synchronized(lock) { framesWritten += BLOCK }
+                synchronized(lock) { if (!trackPlaying) { track.play(); trackPlaying = true } }
+                val n = track.write(out, 0, BLOCK, AudioTrack.WRITE_BLOCKING)
+                synchronized(lock) { framesWritten += n.coerceAtLeast(0) }
+                // A short write means the track was flushed by a seek or the audio device went away;
+                // wait one block so song time never runs ahead of real time.
+                if (n < BLOCK) try { Thread.sleep(BLOCK * 1000L / OUT_RATE) } catch (_: InterruptedException) { }
                 val now = System.nanoTime()
                 if (playing && now - lastPublish > 16_000_000L) {
                     lastPublish = now

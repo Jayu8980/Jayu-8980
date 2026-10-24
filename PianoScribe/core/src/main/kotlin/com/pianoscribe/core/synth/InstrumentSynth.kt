@@ -1,6 +1,9 @@
 package com.pianoscribe.core.synth
 
 import com.pianoscribe.core.model.Note
+import com.pianoscribe.core.perform.Instrument
+import com.pianoscribe.core.perform.PlayedNote
+import com.pianoscribe.core.perform.SoundModel
 import com.pianoscribe.core.theory.Pitch
 import kotlin.math.PI
 import kotlin.math.exp
@@ -9,22 +12,45 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
- * Lightweight polyphonic piano synth. Plays an SF2 preset when one is loaded, otherwise falls
- * back to a small additive piano model, so playback always works. Output is mono float.
+ * Lightweight polyphonic synth for every [Instrument]. Plays an SF2 preset when one is loaded
+ * (the bundled piano, or a General MIDI SoundFont program); otherwise uses the built-in model for
+ * the instrument (see ModelVoices.kt). Monophonic instruments keep one voice and glide between
+ * slurred notes instead of attacking again. Output is mono float.
  */
-class PianoSynth(private val preset: Sf2Preset?, val sampleRate: Int, private val maxVoices: Int = 64) {
-    private val voices = ArrayList<Voice>()
+class InstrumentSynth(
+    private val preset: Sf2Preset?,
+    val sampleRate: Int,
+    val instrument: Instrument = Instrument.PIANO,
+    private val maxVoices: Int = 64,
+) {
+    private val voices = ArrayList<SynthVoice>()
     var masterGain = 0.5f
+
+    /** How much vibrato the built-in wind and string models use, 0..1 (follows the human-feel setting). */
+    var expression = 0.6f
 
     val usesSoundFont: Boolean get() = preset != null
 
-    fun noteOn(key: Int, velocity: Int) {
+    private val mono: Boolean get() = instrument.monophonic
+
+    fun noteOn(key: Int, velocity: Int, slur: Boolean = false) {
         val vel = velocity.coerceIn(1, 127)
-        // Retrigger: release a voice already sounding this key.
-        voices.filter { it.key == key && !it.releasing }.forEach { it.release() }
-        val newVoices: List<Voice> = if (preset != null) {
-            preset.regionsFor(key, vel).map { SampleVoice(it, key, vel, sampleRate) }
-        } else listOf(AdditiveVoice(key, vel, sampleRate))
+        if (mono) {
+            val current = voices.lastOrNull { !it.releasing }
+            if (slur && current != null && current.canGlide) {
+                current.glideTo(key)
+                return
+            }
+            voices.filter { !it.releasing }.forEach { it.release() }
+        } else {
+            // Retrigger: release a voice already sounding this key.
+            voices.filter { it.key == key && !it.releasing }.forEach { it.release() }
+        }
+        val newVoices: List<SynthVoice> = when {
+            preset != null -> preset.regionsFor(key, vel).map { SampleVoice(it, key, vel, sampleRate) }
+            instrument.model == SoundModel.PIANO -> listOf(AdditiveVoice(key, vel, sampleRate))
+            else -> listOf(ModelVoices.create(instrument.model, key, vel, sampleRate, expression))
+        }
         voices += newVoices
         while (voices.size > maxVoices) {
             val victim = voices.minByOrNull { if (it.releasing) 0.0 else 1.0 + it.age } ?: break
@@ -51,17 +77,7 @@ class PianoSynth(private val preset: Sf2Preset?, val sampleRate: Int, private va
         }
     }
 
-    abstract class Voice(val key: Int) {
-        var releasing = false
-            protected set
-        var age = 0.0
-            protected set
-        open fun release() { releasing = true }
-        /** Adds samples; returns false when the voice has finished. */
-        abstract fun render(out: FloatArray, off: Int, len: Int, gain: Float): Boolean
-    }
-
-    private class SampleVoice(private val r: Sf2Region, key: Int, vel: Int, private val outRate: Int) : Voice(key) {
+    private class SampleVoice(private val r: Sf2Region, key: Int, vel: Int, private val outRate: Int) : SynthVoice(key) {
         private val step = 2.0.pow(((key - r.rootKey) * 100.0 + r.tuneCents) / 1200.0) * r.sampleRate / outRate
         private var pos = 0.0
         private val amp = (vel / 127.0).pow(1.6) * 10.0.pow(-r.attenuationCb / 200.0)
@@ -105,7 +121,7 @@ class PianoSynth(private val preset: Sf2Preset?, val sampleRate: Int, private va
     }
 
     /** Additive fallback: inharmonic partials with per-partial decay plus a short hammer thump. */
-    private class AdditiveVoice(key: Int, vel: Int, private val outRate: Int) : Voice(key) {
+    private class AdditiveVoice(key: Int, vel: Int, private val outRate: Int) : SynthVoice(key) {
         private val f0 = Pitch.frequency(key)
         private val nPartials = minOf(10, (outRate / 2.2 / f0).toInt()).coerceAtLeast(1)
         private val freqs = DoubleArray(nPartials)
@@ -150,15 +166,31 @@ class PianoSynth(private val preset: Sf2Preset?, val sampleRate: Int, private va
     }
 }
 
+/** One sounding note inside [InstrumentSynth]. */
+abstract class SynthVoice(key: Int) {
+    var key: Int = key
+        protected set
+    var releasing = false
+        protected set
+    var age = 0.0
+        protected set
+    /** True for voices that can change pitch smoothly (slurs on monophonic instruments). */
+    open val canGlide: Boolean get() = false
+    open fun glideTo(newKey: Int) { key = newKey }
+    open fun release() { releasing = true }
+    /** Adds samples; returns false when the voice has finished. */
+    abstract fun render(out: FloatArray, off: Int, len: Int, gain: Float): Boolean
+}
+
 /**
- * Turns a note list into synth events while rendering, so playback can run at any speed without
+ * Turns played notes into synth events while rendering, so playback can run at any speed without
  * changing pitch: song time advances by speed * (1 / sampleRate) per output frame.
  */
-class NoteSequencer(private val synth: PianoSynth, notes: List<Note>) {
-    private class Ev(val time: Double, val on: Boolean, val key: Int, val vel: Int)
+class NoteSequencer(private val synth: InstrumentSynth, notes: List<PlayedNote>) {
+    private class Ev(val time: Double, val on: Boolean, val key: Int, val vel: Int, val slur: Boolean)
 
     private val events: List<Ev> = notes.flatMap {
-        listOf(Ev(it.start, true, it.pitch, it.velocity), Ev(it.end, false, it.pitch, 0))
+        listOf(Ev(it.start, true, it.pitch, it.velocity, it.slur), Ev(it.end, false, it.pitch, 0, false))
     }.sortedWith(compareBy<Ev>({ it.time }, { if (it.on) 1 else 0 }))
     private var next = 0
     var songTime = 0.0
@@ -180,7 +212,7 @@ class NoteSequencer(private val synth: PianoSynth, notes: List<Note>) {
             val blockEnd = songTime + n * dtSong
             while (next < events.size && events[next].time < blockEnd) {
                 val e = events[next++]
-                if (e.on) synth.noteOn(e.key, e.vel) else synth.noteOff(e.key)
+                if (e.on) synth.noteOn(e.key, e.vel, e.slur) else synth.noteOff(e.key)
             }
             synth.render(out, off + done, n)
             songTime = blockEnd
@@ -189,4 +221,9 @@ class NoteSequencer(private val synth: PianoSynth, notes: List<Note>) {
     }
 
     val finished: Boolean get() = next >= events.size && synth.activeVoices == 0
+
+    companion object {
+        /** Plays transcribed notes exactly as written. */
+        fun forNotes(synth: InstrumentSynth, notes: List<Note>) = NoteSequencer(synth, notes.map(PlayedNote::of))
+    }
 }

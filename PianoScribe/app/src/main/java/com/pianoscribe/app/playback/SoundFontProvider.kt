@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.util.Log
 import com.pianoscribe.app.data.SettingsStore
+import com.pianoscribe.core.perform.Instrument
 import com.pianoscribe.core.synth.ArrayByteSource
 import com.pianoscribe.core.synth.ByteSource
 import com.pianoscribe.core.synth.Sf2Preset
@@ -15,41 +16,53 @@ import kotlinx.coroutines.withContext
 import java.io.FileInputStream
 
 /**
- * Loads the piano preset: a user-chosen .sf2 (via the document picker) or the bundled
- * PianoScribe Grand. Returns null only if both fail, in which case the synth uses its additive model.
+ * Loads instrument presets: from a user-chosen .sf2 (via the document picker) or, for the piano,
+ * the bundled PianoScribe Grand. A null preset means the synth uses its built-in model.
  */
 class SoundFontProvider(private val context: Context, private val settings: SettingsStore) {
     private val lock = Mutex()
-    private var cachedKey: String? = null
-    private var cached: Sf2Preset? = null
+    private val cache = HashMap<String, java.util.Optional<Sf2Preset>>()
 
     var lastError: String? = null
         private set
 
-    suspend fun preset(): Sf2Preset? = lock.withLock {
-        val key = settings.value.customSoundFont ?: BUNDLED
-        if (key == cachedKey) return@withLock cached
+    /**
+     * Sample-based preset for [instrument], or null when the built-in synth model should be used.
+     * Piano: the custom SoundFont's piano, else the bundled one. Other instruments: the custom
+     * SoundFont's General MIDI program for that instrument, if it has one (the bundled font is piano only).
+     */
+    suspend fun preset(instrument: Instrument = Instrument.PIANO): Sf2Preset? = lock.withLock {
+        val custom = settings.value.customSoundFont
+        val key = (custom ?: BUNDLED) + "#" + instrument.name
+        cache[key]?.let { return@withLock it.orElse(null) }
         val p = withContext(Dispatchers.IO) {
-            if (key != BUNDLED) {
-                runCatching { loadUri(Uri.parse(key)) }.onFailure {
-                    lastError = "Couldn't load the custom SoundFont (${it.message}); using the built-in piano."
-                    Log.w("PianoScribe", "custom sf2", it)
-                }.getOrNull() ?: loadBundled()
-            } else loadBundled()
+            when {
+                instrument == Instrument.PIANO && custom != null ->
+                    runCatching { loadUri(Uri.parse(custom), 0) }.onFailure {
+                        lastError = "Couldn't load the custom SoundFont (${it.message}); using the built-in piano."
+                        Log.w("PianoScribe", "custom sf2", it)
+                    }.getOrNull() ?: loadBundled()
+                instrument == Instrument.PIANO -> loadBundled()
+                custom != null -> runCatching { loadUri(Uri.parse(custom), instrument.gmProgram) }.getOrNull()
+                else -> null
+            }
         }
-        cachedKey = key
-        cached = p
+        cache[key] = java.util.Optional.ofNullable(p)
         p
     }
 
-    fun invalidate() { cachedKey = null; cached = null }
+    fun invalidate() { cache.clear() }
 
     private fun loadBundled(): Sf2Preset? = runCatching {
         val bytes = context.assets.open(BUNDLED_ASSET).use { it.readBytes() }
         Sf2Reader.load(ArrayByteSource(bytes))
     }.onFailure { Log.e("PianoScribe", "bundled sf2", it) }.getOrNull()
 
-    private fun loadUri(uri: Uri): Sf2Preset {
+    /**
+     * Loads bank 0 [program] from a user SoundFont. For anything but the piano the program must
+     * really exist: Sf2Reader falls back to the first preset, which would play a piano as a flute.
+     */
+    private fun loadUri(uri: Uri, program: Int): Sf2Preset? {
         val pfd = context.contentResolver.openFileDescriptor(uri, "r") ?: throw IllegalStateException("cannot open")
         pfd.use {
             FileInputStream(it.fileDescriptor).use { fis ->
@@ -66,7 +79,8 @@ class SoundFontProvider(private val context: Context, private val settings: Sett
                         }
                     }
                 }
-                return Sf2Reader.load(src, 0, 0)
+                if (program != 0 && Sf2Reader.listPresets(src).none { it.bank == 0 && it.program == program }) return null
+                return Sf2Reader.load(src, 0, program)
             }
         }
     }

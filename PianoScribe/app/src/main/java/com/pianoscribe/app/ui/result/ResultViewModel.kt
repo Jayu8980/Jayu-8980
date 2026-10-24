@@ -5,6 +5,9 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.pianoscribe.app.AppContainer
+import com.pianoscribe.app.compare.CompareEngine
+import com.pianoscribe.app.compare.CompareReport
+import com.pianoscribe.app.compare.FixResult
 import com.pianoscribe.app.audio.PcmFile
 import com.pianoscribe.app.data.Notation
 import com.pianoscribe.app.data.ProjectEntity
@@ -24,8 +27,12 @@ import com.pianoscribe.core.model.Hand
 import com.pianoscribe.core.model.Note
 import com.pianoscribe.core.model.NoteIdGenerator
 import com.pianoscribe.core.model.TimeGrid
+import com.pianoscribe.core.perform.Instrument
+import com.pianoscribe.core.perform.Performer
+import com.pianoscribe.core.perform.PlayedNote
 import com.pianoscribe.core.rhythm.Quantizer
 import com.pianoscribe.core.rhythm.TempoDetector
+import com.pianoscribe.core.synth.Sf2Preset
 import com.pianoscribe.core.theory.Fingering
 import com.pianoscribe.core.theory.KeyDetector
 import com.pianoscribe.core.theory.Pitch
@@ -80,6 +87,18 @@ data class SpectrumData(
     val measuredCents: Float,
 )
 
+/** State of the Compare tab. */
+data class CompareUi(
+    val running: Boolean = false,
+    val step: String = "",
+    val progress: Float = 0f,
+    val report: CompareReport? = null,
+    /** The notes the report describes; when the notes change the report is out of date. */
+    val reportNotes: List<Note>? = null,
+    val lastFix: FixResult? = null,
+    val error: String? = null,
+)
+
 class ResultViewModel(app: Application, private val container: AppContainer, private val projectId: Long) : AndroidViewModel(app) {
     data class UiState(
         val loading: Boolean = true,
@@ -104,6 +123,7 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
         val spectrumLoading: Boolean = false,
         val message: String? = null,
         val usingSoundFont: Boolean = true,
+        val compare: CompareUi = CompareUi(),
     )
 
     private val _state = MutableStateFlow(UiState())
@@ -120,6 +140,12 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
     private var history = EditHistory<List<Note>>(emptyList())
     private val ids = NoteIdGenerator()
     private var engine: PlaybackEngine? = null
+    private var compareEngine: CompareEngine? = null
+    private var compareJob: Job? = null
+    private var preset: Sf2Preset? = null
+    private var performJob: Job? = null
+    /** The notes as performed on the current instrument (what playback and "performed" exports use). */
+    @Volatile private var performance: List<PlayedNote> = emptyList()
     private var saveJob: Job? = null
     private var deriveJob: Job? = null
     private var practiceJob: Job? = null
@@ -133,15 +159,17 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
             history.reset(p.notes)
             ids.advancePast(p.notes)
             val audio = container.repository.audioFile(p.entity).takeIf { p.entity.audioPath.isNotEmpty() && it.exists() }
-            val preset = container.soundFonts.preset()
+            val instrument = settings.value.instrument
+            preset = container.soundFonts.preset(instrument)
             container.soundFonts.lastError?.let { msg(it) }
-            val e = PlaybackEngine(preset, audio).apply {
+            val e = PlaybackEngine(preset, audio, instrument).apply {
                 duration = p.entity.durationSec
-                setNotes(p.notes)
+                setInstrument(instrument, preset, settings.value.humanFeel)
             }
             engine = e
             _state.update { it.copy(loading = false, project = p.entity, grid = p.grid, hasAudio = audio != null, usingSoundFont = preset != null) }
             derive(p.notes)
+            perform()
             launch { e.state.collect { s -> _position.value = s.position; _playing.value = s.playing } }
         }
         viewModelScope.launch {
@@ -188,9 +216,48 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
     }
 
     private fun applyNotes(notes: List<Note>) {
-        engine?.setNotes(notes)
+        perform()
         derive(notes)
         scheduleSave()
+    }
+
+    /**
+     * Rebuilds the performed part from the current notes, instrument and human feel. The final
+     * slow-down is left out in A/B mode so the part stays in time with the original recording.
+     */
+    private fun perform(debounceMs: Long = 0) {
+        performJob?.cancel()
+        performJob = viewModelScope.launch {
+            if (debounceMs > 0) delay(debounceMs)
+            val s = _state.value
+            val cfg = settings.value
+            val notes = history.current
+            val part = withContext(Dispatchers.Default) {
+                Performer.perform(notes, s.grid, cfg.instrument, Performer.Options(cfg.humanFeel, seed = projectId, tempoChanges = s.mode != PlayMode.BOTH))
+            }
+            performance = part
+            engine?.setNotes(part)
+        }
+    }
+
+    fun setInstrument(instrument: Instrument) {
+        container.settings.update { it.copy(instrument = instrument) }
+        viewModelScope.launch {
+            val p = container.soundFonts.preset(instrument)
+            preset = p
+            engine?.setInstrument(instrument, p, settings.value.humanFeel)
+            _state.update { it.copy(usingSoundFont = p != null) }
+            perform()
+            if (instrument.monophonic) msg("${instrument.label} plays one note at a time, so it plays the melody.")
+            else if (instrument.maxNotes < 32) msg("${instrument.label} plays up to ${instrument.maxNotes} notes at once.")
+        }
+    }
+
+    fun setHumanFeel(feel: Float) {
+        val f = feel.coerceIn(0f, 1f)
+        container.settings.update { it.copy(humanFeel = f) }
+        engine?.setInstrument(settings.value.instrument, preset, f)
+        perform(debounceMs = 150)
     }
 
     /** True while edits are not yet written to the database. */
@@ -282,18 +349,21 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
             commit(notes)
         } else {
             _state.update { it.copy(grid = g.copy(bpm = newBpm, offset = TempoDetector.phase(history.current.ifEmpty { listOf(Note(0, 60, 0.0, 1.0, 1, 1f)) }, 60 / newBpm))) }
+            perform()
             scheduleSave()
         }
     }
 
     fun setMeter(beatsPerBar: Int) {
         _state.update { it.copy(grid = it.grid.copy(beatsPerBar = beatsPerBar.coerceIn(2, 12))) }
+        perform()
         scheduleSave()
     }
 
     fun redetectTempo() {
         val g = TempoDetector.detect(history.current, _state.value.grid.beatsPerBar)
         _state.update { it.copy(grid = g) }
+        perform()
         scheduleSave()
         msg("Tempo ${Math.round(g.bpm)} BPM")
     }
@@ -358,8 +428,10 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
 
     fun setMode(m: PlayMode) {
         if (m != PlayMode.NOTES && !_state.value.hasAudio) { msg("The original audio isn't available for this project"); return }
+        val wasBoth = _state.value.mode == PlayMode.BOTH
         engine?.mode = m
         _state.update { it.copy(mode = m) }
+        if (wasBoth != (m == PlayMode.BOTH)) perform()
     }
 
     fun setSpeed(x: Double) {
@@ -562,25 +634,127 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
         }
     }
 
+    // ---------------------------------------------------------------- compare with the recording
+
+    /** True when the current notes are not the ones the last comparison looked at. */
+    val compareIsStale: Boolean get() = _state.value.compare.reportNotes.let { it != null && it !== history.current }
+
+    private fun compareEngine(): CompareEngine? {
+        compareEngine?.let { return it }
+        val p = _state.value.project ?: return null
+        val file = container.repository.audioFile(p)
+        if (p.audioPath.isEmpty() || !file.exists()) return null
+        return CompareEngine(getApplication(), file, p.source.contains("full song")) { container.soundFonts.preset(it) }.also { compareEngine = it }
+    }
+
+    private fun setCompare(transform: (CompareUi) -> CompareUi) = _state.update { it.copy(compare = transform(it.compare)) }
+
+    fun runCompare() {
+        val ce = compareEngine() ?: run { msg("The original recording isn't available for this project"); return }
+        if (history.current.isEmpty()) { msg("There are no notes to compare yet"); return }
+        engine?.pause()
+        compareJob?.cancel()
+        val notes = history.current
+        compareJob = viewModelScope.launch {
+            setCompare { it.copy(running = true, step = "Starting", progress = 0f, error = null, lastFix = null) }
+            try {
+                val report = ce.compare(notes) { step, p -> setCompare { it.copy(step = step, progress = p) } }
+                setCompare { it.copy(running = false, report = report, reportNotes = notes) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                setCompare { it.copy(running = false) }
+                throw e
+            } catch (e: Throwable) {
+                setCompare { it.copy(running = false, error = e.message ?: e.javaClass.simpleName) }
+            }
+        }
+    }
+
+    fun runAutoFix() {
+        val ce = compareEngine() ?: return
+        val c = _state.value.compare
+        val before = c.report ?: return
+        if (c.reportNotes !== history.current) { runCompare(); msg("The notes changed, so they were compared again first. Tap auto-fix once more."); return }
+        engine?.pause()
+        compareJob?.cancel()
+        val notes = history.current
+        val split = _state.value.project?.splitPoint ?: Note.MIDDLE_C
+        compareJob = viewModelScope.launch {
+            setCompare { it.copy(running = true, step = "Fixing notes", progress = 0f, error = null) }
+            try {
+                val result = ce.autoFix(notes, before, ids, split) { step, p -> setCompare { it.copy(step = step, progress = p) } }
+                if (result.accepted) {
+                    commit(result.notes)
+                    setCompare { it.copy(running = false, report = result.after, reportNotes = history.current, lastFix = result) }
+                    msg("Fixed: ${result.changes.removed} removed, ${result.changes.added} added, ${result.changes.merged} joined. Undo to go back.")
+                } else {
+                    setCompare { it.copy(running = false, lastFix = result) }
+                    msg("No change made the MIDI sound closer to the recording, so nothing was changed.")
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                setCompare { it.copy(running = false) }
+                throw e
+            } catch (e: Throwable) {
+                setCompare { it.copy(running = false, error = e.message ?: e.javaClass.simpleName) }
+            }
+        }
+    }
+
+    fun cancelCompare() { compareJob?.cancel() }
+
     // ---------------------------------------------------------------- export
 
     private fun exportInput(): Exporter.Input {
         val s = _state.value
-        return Exporter.Input(s.project?.name ?: "PianoScribe", history.current, s.grid, s.derived.key, settings.value.saPitchClass)
+        val cfg = settings.value
+        // Exports always include the final slow-down; only A/B playback leaves it out.
+        val part = if (s.mode == PlayMode.BOTH) {
+            Performer.perform(history.current, s.grid, cfg.instrument, Performer.Options(cfg.humanFeel, seed = projectId))
+        } else performance
+        return Exporter.Input(
+            s.project?.name ?: "PianoScribe", history.current, s.grid, s.derived.key, cfg.saPitchClass,
+            performance = part, instrument = cfg.instrument, preset = preset, expression = cfg.humanFeel,
+        )
+    }
+
+    private fun exportable(): Boolean {
+        if (history.current.isNotEmpty()) return true
+        msg("There are no notes to export yet")
+        return false
     }
 
     fun share(format: ExportFormat) {
+        if (!exportable()) return
         viewModelScope.launch {
             runCatching { exporter.share(exporter.export(format, exportInput()), format) }
-                .onFailure { msg("Export failed: ${it.message}") }
+                .onFailure { msg("Export failed: ${it.message ?: it.javaClass.simpleName}") }
+        }
+    }
+
+    /** One-tap save into Downloads/PianoScribe. On Android 8-9 calls [onUnsupported] so the caller can fall back to "Save as". */
+    fun saveToDownloads(format: ExportFormat, onUnsupported: () -> Unit) {
+        if (!exportable()) return
+        viewModelScope.launch {
+            runCatching { exporter.saveToDownloads(exporter.export(format, exportInput()), format) }
+                .onSuccess { where -> if (where == null) onUnsupported() else msg("Saved to $where") }
+                .onFailure { msg("Save failed: ${it.message ?: it.javaClass.simpleName}") }
+        }
+    }
+
+    fun open(format: ExportFormat) {
+        if (!exportable()) return
+        viewModelScope.launch {
+            runCatching { exporter.open(exporter.export(format, exportInput()), format) }
+                .onSuccess { opened -> if (!opened) msg("No app on this phone can open ${format.ext.uppercase()} files. Use Save or Share instead.") }
+                .onFailure { msg("Export failed: ${it.message ?: it.javaClass.simpleName}") }
         }
     }
 
     fun saveTo(format: ExportFormat, uri: Uri) {
+        if (!exportable()) return
         viewModelScope.launch {
             runCatching { exporter.saveTo(exporter.export(format, exportInput()), uri) }
-                .onSuccess { msg("Saved") }
-                .onFailure { msg("Save failed: ${it.message}") }
+                .onSuccess { msg("Saved ${format.ext.uppercase()} file") }
+                .onFailure { msg("Save failed: ${it.message ?: it.javaClass.simpleName}") }
         }
     }
 

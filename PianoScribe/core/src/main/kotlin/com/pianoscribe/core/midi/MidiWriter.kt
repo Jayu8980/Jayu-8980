@@ -10,12 +10,13 @@ import kotlin.math.roundToLong
 
 /**
  * Standard MIDI File writer: Type 1 with a conductor track (tempo, time signature) and one track
- * per hand (Right Hand on channel 1, Left Hand on channel 2), both Acoustic Grand Piano.
+ * per hand (Right Hand on channel 1, Left Hand on channel 2). Both use General MIDI [program]
+ * (0 = Acoustic Grand Piano).
  */
 object MidiWriter {
     const val PPQ = 480
 
-    fun write(notes: List<Note>, grid: TimeGrid, title: String = "PianoScribe"): ByteArray {
+    fun write(notes: List<Note>, grid: TimeGrid, title: String = "PianoScribe", program: Int = 0): ByteArray {
         val out = ByteArrayOutputStream()
         out.write("MThd".toByteArray(Charsets.US_ASCII))
         out.write(int32(6))
@@ -23,8 +24,8 @@ object MidiWriter {
         out.write(int16(3)) // tracks
         out.write(int16(PPQ))
         writeTrack(out, conductorTrack(grid, title))
-        writeTrack(out, noteTrack(notes.filter { it.hand == Hand.RIGHT }, grid, "Right Hand", 0))
-        writeTrack(out, noteTrack(notes.filter { it.hand == Hand.LEFT }, grid, "Left Hand", 1))
+        writeTrack(out, noteTrack(notes.filter { it.hand == Hand.RIGHT }, grid, "Right Hand", 0, program))
+        writeTrack(out, noteTrack(notes.filter { it.hand == Hand.LEFT }, grid, "Left Hand", 1, program))
         return out.toByteArray()
     }
 
@@ -47,10 +48,10 @@ object MidiWriter {
 
     private class Ev(val tick: Long, val on: Boolean, val pitch: Int, val vel: Int)
 
-    private fun noteTrack(notes: List<Note>, grid: TimeGrid, name: String, channel: Int): ByteArray {
+    private fun noteTrack(notes: List<Note>, grid: TimeGrid, name: String, channel: Int, program: Int): ByteArray {
         val t = ByteArrayOutputStream()
         t.write(vlq(0)); meta(t, 0x03, name.toByteArray(Charsets.UTF_8))
-        t.write(vlq(0)); t.write(0xC0 or channel); t.write(0) // Program 0: Acoustic Grand Piano
+        t.write(vlq(0)); t.write(0xC0 or channel); t.write(program.coerceIn(0, 127))
         val evs = ArrayList<Ev>(notes.size * 2)
         for (n in notes) {
             val on = ticks(n.start, grid)

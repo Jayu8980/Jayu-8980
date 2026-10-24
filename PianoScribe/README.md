@@ -7,7 +7,9 @@
 - minSdk 26 (Android 8.0), targetSdk 35, compileSdk 36. Package `com.pianoscribe.app`.
 
 > **Accuracy note:** results are best for **solo piano or a single instrument**. Full-band songs (drums, vocals,
-> bass, several instruments) give *approximate* results: expect extra and missing notes.
+> bass, several instruments) give *approximate* results. **Full-song mode** (picked automatically, or chosen on the
+> trim screen) removes the drums first and cleans up the notes, which makes songs far cleaner, but expect some
+> extra and missing notes.
 
 ## Features
 
@@ -15,11 +17,14 @@
 |---|---|
 | Input | Import MP3, WAV, M4A, AAC, OGG, FLAC with the system file picker (Storage Access Framework, no storage permission), or record from the microphone (live waveform, max 10 min). Trim start and end with a preview before converting. You can also "Share" or "Open with" audio into the app. |
 | Transcription | MediaExtractor + MediaCodec decode → mono → 22 050 Hz (band-limited resampler) → Spotify **Basic Pitch** in overlapping 2 s windows on a background thread with progress and cancel → note extraction (onset, note and contour outputs) → pitch, start, duration, velocity, confidence and tuning in cents. |
+| Full songs | **Audio type: Auto / Solo piano / Full song.** Auto runs a quick harmonic/percussive separation on three excerpts and switches to full-song mode when drums are present. Full-song mode removes the drums before the model listens (median-filter HPSS), then drops overtone ghosts (octave / octave+fifth above a clearly louder note), faint background notes (below 55% of the loudest nearby note) and extra simultaneous notes (max 4 RH / 3 LH). If any audio gives too few notes, a more sensitive pass runs automatically. |
 | Settings | Onset threshold, note threshold, minimum note length (ms), pitch range limited to piano A0–C8 (MIDI 21–108), "piano only" quantisation to 1/8 or 1/16 with auto-detected tempo (editable BPM), RH/LH split point (default middle C). |
 | Views | Piano roll (scroll, pinch-zoom, keyboard on the left, colour by hand, playhead), Synthesia-style falling notes with an on-screen keyboard and finger numbers, simple grand-staff sheet music, note list with Western (C D E) or Indian Sargam (Sa Re Ga) names. |
 | Editing | Tap to select, drag to move, drag the end to resize, long-press to delete, double-tap to add (edit mode), undo/redo, transpose ±12, tempo change (re-grid or stretch), quantise, hand split. |
+| Compare & auto-fix | **Compare** tab: the MIDI is turned back into sound and compared with your recording. Shows the share of notes the recording confirms (an estimate of how many are right), outlines the unconfirmed notes on a piano roll, lists notes that seem to be missing, and colours each second by how well it matches. **Auto-fix** removes notes the recording doesn't contain, adds ones it clearly does and joins split notes, keeping a change only if the MIDI sounds closer to the recording. Undoable; verified notes are never touched. |
+| Instruments & human feel | Play the (edited) notes on **Piano, Electric piano, Flute, Clarinet, Violin, Cello, Nylon guitar, Harp or Church organ** (instrument chip above the transport bar). Flute, clarinet, violin and cello play one note at a time, so they get the melody line, moved by octaves into their range; guitar plays at most 6 notes at once. The **Human feel** slider (0 = exactly as written) adds what a player does: phrase dynamics, beat accents, melody voiced above the chords, small correlated timing drift, chords rolled low to high (harp) or strummed (guitar), legato, breaths between wind phrases, slurs between close notes (the synth glides instead of re-attacking), delayed vibrato on long wind/string notes, and a slow-down over the last bars. The performance can be saved as MIDI (with the instrument's General MIDI program) or as a WAV audio file. |
 | Playback | Transcribed notes with the bundled piano SoundFont, the original audio, or both mixed (A/B). Speed 0.25x–2x (original audio is time-stretched, so pitch stays the same). A-B loop or "loop selected bar". |
-| Export | Standard MIDI File (Type 1, conductor track with tempo + time signature, separate Right Hand / Left Hand tracks, Acoustic Grand Piano), MusicXML for MuseScore, piano roll PNG, note list PDF/TXT, analysis table CSV/PDF. Share sheet or "Save to…". Projects are stored in a local Room database. |
+| Export | Standard MIDI File (Type 1, conductor track with tempo + time signature, separate Right Hand / Left Hand tracks, Acoustic Grand Piano), MusicXML for MuseScore, piano roll PNG, note list PDF/TXT, analysis table CSV/PDF. Tap **MIDI** in the result screen's top bar: one tap saves to `Downloads/PianoScribe` (Android 10+), or open it in a MIDI app, share it, or "Save as…" to any folder. Other formats are under ⋮ → Export. Projects are stored in a local Room database. |
 | Note-by-note analyser | Next/Previous buttons and swipe, plays just that note/chord, piano roll scrolls to it, 88-key keyboard lights the keys with suggested fingers. Detail card: note + octave, Sargam, MIDI number, Hz, start, duration in seconds and note value, Bar/Beat, velocity, hand, finger, confidence (low confidence highlighted), cents sharp/flat with a tuner needle, chord name + notes + inversion, key and per-section key with out-of-key marking, interval from the previous note and direction, spectrum view with harmonic markers plus the model's pitch contour. Fix-it actions: ±1 semitone, octave up/down, split, merge with next, delete, mark verified. Filters: next low-confidence note, next chord, RH/LH only. |
 | Practice mode | The app plays the note; you play it on a real piano (microphone, YIN pitch detection) or a USB / Bluetooth LE MIDI keyboard (`android.media.midi`). Shows ✓ or ✗ with cents off and only moves on when correct. |
 
@@ -104,6 +109,42 @@ Android Studio alternative: **Build → Generate Signed App Bundle / APK → APK
 5. **Tempo, hands, key**: onset autocorrelation with a tempo prior plus beat-phase search, RH/LH split, and
    Krumhansl–Kessler key finding (whole song and per 16 s section). "Piano only" mode quantises to the grid.
 
+6. **Full songs**: before step 2, harmonic/percussive separation (median filtering along time and frequency, soft
+   mask, 2048-point STFT) keeps tones and drops drum hits; after step 3 the note list is cleaned up as described above.
+
+   Measured on two synthetic songs (piano chords + melody + drum kit, scored against the known notes: right pitch,
+   onset within 50 ms). The second song was not used for tuning:
+
+   | | Song 1 notes / correct / F1 | Song 2 (held out) notes / correct / F1 |
+   |---|---|---|
+   | Mix as-is (before) | 251 / 69 of 70 / 0.43 | 263 / 79 of 80 / 0.46 |
+   | Full-song mode | 75 / 63 of 70 / 0.87 | 94 / 74 of 80 / 0.85 |
+
+   Real recordings (vocals, reverb, mastering) are harder than these synthetic songs, so expect lower numbers there.
+
+7. **Compare & auto-fix** (`core/compare`): two independent listeners.
+   - The *note model* hears the recording and the MIDI rendered as piano; comparing the two (which keys sound when,
+     where notes start) finds stretches the MIDI misses and notes split in two.
+   - A *spectral judge* resynthesises each short stretch with and without a note, using the instrument whose sound is
+     closest to the recording (piano, electric piano, guitar, harp, organ, or a wind/string for single-line music), and
+     keeps the note only if the version with it is closer to the recording in a semitone-band log spectrogram. This
+     catches notes the model imagined, which the model itself would "hear" again in its own output.
+   - A round of fixes is accepted only if the whole-piece spectral difference goes down.
+
+   Measured with the real model on synthetic test pieces with known notes (F1: right pitch, onset within 50 ms):
+
+   | Test piece | Before | After auto-fix |
+   |---|---|---|
+   | Solo piano, song 1 / song 2 | 0.67 / 0.69 | 0.90 / 0.92 |
+   | Full song (piano + drums), song 1 / song 2 | 0.87 / 0.85 | 0.95 / 0.94 |
+   | Electric piano | 0.61 | 0.96 |
+   | Piano with room reverb and EQ, song 1 / song 2 | 0.58 / 0.54 | 0.73 / 0.69 |
+
+   The confirmed-notes share tracked the true precision within about ±0.1 before fixing. The reverb rows are the most
+   realistic: expect real recordings to land nearer those numbers than the clean ones. 100% is not reachable in
+   general: no resynthesis sounds exactly like a real instrument in a real room, and notes hidden under others or
+   under drums can't always be recovered.
+
 Performance: a 5-minute song is about 185 model windows; on a mid-range phone conversion takes well under two minutes.
 Audio is processed in chunks and read from disk by range to avoid running out of memory.
 
@@ -112,6 +153,7 @@ Audio is processed in chunks and read from disk by range to avoid running out of
 | Asset | Source | License |
 |---|---|---|
 | `models/basic_pitch_nmp.tflite` | Spotify Basic Pitch, ICASSP 2022 model, `basic_pitch/saved_models/icassp_2022/nmp.tflite` from the `basic-pitch` 0.4.0 package on PyPI ([github.com/spotify/basic-pitch](https://github.com/spotify/basic-pitch)). SHA-256 `3db297d54af8e01c6e5618245c956b1d71b6a2b978cb2dedb527173186552676`. | Apache License 2.0, © 2022 Spotify AB (full text in `assets/licenses/`) |
+| Other instruments | No samples: synthesised on the phone by `core/.../synth/ModelVoices.kt` (wavetables with breath/bow noise and vibrato, Karplus-Strong plucked strings, FM electric piano, additive organ). With a General MIDI SoundFont loaded in Settings, its sample for that instrument is used instead. | Apache License 2.0 (part of this project) |
 | `soundfonts/pianoscribe_piano.sf2` | Generated by this project's own additive piano model (`core/.../synth/PianoSampleGenerator.kt`): 22 samples, one every 4 semitones, 24 kHz. Regenerate with `./gradlew :core:generateSoundFont`. | Apache License 2.0 (part of this project) |
 
 You can load any other General MIDI SoundFont (for example a Salamander or FluidR3 piano `.sf2`) in
@@ -131,7 +173,8 @@ No storage permission (the system file picker grants access per file) and **no i
 `./gradlew :core:test` covers: MIDI writer (exact bytes, VLQ, round trip), resampler (length, frequency, level,
 anti-aliasing, streaming = one-shot), note post-processing (window geometry, stitching, onsets, energy tolerance,
 melodia trick, pitch range, inferred onsets), quantiser, tempo detection, chord naming and inversions, key detection,
-cents calculation and measurement, bar:beat conversion, note values, intervals, Sargam, MusicXML well-formedness and
+cents calculation and measurement, bar:beat conversion, harmonic/percussive separation (tones kept, drums removed,
+solo piano vs. piano + drums detection), song clean-up (overtone ghosts, quiet notes, polyphony limit), note values, intervals, Sargam, MusicXML well-formedness and
 measure layout, analyser steps/filters, CSV export, fingering, undo/redo and edit operations, SF2 write/read and
 playback, time-stretch and YIN.
 

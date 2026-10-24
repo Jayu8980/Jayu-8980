@@ -8,7 +8,7 @@ import com.pianoscribe.core.model.Note
 import com.pianoscribe.core.synth.ArrayByteSource
 import com.pianoscribe.core.synth.NoteSequencer
 import com.pianoscribe.core.synth.PianoSampleGenerator
-import com.pianoscribe.core.synth.PianoSynth
+import com.pianoscribe.core.synth.InstrumentSynth
 import com.pianoscribe.core.synth.Sf2Reader
 import com.pianoscribe.core.synth.Sf2Writer
 import com.pianoscribe.core.theory.Pitch
@@ -38,7 +38,7 @@ class SynthAndDspTest {
         assertEquals(69, r.rootKey); assertEquals(sr, r.sampleRate); assertEquals(tone.size, r.sample.size)
         assertEquals(0.35, r.release, 0.01)
 
-        val synth = PianoSynth(preset, 44100)
+        val synth = InstrumentSynth(preset, 44100)
         synth.noteOn(81, 100) // an octave above the sample root
         val out = FloatArray(20000)
         synth.render(out, 0, out.size)
@@ -49,7 +49,7 @@ class SynthAndDspTest {
         val bytes = PianoSampleGenerator.buildSoundFont()
         val preset = Sf2Reader.load(ArrayByteSource(bytes))
         for (k in 21..108) assertTrue("key $k", preset.regions.any { it.matches(k, 100) })
-        val synth = PianoSynth(preset, 44100)
+        val synth = InstrumentSynth(preset, 44100)
         synth.noteOn(57, 110)
         val out = FloatArray(44100)
         synth.render(out, 0, out.size)
@@ -58,14 +58,14 @@ class SynthAndDspTest {
     }
 
     @Test fun fallbackSynthAndSequencer() {
-        val synth = PianoSynth(null, 22050)
-        val seq = NoteSequencer(synth, listOf(Note(1, 69, 0.1, 0.5, 100, 1f)))
+        val synth = InstrumentSynth(null, 22050)
+        val seq = NoteSequencer.forNotes(synth, listOf(Note(1, 69, 0.1, 0.5, 100, 1f)))
         val out = FloatArray(22050)
         seq.render(out, 0, out.size, speed = 1.0)
         assertTrue(Pcm.rms(out, 0, 2000) < 1e-6) // silent before the note
         assertEquals(440.0, peakHz(out, 22050, 2205), 3.0)
         // At half speed the same second of output covers only half a second of song.
-        val seq2 = NoteSequencer(PianoSynth(null, 22050), emptyList())
+        val seq2 = NoteSequencer.forNotes(InstrumentSynth(null, 22050), emptyList())
         seq2.render(FloatArray(22050), 0, 22050, speed = 0.5)
         assertEquals(0.5, seq2.songTime, 1e-6)
     }
