@@ -5,6 +5,9 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.pianoscribe.app.AppContainer
+import com.pianoscribe.app.compare.CompareEngine
+import com.pianoscribe.app.compare.CompareReport
+import com.pianoscribe.app.compare.FixResult
 import com.pianoscribe.app.audio.PcmFile
 import com.pianoscribe.app.data.Notation
 import com.pianoscribe.app.data.ProjectEntity
@@ -84,6 +87,18 @@ data class SpectrumData(
     val measuredCents: Float,
 )
 
+/** State of the Compare tab. */
+data class CompareUi(
+    val running: Boolean = false,
+    val step: String = "",
+    val progress: Float = 0f,
+    val report: CompareReport? = null,
+    /** The notes the report describes; when the notes change the report is out of date. */
+    val reportNotes: List<Note>? = null,
+    val lastFix: FixResult? = null,
+    val error: String? = null,
+)
+
 class ResultViewModel(app: Application, private val container: AppContainer, private val projectId: Long) : AndroidViewModel(app) {
     data class UiState(
         val loading: Boolean = true,
@@ -108,6 +123,7 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
         val spectrumLoading: Boolean = false,
         val message: String? = null,
         val usingSoundFont: Boolean = true,
+        val compare: CompareUi = CompareUi(),
     )
 
     private val _state = MutableStateFlow(UiState())
@@ -124,6 +140,8 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
     private var history = EditHistory<List<Note>>(emptyList())
     private val ids = NoteIdGenerator()
     private var engine: PlaybackEngine? = null
+    private var compareEngine: CompareEngine? = null
+    private var compareJob: Job? = null
     private var preset: Sf2Preset? = null
     private var performJob: Job? = null
     /** The notes as performed on the current instrument (what playback and "performed" exports use). */
@@ -615,6 +633,73 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
             stopPractice()
         }
     }
+
+    // ---------------------------------------------------------------- compare with the recording
+
+    /** True when the current notes are not the ones the last comparison looked at. */
+    val compareIsStale: Boolean get() = _state.value.compare.reportNotes.let { it != null && it !== history.current }
+
+    private fun compareEngine(): CompareEngine? {
+        compareEngine?.let { return it }
+        val p = _state.value.project ?: return null
+        val file = container.repository.audioFile(p)
+        if (p.audioPath.isEmpty() || !file.exists()) return null
+        return CompareEngine(getApplication(), file, p.source.contains("full song")) { container.soundFonts.preset(it) }.also { compareEngine = it }
+    }
+
+    private fun setCompare(transform: (CompareUi) -> CompareUi) = _state.update { it.copy(compare = transform(it.compare)) }
+
+    fun runCompare() {
+        val ce = compareEngine() ?: run { msg("The original recording isn't available for this project"); return }
+        if (history.current.isEmpty()) { msg("There are no notes to compare yet"); return }
+        engine?.pause()
+        compareJob?.cancel()
+        val notes = history.current
+        compareJob = viewModelScope.launch {
+            setCompare { it.copy(running = true, step = "Starting", progress = 0f, error = null, lastFix = null) }
+            try {
+                val report = ce.compare(notes) { step, p -> setCompare { it.copy(step = step, progress = p) } }
+                setCompare { it.copy(running = false, report = report, reportNotes = notes) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                setCompare { it.copy(running = false) }
+                throw e
+            } catch (e: Throwable) {
+                setCompare { it.copy(running = false, error = e.message ?: e.javaClass.simpleName) }
+            }
+        }
+    }
+
+    fun runAutoFix() {
+        val ce = compareEngine() ?: return
+        val c = _state.value.compare
+        val before = c.report ?: return
+        if (c.reportNotes !== history.current) { runCompare(); msg("The notes changed, so they were compared again first. Tap auto-fix once more."); return }
+        engine?.pause()
+        compareJob?.cancel()
+        val notes = history.current
+        val split = _state.value.project?.splitPoint ?: Note.MIDDLE_C
+        compareJob = viewModelScope.launch {
+            setCompare { it.copy(running = true, step = "Fixing notes", progress = 0f, error = null) }
+            try {
+                val result = ce.autoFix(notes, before, ids, split) { step, p -> setCompare { it.copy(step = step, progress = p) } }
+                if (result.accepted) {
+                    commit(result.notes)
+                    setCompare { it.copy(running = false, report = result.after, reportNotes = history.current, lastFix = result) }
+                    msg("Fixed: ${result.changes.removed} removed, ${result.changes.added} added, ${result.changes.merged} joined. Undo to go back.")
+                } else {
+                    setCompare { it.copy(running = false, lastFix = result) }
+                    msg("No change made the MIDI sound closer to the recording, so nothing was changed.")
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                setCompare { it.copy(running = false) }
+                throw e
+            } catch (e: Throwable) {
+                setCompare { it.copy(running = false, error = e.message ?: e.javaClass.simpleName) }
+            }
+        }
+    }
+
+    fun cancelCompare() { compareJob?.cancel() }
 
     // ---------------------------------------------------------------- export
 

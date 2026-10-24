@@ -3,7 +3,7 @@ package com.pianoscribe.app.transcribe
 import android.content.Context
 import com.pianoscribe.app.audio.PcmFile
 import com.pianoscribe.app.data.AppSettings
-import com.pianoscribe.app.ml.BasicPitchModel
+import com.pianoscribe.app.ml.ModelRunner
 import com.pianoscribe.core.audio.Hpss
 import com.pianoscribe.core.audio.Pcm
 import com.pianoscribe.core.audio.PitchAccuracy
@@ -14,7 +14,6 @@ import com.pianoscribe.core.rhythm.Quantizer
 import com.pianoscribe.core.rhythm.TempoDetector
 import com.pianoscribe.core.theory.HandSplitter
 import com.pianoscribe.core.theory.KeyDetector
-import com.pianoscribe.core.transcribe.ActivationAssembler
 import com.pianoscribe.core.transcribe.AudioType
 import com.pianoscribe.core.transcribe.BasicPitch
 import com.pianoscribe.core.transcribe.NotePostProcessor
@@ -88,25 +87,15 @@ class TranscriptionEngine(private val context: Context) {
 
         // 2. The model.
         val modelStart = if (songMode) 0.2f else 0.05f
-        val assembler = ActivationAssembler(length)
-        val windows = BasicPitch.windowCount(length)
-        BasicPitchModel(context).use { model ->
-            RandomAccessFile(analysis, "r").use { raf ->
-                val window = FloatArray(BasicPitch.AUDIO_N_SAMPLES)
-                for (w in 0 until windows) {
-                    coroutineContext.ensureActive()
-                    BasicPitch.fillWindow(w, length, window) { dst, off, src, count -> PcmFile.read(raf, src, dst, off, count) }
-                    val out = model.run(window)
-                    assembler.add(w, out.note, out.onset, out.contour)
-                    progress("Listening for notes (${w + 1}/$windows)", modelStart + (0.8f - modelStart) * (w + 1) / windows)
-                }
+        val act = RandomAccessFile(analysis, "r").use { raf ->
+            ModelRunner.run(context, length, { dst, off, src, count -> PcmFile.read(raf, src, dst, off, count) }) { done, total ->
+                progress("Listening for notes ($done/$total)", modelStart + (0.8f - modelStart) * done / total)
             }
         }
         coroutineContext.ensureActive()
 
         // 3. Notes, with one more sensitive pass if a busy mix gave almost nothing.
         progress("Extracting notes", 0.82f)
-        val act = assembler.activations
         val durationSec = length.toDouble() / BasicPitch.SAMPLE_RATE
         var notes = NotePostProcessor.process(act, settings.transcription(), NoteIdGenerator())
         var retried = false

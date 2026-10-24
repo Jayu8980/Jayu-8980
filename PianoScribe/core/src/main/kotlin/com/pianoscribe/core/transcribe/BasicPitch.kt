@@ -61,6 +61,16 @@ object BasicPitch {
         return original - windowOffset * windowNumber
     }
 
+    /** Inverse of [frameToTime]: the nearest frame to time [t] (seconds). */
+    fun timeToFrame(t: Double): Int {
+        if (t <= 0) return 0
+        // frameToTime is increasing, so start from the linear estimate and step to the nearest frame.
+        var f = (t * SAMPLE_RATE / FFT_HOP).toInt()
+        while (f > 0 && frameToTime(f) > t) f--
+        while (frameToTime(f + 1) <= t) f++
+        return if (t - frameToTime(f) <= frameToTime(f + 1) - t) f else f + 1
+    }
+
     fun msToFrames(ms: Double): Int = Math.round(ms / 1000.0 * (SAMPLE_RATE.toDouble() / FFT_HOP)).toInt()
 }
 

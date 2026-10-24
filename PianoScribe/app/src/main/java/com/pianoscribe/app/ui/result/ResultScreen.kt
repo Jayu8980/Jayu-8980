@@ -70,7 +70,7 @@ import com.pianoscribe.app.export.Exporter
 import com.pianoscribe.app.ui.components.LabeledSlider
 import com.pianoscribe.core.theory.Pitch
 
-private enum class ResultTab(val title: String) { ROLL("Piano Roll"), FALLING("Falling Notes"), SHEET("Sheet"), NOTES("Notes"), ANALYSER("Analyser") }
+private enum class ResultTab(val title: String) { ROLL("Piano Roll"), FALLING("Falling Notes"), SHEET("Sheet"), NOTES("Notes"), ANALYSER("Analyser"), COMPARE("Compare") }
 
 private enum class Dialog { NONE, MIDI, EXPORT, TRANSPOSE, TEMPO, QUANTIZE, SPLIT, RENAME }
 
@@ -195,6 +195,7 @@ fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, o
                                 onNotation = vm::setNotation, onSelect = { n -> vm.select(n.id); vm.seek(n.start) }, modifier = Modifier.fillMaxSize(),
                             )
                             ResultTab.ANALYSER -> AnalyserView(vm, s, settings, position, playing)
+                            ResultTab.COMPARE -> CompareView(vm, s, position, playing)
                         }
                     }
                 }

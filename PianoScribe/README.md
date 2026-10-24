@@ -21,6 +21,7 @@
 | Settings | Onset threshold, note threshold, minimum note length (ms), pitch range limited to piano A0–C8 (MIDI 21–108), "piano only" quantisation to 1/8 or 1/16 with auto-detected tempo (editable BPM), RH/LH split point (default middle C). |
 | Views | Piano roll (scroll, pinch-zoom, keyboard on the left, colour by hand, playhead), Synthesia-style falling notes with an on-screen keyboard and finger numbers, simple grand-staff sheet music, note list with Western (C D E) or Indian Sargam (Sa Re Ga) names. |
 | Editing | Tap to select, drag to move, drag the end to resize, long-press to delete, double-tap to add (edit mode), undo/redo, transpose ±12, tempo change (re-grid or stretch), quantise, hand split. |
+| Compare & auto-fix | **Compare** tab: the MIDI is turned back into sound and compared with your recording. Shows the share of notes the recording confirms (an estimate of how many are right), outlines the unconfirmed notes on a piano roll, lists notes that seem to be missing, and colours each second by how well it matches. **Auto-fix** removes notes the recording doesn't contain, adds ones it clearly does and joins split notes, keeping a change only if the MIDI sounds closer to the recording. Undoable; verified notes are never touched. |
 | Instruments & human feel | Play the (edited) notes on **Piano, Electric piano, Flute, Clarinet, Violin, Cello, Nylon guitar, Harp or Church organ** (instrument chip above the transport bar). Flute, clarinet, violin and cello play one note at a time, so they get the melody line, moved by octaves into their range; guitar plays at most 6 notes at once. The **Human feel** slider (0 = exactly as written) adds what a player does: phrase dynamics, beat accents, melody voiced above the chords, small correlated timing drift, chords rolled low to high (harp) or strummed (guitar), legato, breaths between wind phrases, slurs between close notes (the synth glides instead of re-attacking), delayed vibrato on long wind/string notes, and a slow-down over the last bars. The performance can be saved as MIDI (with the instrument's General MIDI program) or as a WAV audio file. |
 | Playback | Transcribed notes with the bundled piano SoundFont, the original audio, or both mixed (A/B). Speed 0.25x–2x (original audio is time-stretched, so pitch stays the same). A-B loop or "loop selected bar". |
 | Export | Standard MIDI File (Type 1, conductor track with tempo + time signature, separate Right Hand / Left Hand tracks, Acoustic Grand Piano), MusicXML for MuseScore, piano roll PNG, note list PDF/TXT, analysis table CSV/PDF. Tap **MIDI** in the result screen's top bar: one tap saves to `Downloads/PianoScribe` (Android 10+), or open it in a MIDI app, share it, or "Save as…" to any folder. Other formats are under ⋮ → Export. Projects are stored in a local Room database. |
@@ -120,6 +121,29 @@ Android Studio alternative: **Build → Generate Signed App Bundle / APK → APK
    | Full-song mode | 75 / 63 of 70 / 0.87 | 94 / 74 of 80 / 0.85 |
 
    Real recordings (vocals, reverb, mastering) are harder than these synthetic songs, so expect lower numbers there.
+
+7. **Compare & auto-fix** (`core/compare`): two independent listeners.
+   - The *note model* hears the recording and the MIDI rendered as piano; comparing the two (which keys sound when,
+     where notes start) finds stretches the MIDI misses and notes split in two.
+   - A *spectral judge* resynthesises each short stretch with and without a note, using the instrument whose sound is
+     closest to the recording (piano, electric piano, guitar, harp, organ, or a wind/string for single-line music), and
+     keeps the note only if the version with it is closer to the recording in a semitone-band log spectrogram. This
+     catches notes the model imagined, which the model itself would "hear" again in its own output.
+   - A round of fixes is accepted only if the whole-piece spectral difference goes down.
+
+   Measured with the real model on synthetic test pieces with known notes (F1: right pitch, onset within 50 ms):
+
+   | Test piece | Before | After auto-fix |
+   |---|---|---|
+   | Solo piano, song 1 / song 2 | 0.67 / 0.69 | 0.90 / 0.92 |
+   | Full song (piano + drums), song 1 / song 2 | 0.87 / 0.85 | 0.95 / 0.94 |
+   | Electric piano | 0.61 | 0.96 |
+   | Piano with room reverb and EQ, song 1 / song 2 | 0.58 / 0.54 | 0.73 / 0.69 |
+
+   The confirmed-notes share tracked the true precision within about ±0.1 before fixing. The reverb rows are the most
+   realistic: expect real recordings to land nearer those numbers than the clean ones. 100% is not reachable in
+   general: no resynthesis sounds exactly like a real instrument in a real room, and notes hidden under others or
+   under drums can't always be recovered.
 
 Performance: a 5-minute song is about 185 model windows; on a mid-range phone conversion takes well under two minutes.
 Audio is processed in chunks and read from disk by range to avoid running out of memory.
