@@ -74,6 +74,8 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) onImport(uri) }
     var renaming by remember { mutableStateOf<ProjectEntity?>(null) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var crash by remember { mutableStateOf(com.pianoscribe.app.CrashLog.read(context)) }
     var deleting by remember { mutableStateOf<ProjectEntity?>(null) }
 
     LaunchedEffect(shared) {
@@ -92,6 +94,28 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            crash?.let { report ->
+                item {
+                    androidx.compose.material3.Card(Modifier.widthIn(max = 720.dp).fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("PianoScribe closed unexpectedly last time", style = MaterialTheme.typography.titleMedium)
+                            Text("Please share this report so it can be fixed. It stays on your phone unless you share it.", style = MaterialTheme.typography.bodySmall)
+                            Text(report.lines().take(6).joinToString("\n"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                androidx.compose.material3.Button(onClick = {
+                                    val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(android.content.Intent.EXTRA_SUBJECT, "PianoScribe crash report")
+                                        putExtra(android.content.Intent.EXTRA_TEXT, report)
+                                    }
+                                    context.startActivity(android.content.Intent.createChooser(send, "Share crash report"))
+                                }) { Text("Share report") }
+                                androidx.compose.material3.TextButton(onClick = { com.pianoscribe.app.CrashLog.clear(context); crash = null }) { Text("Dismiss") }
+                            }
+                        }
+                    }
+                }
+            }
             item {
                 Column(Modifier.widthIn(max = 720.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(

@@ -83,6 +83,16 @@ jobs:
           echo "### Build errors" >> "$GITHUB_STEP_SUMMARY"
           grep -E "^(e: |ERROR:|.*error:|\[ksp\].*(error|Error)|.*FAILED)" build.log | sed 's#file:///home/runner/work/[^ ]*/PianoScribe/##' | sort -u | head -300 | tee -a "$GITHUB_STEP_SUMMARY"
 
+      - name: Report 16 KB page alignment of native libraries
+        run: |
+          mkdir -p so-check && cd so-check
+          unzip -o -q ../app/build/outputs/apk/release/*.apk 'lib/*'
+          for f in lib/*/*.so; do
+            echo "$f LOAD align: $(readelf -lW "$f" | awk '/LOAD/{print $NF}' | sort -u | tr '\n' ' ')"
+          done
+          ZIPALIGN="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/zipalign"
+          "$ZIPALIGN" -c -P 16 -v 4 ../app/build/outputs/apk/release/*.apk | grep -E "lib/|Verification" || true
+
       - name: Verify no INTERNET permission
         run: |
           AAPT="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/aapt"
@@ -123,6 +133,11 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        # 36 = Android 16, the newest phones; 34 = Android 14.
+        api-level: [34, 36]
     steps:
       - uses: actions/checkout@v5
 
@@ -159,10 +174,10 @@ jobs:
           name: release-apk-for-tests
           path: PianoScribe/release-apk
 
-      - name: Run on an Android 14 emulator
+      - name: Run on an Android ${{ matrix.api-level }} emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
+          api-level: ${{ matrix.api-level }}
           target: google_apis
           arch: x86_64
           cores: 4
@@ -174,7 +189,7 @@ jobs:
           working-directory: PianoScribe
           script: |
             adb logcat -c
-            ./gradlew --no-daemon connectedDebugAndroidTest || (adb logcat -d > logcat-tests.txt; exit 1)
+            ./gradlew --no-daemon connectedDebugAndroidTest || (adb logcat -d > logcat-tests.txt; touch tests-failed)
             adb logcat -d -s PianoScribeTest:I | tail -20
             adb install -r release-apk/*.apk
             adb logcat -c
@@ -184,16 +199,22 @@ jobs:
             adb shell pidof com.pianoscribe.app || (echo "Release app is not running after launch"; grep -A30 "FATAL EXCEPTION" logcat-release.txt; exit 1)
             if grep -q "FATAL EXCEPTION" logcat-release.txt; then grep -A30 "FATAL EXCEPTION" logcat-release.txt; exit 1; fi
             echo "Release APK launched and is running"
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            bash scripts/release-import-check.sh test_melody.mp3
+            bash scripts/release-import-check.sh test_melody.m4a
+            test ! -f tests-failed
 
       - name: Upload test reports and logcat
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: PianoScribe-device-test-reports
+          name: PianoScribe-device-test-reports-api${{ matrix.api-level }}
           path: |
             PianoScribe/app/build/reports/androidTests/
             PianoScribe/app/build/outputs/androidTest-results/
             PianoScribe/logcat-*.txt
+            PianoScribe/ui.xml
 
   # Publishes only after the app has passed the device tests.
   release:
