@@ -184,6 +184,10 @@ jobs:
             adb shell pidof com.pianoscribe.app || (echo "Release app is not running after launch"; grep -A30 "FATAL EXCEPTION" logcat-release.txt; exit 1)
             if grep -q "FATAL EXCEPTION" logcat-release.txt; then grep -A30 "FATAL EXCEPTION" logcat-release.txt; exit 1; fi
             echo "Release APK launched and is running"
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            bash scripts/release-import-check.sh test_melody.mp3
+            bash scripts/release-import-check.sh test_melody.m4a
 
       - name: Upload test reports and logcat
         if: always()
@@ -194,6 +198,7 @@ jobs:
             PianoScribe/app/build/reports/androidTests/
             PianoScribe/app/build/outputs/androidTest-results/
             PianoScribe/logcat-*.txt
+            PianoScribe/ui.xml
 
   # Publishes only after the app has passed the device tests.
   release:
