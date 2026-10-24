@@ -17,6 +17,13 @@ kotlin {
 
 dependencies {
     testImplementation(libs.junit)
+    // Only for the model accuracy evaluation (runs when CI provides the converted models).
+    testImplementation(libs.onnxruntime.jvm)
+}
+
+tasks.test {
+    maxHeapSize = "3g"
+    testLogging { events("failed"); showStandardStreams = true; exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
 }
 
 // Regenerates the bundled piano SoundFont: ./gradlew :core:generateSoundFont
