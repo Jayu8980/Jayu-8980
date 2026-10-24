@@ -32,10 +32,12 @@ fun LicensesScreen(onBack: () -> Unit) {
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Basic Pitch", style = MaterialTheme.typography.titleMedium)
             Text("Polyphonic note transcription model by Spotify (ICASSP 2022), bundled as TensorFlow Lite (nmp.tflite from the basic-pitch 0.4.0 package). Licensed under the Apache License 2.0.")
+            Text("High-resolution piano transcription", style = MaterialTheme.typography.titleMedium)
+            Text("Piano note model by ByteDance (Kong, Li, Song, Wan, Wang: \"High-resolution Piano Transcription with Pedals by Regressing Onset and Offset Times\", 2021), converted to ONNX. Code (github.com/bytedance/piano_transcription) under the Apache License 2.0; trained weights from Zenodo record 4034264 under Creative Commons Attribution 4.0.")
             Text("PianoScribe Grand SoundFont", style = MaterialTheme.typography.titleMedium)
             Text("Piano samples synthesised by PianoScribe's own generator (core/PianoSampleGenerator.kt). Released with the app under the Apache License 2.0.")
             Text("Open-source libraries", style = MaterialTheme.typography.titleMedium)
-            Text("AndroidX, Jetpack Compose, Material 3, Room, Navigation, Kotlin coroutines (Apache 2.0); TensorFlow Lite (Apache 2.0).")
+            Text("AndroidX, Jetpack Compose, Material 3, Room, Navigation, Kotlin coroutines (Apache 2.0); TensorFlow Lite (Apache 2.0); ONNX Runtime (MIT).")
             Text("Basic Pitch license", style = MaterialTheme.typography.titleMedium)
             Text(basicPitch, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
         }
