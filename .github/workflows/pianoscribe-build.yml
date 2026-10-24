@@ -108,7 +108,7 @@ jobs:
           EVAL_TRUTH: ${{ github.workspace }}/PianoScribe/eval
         run: |
           chmod +x ./gradlew
-          ./gradlew --no-daemon :core:test --tests '*PianoModelEval*' 2>&1 | grep -E "EVAL|PARITY|RESULT|FAIL|BUILD" || true
+          ./gradlew --no-daemon :core:test --tests '*PianoModelEval*' 2>&1 | grep -E "EVAL|PARITY|RESULT|FALSEPOS|FAIL|BUILD" || true
 
       - name: Bundle the piano model
         run: |

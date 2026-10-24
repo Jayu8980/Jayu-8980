@@ -142,6 +142,16 @@ class PianoModelEval {
                 add("$cond | $mName (with offsets)", f1(hr, truth, offsets = true))
                 val ens = PianoEnsemble.combine(hr, out, bpNotes)
                 add("$cond | $mName + Basic Pitch combined", f1(ens, truth))
+                // Tuning sweeps: stricter onset threshold, and keeping only the piano notes
+                // Basic Pitch agrees with unless the piano model is confident on its own.
+                for (th in listOf(0.4f, 0.5f, 0.6f, 0.7f)) {
+                    val n = PianoModel.notes(out, PianoModel.Settings(onsetThreshold = th)).filter { it.start < audio.size.toDouble() / BasicPitch.SAMPLE_RATE }
+                    add("$cond | $mName onset >= $th", f1(n, truth))
+                }
+                for (c in listOf(0.5f, 0.7f, 0.9f, 1.01f)) {
+                    val n = hr.filter { h -> h.confidence >= c || bpNotes.any { it.pitch == h.pitch && abs(it.start - h.start) <= 0.05 } }
+                    add("$cond | $mName agreed by BP or conf >= $c", f1(n, truth))
+                }
                 println("EVAL $name $mName: ${"%.0f".format(ms)} ms for ${"%.1f".format(audio.size / 22050.0)} s")
                 // Port check against the official Python pipeline, on its exact 16 kHz input.
                 val refFile = evalDir.resolve("reference/$name.json")
