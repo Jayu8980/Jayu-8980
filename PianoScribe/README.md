@@ -64,7 +64,9 @@ In Android Studio: **File → Open → `PianoScribe/`**, wait for Gradle sync, t
 
 `.github/workflows/pianoscribe-build.yml` runs the unit tests and builds both APKs on every push that touches
 `PianoScribe/`. Download them from the run's **Artifacts** (`PianoScribe-apks`). Pushing a tag like
-`pianoscribe-v1.0.0` also publishes a GitHub Release with the APKs.
+`pianoscribe-v1.0.0` also publishes a GitHub Release with the APKs. Without a tag: **Actions → Build PianoScribe APK →
+Run workflow**, enter a `release_tag` such as `pianoscribe-v1.0.1`, and the release page gets the `.apk` files as
+direct downloads you can open and install on a phone.
 
 ### Signed release APK
 
