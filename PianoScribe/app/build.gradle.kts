@@ -75,7 +75,7 @@ android {
     }
     androidResources {
         // The model is memory-mapped straight from the APK, so it must stay uncompressed.
-        noCompress += listOf("tflite", "sf2")
+        noCompress += listOf("tflite", "sf2", "onnx")
     }
     packaging {
         resources {
@@ -118,6 +118,7 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.tensorflow.lite)
+    implementation(libs.onnxruntime.android)
 
     testImplementation(libs.junit)
 
