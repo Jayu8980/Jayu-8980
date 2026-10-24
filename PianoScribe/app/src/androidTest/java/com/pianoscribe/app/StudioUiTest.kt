@@ -33,7 +33,8 @@ class StudioUiTest {
             // Say what was on screen instead, so a failure explains itself.
             val shown = compose.onAllNodes(androidx.compose.ui.test.isRoot()).fetchSemanticsNodes().flatMap { root ->
                 fun texts(n: androidx.compose.ui.semantics.SemanticsNode): List<String> =
-                    (n.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.Text)?.map { it.text } ?: emptyList()) + n.children.flatMap { texts(it) }
+                    n.config.getOrElseNullable(androidx.compose.ui.semantics.SemanticsProperties.Text) { null }.orEmpty().map { t -> t.text } +
+                        n.children.flatMap { c -> texts(c) }
                 texts(root)
             }
             throw AssertionError("Waited for \"$text\"; the screen shows: ${shown.joinToString(" | ")}", e)
