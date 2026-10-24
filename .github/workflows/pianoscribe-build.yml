@@ -109,6 +109,90 @@ jobs:
           name: PianoScribe-test-reports
           path: PianoScribe/core/build/reports/tests/
 
+      - name: Keep the release APK for the device-test job
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk-for-tests
+          path: PianoScribe/app/build/outputs/apk/release/*.apk
+          retention-days: 1
+
+  # Runs the app for real on an Android emulator: the pipeline tests (decode, TFLite model, Room,
+  # playback, every export, compare/auto-fix), a UI smoke test, and a launch check of the
+  # minified release APK.
+  device-tests:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Enable KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Build the debug app and test APKs
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon assembleDebug assembleDebugAndroidTest
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-apk-for-tests
+          path: PianoScribe/release-apk
+
+      - name: Run on an Android 14 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          ram-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          working-directory: PianoScribe
+          script: |
+            adb logcat -c
+            ./gradlew --no-daemon connectedDebugAndroidTest || (adb logcat -d > logcat-tests.txt; exit 1)
+            adb logcat -d -s PianoScribeTest:I | tail -20
+            adb install -r release-apk/*.apk
+            adb logcat -c
+            adb shell am start -W -n com.pianoscribe.app/.MainActivity
+            sleep 10
+            adb logcat -d > logcat-release.txt
+            adb shell pidof com.pianoscribe.app || (echo "Release app is not running after launch"; grep -A30 "FATAL EXCEPTION" logcat-release.txt; exit 1)
+            if grep -q "FATAL EXCEPTION" logcat-release.txt; then grep -A30 "FATAL EXCEPTION" logcat-release.txt; exit 1; fi
+            echo "Release APK launched and is running"
+
+      - name: Upload test reports and logcat
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PianoScribe-device-test-reports
+          path: |
+            PianoScribe/app/build/reports/androidTests/
+            PianoScribe/app/build/outputs/androidTest-results/
+            PianoScribe/logcat-*.txt
+
+  # Publishes only after the app has passed the device tests.
+  release:
+    needs: [build, device-tests]
+    if: startsWith(github.ref, 'refs/tags/pianoscribe-v') || inputs.release_tag != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: PianoScribe-apks
+          path: dist
+
       - name: Publish GitHub Release (pianoscribe-v* tags or manual release_tag)
         if: startsWith(github.ref, 'refs/tags/pianoscribe-v') || inputs.release_tag != ''
         uses: softprops/action-gh-release@v2
@@ -118,5 +202,5 @@ jobs:
           target_commitish: ${{ github.sha }}
           generate_release_notes: true
           files: |
-            PianoScribe/dist/PianoScribe-release.apk
-            PianoScribe/dist/PianoScribe-debug.apk
+            dist/PianoScribe-release.apk
+            dist/PianoScribe-debug.apk
