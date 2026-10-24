@@ -11,12 +11,14 @@ dump() {
 fail() {
   echo "FAILED ($asset): $1"
   adb logcat -d > "logcat-release-$asset.txt"
-  grep -A40 "FATAL EXCEPTION" "logcat-release-$asset.txt" | head -60
+  grep -A40 "Process: com.pianoscribe.app," "logcat-release-$asset.txt" | head -60
   grep -A25 "PianoScribe" "logcat-release-$asset.txt" | head -60
   grep -o 'text="[^"]*"' ui.xml | head -40
   exit 1
 }
-crashed() { adb logcat -d | grep -q "FATAL EXCEPTION"; }
+# Only the release app's own crashes count: the uiautomator dump tool itself can time out and
+# crash on a loaded emulator, which is logged as a FATAL EXCEPTION too (with no process name).
+crashed() { adb logcat -d -s AndroidRuntime:E | grep -A1 "FATAL EXCEPTION" | grep -q "Process: com.pianoscribe.app,"; }
 # Under load the emulator's own apps (the launcher) can stop responding and their dialog covers
 # the screen: wait for them. PianoScribe itself not responding is a failure.
 other_anr() {
