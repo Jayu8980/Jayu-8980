@@ -26,8 +26,19 @@ class StudioUiTest {
 
     private val container get() = (TestFixtures.app.applicationContext as PianoScribeApp).container
 
-    private fun waitForText(text: String, substring: Boolean = false, timeoutMs: Long = 60_000) =
-        compose.waitUntil(timeoutMs) { compose.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty() }
+    private fun waitForText(text: String, substring: Boolean = false, timeoutMs: Long = 60_000) {
+        try {
+            compose.waitUntil(timeoutMs) { compose.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty() }
+        } catch (e: androidx.compose.ui.test.ComposeTimeoutException) {
+            // Say what was on screen instead, so a failure explains itself.
+            val shown = compose.onAllNodes(androidx.compose.ui.test.isRoot()).fetchSemanticsNodes().flatMap { root ->
+                fun texts(n: androidx.compose.ui.semantics.SemanticsNode): List<String> =
+                    (n.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.Text)?.map { it.text } ?: emptyList()) + n.children.flatMap { texts(it) }
+                texts(root)
+            }
+            throw AssertionError("Waited for \"$text\"; the screen shows: ${shown.joinToString(" | ")}", e)
+        }
+    }
 
     private fun button(text: String) = compose.onNode(hasText(text) and hasClickAction())
 

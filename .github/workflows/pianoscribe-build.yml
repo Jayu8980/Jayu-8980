@@ -189,7 +189,7 @@ jobs:
           working-directory: PianoScribe
           script: |
             adb logcat -c
-            ./gradlew --no-daemon connectedDebugAndroidTest || (adb logcat -d > logcat-tests.txt; exit 1)
+            ./gradlew --no-daemon connectedDebugAndroidTest || (adb logcat -d > logcat-tests.txt; touch tests-failed)
             adb logcat -d -s PianoScribeTest:I | tail -20
             adb install -r release-apk/*.apk
             adb logcat -c
@@ -203,6 +203,7 @@ jobs:
             adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
             bash scripts/release-import-check.sh test_melody.mp3
             bash scripts/release-import-check.sh test_melody.m4a
+            test ! -f tests-failed
 
       - name: Upload test reports and logcat
         if: always()
