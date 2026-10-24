@@ -14,6 +14,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
@@ -55,32 +56,30 @@ class ImportFlowTest {
     private fun waitForText(text: String, timeoutMs: Long, substring: Boolean = false) =
         compose.waitUntil(timeoutMs) { compose.waitForIdle(); compose.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty() }
 
-    @Test fun openConvertAndShowEveryFormat() {
+    private fun openAndConvert(uri: Uri, mime: String, openTimeoutMs: Long, convertTimeoutMs: Long) {
         val app = TestFixtures.app
-        for (asset in listOf("test_melody.mp3", "test_melody_48k.mp3", "test_melody.m4a", "test_melody.wav")) {
-            val intent = Intent(Intent.ACTION_VIEW).setDataAndType(sharedAudio(asset), mimeOf(asset))
-                .setClass(app, MainActivity::class.java).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            ActivityScenario.launch<MainActivity>(intent).use {
-                waitForText("Trim the start and end", 60_000, substring = true)
-                compose.onNode(hasText("Convert to piano notes") and hasClickAction()).performScrollTo().performClick()
-                waitForText("Piano Roll", 180_000)
-                android.util.Log.i("PianoScribeTest", "Imported and converted $asset")
-            }
-        }
-        // A 3-minute song must open (decoding runs off the main thread) and convert.
-        val long = Intent(Intent.ACTION_VIEW).setDataAndType(sharedLongSong(), "audio/wav")
+        val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime)
             .setClass(app, MainActivity::class.java).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        ActivityScenario.launch<MainActivity>(long).use {
-            waitForText("Trim the start and end", 120_000, substring = true)
+        ActivityScenario.launch<MainActivity>(intent).use {
+            waitForText("Trim the start and end", openTimeoutMs, substring = true)
             compose.onNode(hasText("Convert to piano notes") and hasClickAction()).performScrollTo().performClick()
-            waitForText("Piano Roll", 600_000)
+            waitForText("Piano Roll", convertTimeoutMs)
         }
-        // Remove the projects this test made.
-        runBlocking {
-            val repo = (app.applicationContext as PianoScribeApp).container.repository
-            repo.projects.first().filter { it.name.startsWith("test_melody") || it.name.startsWith("long_song") }.forEach { repo.delete(it.id) }
-        }
+        android.util.Log.i("PianoScribeTest", "Imported and converted $uri")
     }
+
+    @After fun removeTestProjects() = runBlocking {
+        val repo = (TestFixtures.app.applicationContext as PianoScribeApp).container.repository
+        repo.projects.first().filter { it.name.startsWith("test_melody") || it.name.startsWith("long_song") }.forEach { repo.delete(it.id) }
+    }
+
+    @Test fun mp3() = openAndConvert(sharedAudio("test_melody.mp3"), "audio/mpeg", 60_000, 180_000)
+    @Test fun mp3At48k() = openAndConvert(sharedAudio("test_melody_48k.mp3"), "audio/mpeg", 60_000, 180_000)
+    @Test fun m4a() = openAndConvert(sharedAudio("test_melody.m4a"), "audio/mp4", 60_000, 180_000)
+    @Test fun wav() = openAndConvert(sharedAudio("test_melody.wav"), "audio/wav", 60_000, 180_000)
+
+    /** A 3-minute song must open (decoding runs off the main thread) and convert. */
+    @Test fun threeMinuteSong() = openAndConvert(sharedLongSong(), "audio/wav", 600_000, 900_000)
 }
 
 /**
