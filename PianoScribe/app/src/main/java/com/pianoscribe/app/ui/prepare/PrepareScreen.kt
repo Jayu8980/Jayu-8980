@@ -115,7 +115,14 @@ class PrepareViewModel(app: Application, private val container: AppContainer, ur
         val left = File(ctx.cacheDir, "draft_left.f32")
         val right = File(ctx.cacheDir, "draft_right.f32")
         // Decoding a whole song takes seconds: never on the main thread, or Android closes the app as not responding.
-        val r = withContext(Dispatchers.IO) { AudioDecoder(ctx).decode(uri, file, left to right) { p -> _state.value = _state.value.copy(progress = p) } }
+        var lastUpdate = 0L
+        val r = withContext(Dispatchers.IO) {
+            AudioDecoder(ctx).decode(uri, file, left to right) { p ->
+                // At most ten progress updates a second: smooth enough, and no flood of redraws.
+                val now = System.nanoTime()
+                if (now - lastUpdate > 100_000_000L || p >= 1f) { lastUpdate = now; _state.value = _state.value.copy(progress = p) }
+            }
+        }
         return Draft(file, AudioDecoder.displayName(ctx, uri), "Imported file", r.samples, left = left.takeIf { r.stereo }, right = right.takeIf { r.stereo })
     }
 

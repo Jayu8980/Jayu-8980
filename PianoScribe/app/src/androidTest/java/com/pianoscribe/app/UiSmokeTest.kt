@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
+
 package com.pianoscribe.app
 
 import androidx.compose.ui.semantics.Role
@@ -31,7 +33,7 @@ class UiSmokeTest {
     private val container get() = (TestFixtures.app.applicationContext as PianoScribeApp).container
 
     private fun waitForText(text: String, timeoutMs: Long = 20_000) =
-        compose.waitUntil(timeoutMs) { compose.waitForIdle(); compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntilAtLeastOneExists(hasText(text), timeoutMs)
 
     /** A project with the test recording and its expected notes, as if it had just been converted. */
     private fun seedProject(name: String): Long = runBlocking {

@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
+
 package com.pianoscribe.app
 
 import androidx.compose.ui.test.hasClickAction
@@ -28,7 +30,7 @@ class StudioUiTest {
 
     private fun waitForText(text: String, substring: Boolean = false, timeoutMs: Long = 60_000) {
         try {
-            compose.waitUntil(timeoutMs) { compose.waitForIdle(); compose.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty() }
+            compose.waitUntilAtLeastOneExists(hasText(text, substring = substring), timeoutMs)
         } catch (e: androidx.compose.ui.test.ComposeTimeoutException) {
             // Say what was on screen instead, so a failure explains itself.
             val shown = compose.onAllNodes(androidx.compose.ui.test.isRoot()).fetchSemanticsNodes().flatMap { root ->
