@@ -36,3 +36,4 @@ google-services.json
 
 # Release signing secrets
 keystore.properties
+__pycache__/

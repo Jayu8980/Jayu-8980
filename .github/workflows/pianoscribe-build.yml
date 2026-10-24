@@ -35,11 +35,57 @@ defaults:
     working-directory: PianoScribe
 
 jobs:
+  # Converts the high-resolution piano transcription model (ByteDance, Kong et al. 2021) to ONNX,
+  # checks it against PyTorch, and writes reference transcriptions of the evaluation set.
+  # Cached: it only reruns when the script or the evaluation set changes.
+  piano-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/cache@v4
+        id: cache
+        with:
+          path: PianoScribe/piano-model-out
+          key: piano-model-v1-${{ hashFiles('PianoScribe/scripts/piano_model/**', 'PianoScribe/eval/**') }}
+
+      - uses: actions/setup-python@v5
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          python-version: "3.11"
+
+      - name: Download, export and check the model
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          pip install --quiet torch==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install --quiet piano_transcription_inference==0.0.6 torchlibrosa==0.1.0 librosa==0.10.2.post1 soundfile onnx==1.17.0 onnxruntime==1.20.1 "numpy<2"
+          curl -sSL --retry 3 -o ckpt.pth "https://zenodo.org/record/4034264/files/CRNN_note_F1%3D0.9677_pedal_F1%3D0.9186.pth?download=1"
+          ls -la ckpt.pth
+          python scripts/piano_model/export_and_reference.py ckpt.pth eval piano-model-out
+          # Basic Pitch's ONNX model, for the comparison.
+          pip download --quiet --no-deps basic-pitch==0.4.0 -d bp
+          unzip -q -o bp/*.whl 'basic_pitch/saved_models/icassp_2022/nmp.onnx' -d bp
+          cp bp/basic_pitch/saved_models/icassp_2022/nmp.onnx piano-model-out/basic_pitch.onnx
+          ls -la piano-model-out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: piano-model
+          path: PianoScribe/piano-model-out
+          retention-days: 7
+
   build:
+    needs: piano-model
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: piano-model
+          path: PianoScribe/piano-model-out
 
       - uses: actions/setup-java@v5
         with:
@@ -53,6 +99,22 @@ jobs:
           "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
       - uses: gradle/actions/setup-gradle@v4
+
+      - name: Accuracy of the transcription models on the evaluation set
+        env:
+          PIANO_ONNX: ${{ github.workspace }}/PianoScribe/piano-model-out/piano_fp32.onnx
+          BASIC_PITCH_ONNX: ${{ github.workspace }}/PianoScribe/piano-model-out/basic_pitch.onnx
+          EVAL_DATA: ${{ github.workspace }}/PianoScribe/piano-model-out
+          EVAL_TRUTH: ${{ github.workspace }}/PianoScribe/eval
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon :core:test --tests '*PianoModelEval*' 2>&1 | grep -E "EVAL|PARITY|RESULT|FALSEPOS|FAIL|BUILD" || true
+
+      - name: Bundle the piano model
+        run: |
+          mkdir -p app/src/main/assets/models
+          cp piano-model-out/piano_fp32.onnx app/src/main/assets/models/piano_transcription.onnx
+          ls -la app/src/main/assets/models
 
       - name: Decode release keystore (if provided)
         env:
@@ -130,7 +192,7 @@ jobs:
   # playback, every export, compare/auto-fix), a UI smoke test, and a launch check of the
   # minified release APK.
   device-tests:
-    needs: build
+    needs: [build, piano-model]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
@@ -163,6 +225,17 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: piano-model
+          path: PianoScribe/piano-model-out
+
+      - name: Bundle the piano model
+        run: |
+          mkdir -p app/src/main/assets/models
+          cp piano-model-out/piano_fp32.onnx app/src/main/assets/models/piano_transcription.onnx
+          ls -la app/src/main/assets/models
 
       - name: Build the debug app and test APKs
         run: |
@@ -204,6 +277,20 @@ jobs:
             bash scripts/release-import-check.sh test_melody.mp3
             bash scripts/release-import-check.sh test_melody.m4a
             test ! -f tests-failed
+
+      - name: Show failed device tests in full
+        if: failure()
+        working-directory: PianoScribe
+        run: |
+          python3 - <<'PY'
+          import glob, xml.etree.ElementTree as ET
+          for f in glob.glob("app/build/outputs/androidTest-results/connected/**/*.xml", recursive=True):
+              for tc in ET.parse(f).getroot().iter("testcase"):
+                  for fail in tc.findall("failure"):
+                      print(f"FAILED {tc.get('classname')}.{tc.get('name')}")
+                      print("\n".join((fail.text or "").splitlines()[:60]))
+          PY
+          test -f logcat-tests.txt && grep -B2 -A40 "FATAL EXCEPTION\|performMeasureAndLayout" logcat-tests.txt | head -150 || true
 
       - name: Upload test reports and logcat
         if: always()

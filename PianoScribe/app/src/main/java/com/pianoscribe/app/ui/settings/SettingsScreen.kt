@@ -77,6 +77,18 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, onLicenses: () -
                     }
                     Switch(s.autoClean, { v -> store.update { it.copy(autoClean = v) } })
                 }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("High-accuracy piano model", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            if (com.pianoscribe.app.ml.PianoModelRunner.isAvailable(LocalContext.current))
+                                "For solo piano: adds a dedicated piano transcription model (about 96% note accuracy on studio recordings) and combines it with the general model. Conversion takes about 2-4x longer."
+                            else "Not included in this build.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    Switch(s.highAccuracyPiano, { v -> store.update { it.copy(highAccuracyPiano = v) } })
+                }
                 LabeledSlider("Onset threshold", s.onsetThreshold, String.format(Locale.US, "%.2f", s.onsetThreshold), 0.05f..0.95f,
                     { v -> store.update { it.copy(onsetThreshold = v) } }, help = "Lower finds more note starts (and more false ones).")
                 LabeledSlider("Note threshold", s.frameThreshold, String.format(Locale.US, "%.2f", s.frameThreshold), 0.05f..0.95f,

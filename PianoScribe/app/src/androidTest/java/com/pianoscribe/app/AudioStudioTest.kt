@@ -120,10 +120,11 @@ class AudioStudioTest {
         }
         // The melody alone still transcribes to the melody notes (72 and up in the test piece).
         st.separate(Separation.MELODY_ONLY, settings)
-        val notes = TranscriptionEngine(TestFixtures.app).transcribe(st.current.file, settings) { _, _ -> }.notes
+        val result = TranscriptionEngine(TestFixtures.app).transcribe(st.current.file, settings) { _, _ -> }
+        val notes = result.notes
         val melody = TestFixtures.expected.filter { it.pitch >= 72 }
         val found = melody.count { e -> notes.any { it.pitch == e.pitch && abs(it.start - e.start) < 0.08 } }
-        assertTrue("melody notes kept: $found of ${melody.size}", found >= melody.size * 0.75)
+        assertTrue("melody notes kept: $found of ${melody.size} (piano model used: ${result.pianoModel})", found >= melody.size * 0.75)
         val chordNotes = notes.count { it.pitch < 60 }
         android.util.Log.i("PianoScribeTest", "Melody only: ${notes.size} notes, $found/${melody.size} melody, $chordNotes below middle C")
     }

@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
+
 package com.pianoscribe.app
 
 import android.content.Intent
@@ -54,7 +56,7 @@ class ImportFlowTest {
     @get:Rule val compose = createEmptyComposeRule()
 
     private fun waitForText(text: String, timeoutMs: Long, substring: Boolean = false) =
-        compose.waitUntil(timeoutMs) { compose.waitForIdle(); compose.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntilAtLeastOneExists(hasText(text, substring = substring), timeoutMs)
 
     private fun openAndConvert(uri: Uri, mime: String, openTimeoutMs: Long, convertTimeoutMs: Long) {
         val app = TestFixtures.app

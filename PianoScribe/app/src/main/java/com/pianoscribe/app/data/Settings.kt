@@ -38,6 +38,8 @@ data class AppSettings(
     val humanFeel: Float = 0.6f,
     /** Remove mains hum and rumble before transcribing, when the analysis finds them. */
     val autoClean: Boolean = true,
+    /** Solo piano: also run the high-resolution piano model and let it lead. */
+    val highAccuracyPiano: Boolean = true,
 ) {
     fun transcription() = TranscriptionSettings(
         onsetThreshold = onsetThreshold,
@@ -86,6 +88,7 @@ class SettingsStore(context: Context) {
             instrument = runCatching { Instrument.valueOf(prefs.getString("instrument", d.instrument.name)!!) }.getOrDefault(d.instrument),
             humanFeel = prefs.getFloat("humanFeel", d.humanFeel),
             autoClean = prefs.getBoolean("autoClean", d.autoClean),
+            highAccuracyPiano = prefs.getBoolean("highAccuracyPiano", d.highAccuracyPiano),
         )
     }
 
@@ -109,6 +112,7 @@ class SettingsStore(context: Context) {
             .putString("instrument", s.instrument.name)
             .putFloat("humanFeel", s.humanFeel)
             .putBoolean("autoClean", s.autoClean)
+            .putBoolean("highAccuracyPiano", s.highAccuracyPiano)
             .apply()
     }
 }
