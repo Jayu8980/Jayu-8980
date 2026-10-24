@@ -31,7 +31,7 @@ class UiSmokeTest {
     private val container get() = (TestFixtures.app.applicationContext as PianoScribeApp).container
 
     private fun waitForText(text: String, timeoutMs: Long = 20_000) =
-        compose.waitUntil(timeoutMs) { compose.runOnUiThread { compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() } }
+        compose.waitUntil(timeoutMs) { compose.waitForIdle(); compose.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() }
 
     /** A project with the test recording and its expected notes, as if it had just been converted. */
     private fun seedProject(name: String): Long = runBlocking {

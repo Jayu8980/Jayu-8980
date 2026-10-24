@@ -53,7 +53,7 @@ class ImportFlowTest {
     @get:Rule val compose = createEmptyComposeRule()
 
     private fun waitForText(text: String, timeoutMs: Long, substring: Boolean = false) =
-        compose.waitUntil(timeoutMs) { compose.runOnUiThread { compose.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty() } }
+        compose.waitUntil(timeoutMs) { compose.waitForIdle(); compose.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty() }
 
     @Test fun openConvertAndShowEveryFormat() {
         val app = TestFixtures.app

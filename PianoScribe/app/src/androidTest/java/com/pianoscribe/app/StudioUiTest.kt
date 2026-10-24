@@ -28,7 +28,7 @@ class StudioUiTest {
 
     private fun waitForText(text: String, substring: Boolean = false, timeoutMs: Long = 60_000) {
         try {
-            compose.waitUntil(timeoutMs) { compose.runOnUiThread { compose.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty() } }
+            compose.waitUntil(timeoutMs) { compose.waitForIdle(); compose.onAllNodesWithText(text, substring = substring).fetchSemanticsNodes().isNotEmpty() }
         } catch (e: androidx.compose.ui.test.ComposeTimeoutException) {
             // Say what was on screen instead, so a failure explains itself.
             val shown = compose.onAllNodes(androidx.compose.ui.test.isRoot()).fetchSemanticsNodes().flatMap { root ->
