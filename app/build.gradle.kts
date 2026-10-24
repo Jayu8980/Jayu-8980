@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    alias(libs.plugins.room)
 }
 
 // Release signing: read from keystore.properties (local) or environment variables (CI).
@@ -88,8 +89,11 @@ android {
     }
 }
 
-ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
+// The Room Gradle plugin gives each variant its own schema output and copies it here. Passing
+// room.schemaLocation to KSP directly made kspDebugKotlin and kspReleaseKotlin read and rewrite the
+// same JSON file in parallel builds, which intermittently failed with "had 'EOF' instead".
+room {
+    schemaDirectory("$projectDir/schemas")
 }
 
 dependencies {
