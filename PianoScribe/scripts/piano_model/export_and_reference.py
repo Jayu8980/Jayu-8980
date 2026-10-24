@@ -111,6 +111,7 @@ def stage_diff(name, module, inp, input_name="x"):
     with torch.no_grad():
         want = module(inp)
         torch.onnx.export(module, inp, path, input_names=[input_name], opset_version=17, do_constant_folding=True)
+    batchnorm_to_affine(path)
     sess = ort.InferenceSession(path, providers=["CPUExecutionProvider"])
     got = sess.run(None, {input_name: inp.numpy()})[0]
     want = want[0] if isinstance(want, (tuple, list)) else want
@@ -129,7 +130,22 @@ with torch.no_grad():
     front = Front(note).eval()
     stage_diff("front", front, seg_t)
     feat = front(seg_t)
-    stage_diff("frame_model", note.frame_model, feat)
+    am = note.frame_model
+    class Convs(torch.nn.Module):
+        def __init__(self, a): super().__init__(); self.a = a
+        def forward(self, x):
+            for blk in (self.a.conv_block1, self.a.conv_block2, self.a.conv_block3, self.a.conv_block4):
+                x = blk(x, pool_size=(1, 2), pool_type="avg")
+            return x
+    stage_diff("frame_model_convs", Convs(am).eval(), feat)
+    class Mid(torch.nn.Module):
+        def __init__(self, a): super().__init__(); self.a = a
+        def forward(self, x):
+            x = x.transpose(1, 2).flatten(2)
+            return torch.relu(self.a.bn5(self.a.fc5(x).transpose(1, 2)).transpose(1, 2))
+    convs_out = Convs(am).eval()(feat)
+    stage_diff("frame_model_fc5_bn5", Mid(am).eval(), convs_out)
+    stage_diff("frame_model", am, feat)
     class Gru(torch.nn.Module):
         def __init__(self, g): super().__init__(); self.g = g
         def forward(self, x): return self.g(x)[0]
