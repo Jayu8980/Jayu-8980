@@ -151,6 +151,14 @@ class PipelineTest {
                 assertTrue("$mode is playing", engine.state.value.playing)
                 engine.pause()
             }
+            // Seeking while playing must keep the sound going (it used to leave the track paused).
+            engine.mode = PlayMode.NOTES
+            engine.seek(0.5); engine.play(); Thread.sleep(300)
+            engine.seek(2.0); Thread.sleep(800)
+            val afterSeek = engine.state.value
+            assertTrue("still playing after a seek", afterSeek.playing)
+            assertTrue("position moves on after a seek: ${afterSeek.position}", afterSeek.position in 2.2..3.2)
+            engine.pause()
             engine.speed = 0.5
             engine.setInstrument(Instrument.VIOLIN, null, 0.8f)
             engine.setNotes(Performer.perform(notes, grid, Instrument.VIOLIN))

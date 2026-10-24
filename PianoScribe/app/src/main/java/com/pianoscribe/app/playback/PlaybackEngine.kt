@@ -55,6 +55,8 @@ class PlaybackEngine(preset: Sf2Preset?, private val audioFile: File?, instrumen
     val state: StateFlow<State> = _state.asStateFlow()
 
     @Volatile private var playing = false
+    /** Whether the AudioTrack is started; a seek pauses and flushes it, so the render loop restarts it. */
+    @Volatile private var trackPlaying = false
     @Volatile private var running = true
     private var songTime = 0.0
     private var framesWritten = 0L
@@ -126,6 +128,7 @@ class PlaybackEngine(preset: Sf2Preset?, private val audioFile: File?, instrumen
         fifo.clear()
         upPhase = 0.0
         runCatching { track.pause(); track.flush() }
+        trackPlaying = false
         framesWritten = 0
         basePosition = t
     }
@@ -155,7 +158,6 @@ class PlaybackEngine(preset: Sf2Preset?, private val audioFile: File?, instrumen
 
     private fun loop() {
         val out = FloatArray(BLOCK)
-        var trackPlaying = false
         var lastPublish = 0L
         while (running) {
             var wrote = false
@@ -187,9 +189,12 @@ class PlaybackEngine(preset: Sf2Preset?, private val audioFile: File?, instrumen
                 }
             }
             if (wrote) {
-                if (!trackPlaying) { track.play(); trackPlaying = true }
-                track.write(out, 0, BLOCK, AudioTrack.WRITE_BLOCKING)
-                synchronized(lock) { framesWritten += BLOCK }
+                synchronized(lock) { if (!trackPlaying) { track.play(); trackPlaying = true } }
+                val n = track.write(out, 0, BLOCK, AudioTrack.WRITE_BLOCKING)
+                synchronized(lock) { framesWritten += n.coerceAtLeast(0) }
+                // A short write means the track was flushed by a seek or the audio device went away;
+                // wait one block so song time never runs ahead of real time.
+                if (n < BLOCK) try { Thread.sleep(BLOCK * 1000L / OUT_RATE) } catch (_: InterruptedException) { }
                 val now = System.nanoTime()
                 if (playing && now - lastPublish > 16_000_000L) {
                     lastPublish = now

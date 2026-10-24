@@ -98,7 +98,7 @@ fun TransportBar(
                         Text(when (s.mode) { PlayMode.NOTES -> "Notes"; PlayMode.ORIGINAL -> "Original"; PlayMode.BOTH -> "A/B mix" })
                     }
                     DropdownMenu(modeMenu, { modeMenu = false }) {
-                        DropdownMenuItem(text = { Text("Transcribed notes (piano)") }, onClick = { modeMenu = false; vm.setMode(PlayMode.NOTES) })
+                        DropdownMenuItem(text = { Text("Transcribed notes") }, onClick = { modeMenu = false; vm.setMode(PlayMode.NOTES) })
                         DropdownMenuItem(text = { Text("Original audio") }, onClick = { modeMenu = false; vm.setMode(PlayMode.ORIGINAL) })
                         DropdownMenuItem(text = { Text("Both mixed (A/B)") }, onClick = { modeMenu = false; vm.setMode(PlayMode.BOTH) })
                     }
