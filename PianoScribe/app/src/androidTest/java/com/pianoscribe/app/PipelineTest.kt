@@ -48,7 +48,7 @@ class PipelineTest {
             pcm = File(TestFixtures.app.cacheDir, "test_decoded.f32")
             AudioDecoder(TestFixtures.app).decode(TestFixtures.wavUri(), pcm) {}
             val t0 = System.currentTimeMillis()
-            val result = TranscriptionEngine(TestFixtures.app).transcribe(pcm, AppSettings(audioType = AudioType.SOLO_PIANO)) { _, _ -> }
+            val result = TranscriptionEngine(TestFixtures.app).transcribe(pcm, AppSettings(audioType = AudioType.SOLO_PIANO, highAccuracyPiano = false)) { _, _ -> }
             transcribeMs = System.currentTimeMillis() - t0
             notes = result.notes
             grid = result.grid
@@ -72,6 +72,18 @@ class PipelineTest {
         assertTrue(notes.all { it.pitch in 21..108 && it.velocity in 1..127 && it.duration > 0 && it.confidence in 0f..1f })
         assertTrue("tempo ${grid.bpm}", grid.bpm in 40.0..250.0)
         android.util.Log.i("PianoScribeTest", "Transcribed ${TestFixtures.DURATION_SEC} s in $transcribeMs ms, ${notes.size} notes, recall $r")
+    }
+
+    @Test fun highAccuracyPianoModelFindsTheNotes() = runBlocking<Unit> {
+        org.junit.Assume.assumeTrue("piano model bundled", com.pianoscribe.app.ml.PianoModelRunner.isAvailable(TestFixtures.app))
+        val t0 = System.currentTimeMillis()
+        val result = TranscriptionEngine(TestFixtures.app).transcribe(pcm, AppSettings(audioType = AudioType.SOLO_PIANO, highAccuracyPiano = true)) { _, _ -> }
+        val ms = System.currentTimeMillis() - t0
+        assertTrue("piano model used", result.pianoModel)
+        val r = recall(result.notes)
+        val precision = result.notes.count { n -> TestFixtures.expected.any { it.pitch == n.pitch && abs(it.start - n.start) < 0.08 } }.toDouble() / result.notes.size
+        android.util.Log.i("PianoScribeTest", "Piano model: ${result.notes.size} notes, recall $r, precision $precision, $ms ms (Basic Pitch alone: ${notes.size} notes)")
+        assertTrue("recall $r", r >= 0.8)
     }
 
     @Test fun fullSongModeRunsAndKeepsTheNotes() = runBlocking<Unit> {

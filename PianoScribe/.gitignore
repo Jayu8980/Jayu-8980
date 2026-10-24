@@ -15,3 +15,4 @@ output-metadata.json
 *.keystore
 keystore.properties
 piano-model-out/
+app/src/main/assets/models/piano_transcription.onnx

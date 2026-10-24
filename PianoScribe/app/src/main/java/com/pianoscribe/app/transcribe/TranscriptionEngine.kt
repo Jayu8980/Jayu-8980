@@ -4,6 +4,7 @@ import android.content.Context
 import com.pianoscribe.app.audio.PcmFile
 import com.pianoscribe.app.data.AppSettings
 import com.pianoscribe.app.ml.ModelRunner
+import com.pianoscribe.app.ml.PianoModelRunner
 import com.pianoscribe.core.audio.AudioCleaner
 import com.pianoscribe.core.audio.Hpss
 import com.pianoscribe.core.audio.Pcm
@@ -18,6 +19,8 @@ import com.pianoscribe.core.theory.KeyDetector
 import com.pianoscribe.core.transcribe.AudioType
 import com.pianoscribe.core.transcribe.BasicPitch
 import com.pianoscribe.core.transcribe.NotePostProcessor
+import com.pianoscribe.core.transcribe.PianoEnsemble
+import com.pianoscribe.core.transcribe.PianoModel
 import com.pianoscribe.core.transcribe.SongCleanup
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
@@ -37,6 +40,7 @@ class NoNotesException(songMode: Boolean = false) : IOException(
  * @param songMode true when the audio was treated as a full song (drums removed, clean-up applied)
  * @param retriedSensitive true when too few notes were found and lower thresholds were used
  * @param cleanup what was filtered out before listening ("50 Hz hum removed"), if anything
+ * @param pianoModel true when the high-resolution piano model made the notes (with Basic Pitch)
  */
 data class TranscriptionResult(
     val notes: List<Note>,
@@ -45,6 +49,7 @@ data class TranscriptionResult(
     val songMode: Boolean = false,
     val retriedSensitive: Boolean = false,
     val cleanup: List<String> = emptyList(),
+    val pianoModel: Boolean = false,
 )
 
 /** Progress callback: step label and 0..1 overall progress. */
@@ -60,6 +65,11 @@ typealias ProgressListener = (step: String, progress: Float) -> Unit
  * a few excerpts.
  */
 class TranscriptionEngine(private val context: Context) {
+    companion object {
+        /** Longer recordings use Basic Pitch alone, to keep memory in bounds. */
+        const val PIANO_MODEL_MAX_SEC = 15 * 60
+    }
+
     suspend fun transcribe(input: File, settings: AppSettings, progress: ProgressListener): TranscriptionResult = withContext(Dispatchers.Default) {
         val length = PcmFile.length(input)
         progress("Checking audio", 0f)
@@ -108,13 +118,21 @@ class TranscriptionEngine(private val context: Context) {
         }
         coroutineContext.ensureActive()
 
-        // 2. The model.
+        // 2. The models. Solo piano also gets the high-resolution piano model, which leads.
+        val usePiano = !songMode && settings.highAccuracyPiano && PianoModelRunner.isAvailable(context) &&
+            length <= PIANO_MODEL_MAX_SEC * BasicPitch.SAMPLE_RATE
         val modelStart = if (songMode) 0.2f else 0.05f
+        val modelEnd = if (usePiano) 0.3f else 0.8f
         val act = RandomAccessFile(analysis, "r").use { raf ->
             ModelRunner.run(context, length, { dst, off, src, count -> PcmFile.read(raf, src, dst, off, count) }) { done, total ->
-                progress("Listening for notes ($done/$total)", modelStart + (0.8f - modelStart) * done / total)
+                progress("Listening for notes ($done/$total)", modelStart + (modelEnd - modelStart) * done / total)
             }
         }
+        val pianoOut = if (usePiano) {
+            PianoModelRunner.run(context, PcmFile.readAll(analysis)) { done, total ->
+                progress("High-accuracy piano model ($done/$total)", 0.3f + 0.5f * done / total)
+            }
+        } else null
         coroutineContext.ensureActive()
 
         // 3. Notes, with one more sensitive pass if a busy mix gave almost nothing.
@@ -126,6 +144,15 @@ class TranscriptionEngine(private val context: Context) {
             progress("Few notes found: listening more closely", 0.84f)
             val sensitive = NotePostProcessor.process(act, SongCleanup.sensitive(settings.transcription()), NoteIdGenerator())
             if (sensitive.size > notes.size) { notes = sensitive; retried = true }
+        }
+        if (pianoOut != null) {
+            progress("Combining the piano model with Basic Pitch", 0.85f)
+            val ids = NoteIdGenerator()
+            val piano = PianoModel.notes(pianoOut, ids = ids)
+                .filter { it.start < durationSec && it.pitch in settings.minPitch..settings.maxPitch }
+                .map { if (it.end > durationSec) it.copy(duration = maxOf(0.02, durationSec - it.start)) else it }
+            // The piano model leads; keep Basic Pitch's notes only where it found nothing at all.
+            if (piano.isNotEmpty()) { notes = PianoEnsemble.combine(piano, pianoOut, notes, ids); retried = false }
         }
         if (songMode) {
             progress("Full song: cleaning up notes", 0.86f)
@@ -156,7 +183,7 @@ class TranscriptionEngine(private val context: Context) {
         notes = HandSplitter.split(notes, settings.splitPoint)
         val key = KeyDetector.detect(notes)
         progress("Done", 1f)
-        TranscriptionResult(notes, grid, key, songMode, retried, cleanup)
+        TranscriptionResult(notes, grid, key, songMode, retried, cleanup, pianoModel = pianoOut != null)
     }
 
     /**

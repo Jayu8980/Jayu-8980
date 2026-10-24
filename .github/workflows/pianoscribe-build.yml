@@ -110,6 +110,12 @@ jobs:
           chmod +x ./gradlew
           ./gradlew --no-daemon :core:test --tests '*PianoModelEval*' 2>&1 | grep -E "EVAL|PARITY|RESULT|FAIL|BUILD" || true
 
+      - name: Bundle the piano model
+        run: |
+          mkdir -p app/src/main/assets/models
+          cp piano-model-out/${PIANO_MODEL_FILE:-piano_int8.onnx} app/src/main/assets/models/piano_transcription.onnx
+          ls -la app/src/main/assets/models
+
       - name: Decode release keystore (if provided)
         env:
           SIGNING_KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
@@ -186,7 +192,7 @@ jobs:
   # playback, every export, compare/auto-fix), a UI smoke test, and a launch check of the
   # minified release APK.
   device-tests:
-    needs: build
+    needs: [build, piano-model]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
@@ -219,6 +225,17 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: piano-model
+          path: PianoScribe/piano-model-out
+
+      - name: Bundle the piano model
+        run: |
+          mkdir -p app/src/main/assets/models
+          cp piano-model-out/${PIANO_MODEL_FILE:-piano_int8.onnx} app/src/main/assets/models/piano_transcription.onnx
+          ls -la app/src/main/assets/models
 
       - name: Build the debug app and test APKs
         run: |
