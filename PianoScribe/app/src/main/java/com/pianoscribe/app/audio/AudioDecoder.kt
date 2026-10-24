@@ -32,7 +32,8 @@ class AudioDecoder(private val context: Context) {
             try {
                 extractor.setDataSource(context, uri, null)
             } catch (e: Exception) {
-                throw UnsupportedAudioException("This file can't be opened. It may be damaged or not an audio file.")
+                android.util.Log.w("PianoScribe", "setDataSource failed for $uri", e)
+                throw UnsupportedAudioException("This file can't be opened. It may be damaged or not an audio file. (${e.javaClass.simpleName}: ${e.message})")
             }
             val track = (0 until extractor.trackCount).firstOrNull {
                 extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true

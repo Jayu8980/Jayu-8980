@@ -12,6 +12,7 @@ fail() {
   echo "FAILED ($asset): $1"
   adb logcat -d > "logcat-release-$asset.txt"
   grep -A40 "FATAL EXCEPTION" "logcat-release-$asset.txt" | head -60
+  grep -A25 "PianoScribe" "logcat-release-$asset.txt" | head -60
   grep -o 'text="[^"]*"' ui.xml | head -40
   exit 1
 }

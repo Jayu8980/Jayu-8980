@@ -56,7 +56,7 @@ class StudioUiTest {
         waitForText("Check the recording")
         button("Check").performScrollTo().performClick()
         waitForText("Background noise", substring = true)
-        waitForText("No mains hum")
+        waitForText("No mains hum", substring = true)
 
         // Separate: drums removed (fast, no model).
         compose.onNodeWithText("  Remove drums").performScrollTo().performClick()
