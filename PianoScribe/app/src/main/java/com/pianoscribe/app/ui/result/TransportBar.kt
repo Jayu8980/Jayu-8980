@@ -8,11 +8,13 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
@@ -33,17 +35,53 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.pianoscribe.app.playback.PlayMode
 import com.pianoscribe.app.ui.components.formatTime
+import com.pianoscribe.core.perform.Instrument
 
 private val SPEEDS = listOf(0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0)
 
 @Composable
-fun TransportBar(vm: ResultViewModel, s: ResultViewModel.UiState, position: Double, playing: Boolean) {
+fun TransportBar(
+    vm: ResultViewModel,
+    s: ResultViewModel.UiState,
+    position: Double,
+    playing: Boolean,
+    instrument: Instrument,
+    humanFeel: Float,
+) {
     var speedMenu by remember { mutableStateOf(false) }
+    var instrumentMenu by remember { mutableStateOf(false) }
+    var feelDrag by remember { mutableStateOf<Float?>(null) }
     var modeMenu by remember { mutableStateOf(false) }
     var scrubbing by remember { mutableStateOf<Float?>(null) }
     val duration = s.derived.duration
     Surface(tonalElevation = 3.dp) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp)) {
+            // Instrument and how human the performance sounds.
+            Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box {
+                    AssistChip(
+                        onClick = { instrumentMenu = true },
+                        label = { Text(instrument.label + if (s.usingSoundFont || instrument == Instrument.PIANO) "" else " (built-in)") },
+                        leadingIcon = { Icon(Icons.Default.MusicNote, null, Modifier.size(18.dp)) },
+                    )
+                    DropdownMenu(instrumentMenu, { instrumentMenu = false }) {
+                        Instrument.entries.forEach { inst ->
+                            DropdownMenuItem(
+                                text = { Text(inst.label + if (inst.monophonic) "  · melody" else "") },
+                                onClick = { instrumentMenu = false; vm.setInstrument(inst) },
+                            )
+                        }
+                    }
+                }
+                Text("  Human feel", style = MaterialTheme.typography.labelMedium)
+                Slider(
+                    value = feelDrag ?: humanFeel,
+                    onValueChange = { feelDrag = it },
+                    onValueChangeFinished = { feelDrag?.let(vm::setHumanFeel); feelDrag = null },
+                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                )
+                Text("${Math.round((feelDrag ?: humanFeel) * 100)}%", style = MaterialTheme.typography.labelMedium)
+            }
             Slider(
                 value = scrubbing ?: position.toFloat().coerceIn(0f, duration.toFloat()),
                 onValueChange = { scrubbing = it },

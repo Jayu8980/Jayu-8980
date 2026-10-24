@@ -41,6 +41,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
@@ -65,6 +66,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pianoscribe.app.AppContainer
 import com.pianoscribe.app.export.ExportFormat
+import com.pianoscribe.app.export.Exporter
 import com.pianoscribe.app.ui.components.LabeledSlider
 import com.pianoscribe.core.theory.Pitch
 
@@ -108,7 +110,7 @@ fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, o
     }
     fun saveAs(f: ExportFormat) {
         pendingSave = f
-        saveLauncher.launch(fileName(s.project?.name, f) to f.mime)
+        saveLauncher.launch(Exporter.fileName(s.project?.name, f, settings.instrument) to f.mime)
     }
     // Downloads needs Android 10+; older phones get the system "Save as" screen instead.
     fun saveToDownloads(f: ExportFormat) = vm.saveToDownloads(f) { saveAs(f) }
@@ -157,7 +159,7 @@ fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, o
             )
         },
         bottomBar = {
-            if (!s.loading && s.error == null) TransportBar(vm, s, position, playing)
+            if (!s.loading && s.error == null) TransportBar(vm, s, position, playing, settings.instrument, settings.humanFeel)
         },
     ) { pad ->
         Column(Modifier.fillMaxSize().padding(pad)) {
@@ -202,16 +204,24 @@ fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, o
 
     when (dialog) {
         Dialog.NONE -> {}
-        Dialog.MIDI -> MidiDialog(
-            noteCount = s.derived.notes.size,
-            fileName = fileName(s.project?.name, ExportFormat.MIDI),
-            onDismiss = { dialog = Dialog.NONE },
-            onDownloads = { dialog = Dialog.NONE; saveToDownloads(ExportFormat.MIDI) },
-            onOpen = { dialog = Dialog.NONE; vm.open(ExportFormat.MIDI) },
-            onShare = { dialog = Dialog.NONE; vm.share(ExportFormat.MIDI) },
-            onSaveAs = { dialog = Dialog.NONE; saveAs(ExportFormat.MIDI) },
-            onMore = { dialog = Dialog.EXPORT },
-        )
+        Dialog.MIDI -> {
+            var performed by rememberSaveable { mutableStateOf(false) }
+            val f = if (performed) ExportFormat.MIDI_PERFORMED else ExportFormat.MIDI
+            MidiDialog(
+                noteCount = s.derived.notes.size,
+                fileName = Exporter.fileName(s.project?.name, f, settings.instrument),
+                instrument = settings.instrument.label,
+                performed = performed,
+                onPerformed = { performed = it },
+                onDismiss = { dialog = Dialog.NONE },
+                onDownloads = { dialog = Dialog.NONE; saveToDownloads(f) },
+                onOpen = { dialog = Dialog.NONE; vm.open(f) },
+                onShare = { dialog = Dialog.NONE; vm.share(f) },
+                onSaveAs = { dialog = Dialog.NONE; saveAs(f) },
+                onWav = { dialog = Dialog.NONE; saveToDownloads(ExportFormat.WAV) },
+                onMore = { dialog = Dialog.EXPORT },
+            )
+        }
         Dialog.EXPORT -> ExportDialog(
             onDismiss = { dialog = Dialog.NONE },
             onDownloads = { f -> dialog = Dialog.NONE; saveToDownloads(f) },
@@ -291,11 +301,6 @@ fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, o
     }
 }
 
-private fun fileName(title: String?, f: ExportFormat): String {
-    val base = (title ?: "PianoScribe").replace(Regex("[^A-Za-z0-9 _\\-]"), "_").trim().ifEmpty { "PianoScribe" }
-    val suffix = when (f) { ExportFormat.ANALYSIS_CSV, ExportFormat.ANALYSIS_PDF -> "-analysis"; ExportFormat.NOTES_PDF, ExportFormat.NOTES_TXT -> "-notes"; else -> "" }
-    return "$base$suffix.${f.ext}"
-}
 
 @Composable
 private fun InfoStrip(s: ResultViewModel.UiState, position: Double) {
@@ -312,11 +317,15 @@ private fun InfoStrip(s: ResultViewModel.UiState, position: Double) {
 private fun MidiDialog(
     noteCount: Int,
     fileName: String,
+    instrument: String,
+    performed: Boolean,
+    onPerformed: (Boolean) -> Unit,
     onDismiss: () -> Unit,
     onDownloads: () -> Unit,
     onOpen: () -> Unit,
     onShare: () -> Unit,
     onSaveAs: () -> Unit,
+    onWav: () -> Unit,
     onMore: () -> Unit,
 ) {
     AlertDialog(
@@ -325,12 +334,24 @@ private fun MidiDialog(
         title = { Text("MIDI file") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("$fileName · $noteCount notes · right and left hand on separate tracks, Acoustic Grand Piano.",
-                    style = MaterialTheme.typography.bodySmall)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Performed version", style = MaterialTheme.typography.bodyMedium)
+                        Text("Played on $instrument with human feel", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Switch(performed, onPerformed)
+                }
+                Text(
+                    if (performed) "$fileName · right and left hand on separate tracks, $instrument."
+                    else "$fileName · $noteCount notes exactly as transcribed · right and left hand on separate tracks, piano.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
                 Button(onClick = onDownloads, modifier = Modifier.fillMaxWidth()) { Text("Save to Downloads") }
                 OutlinedButton(onClick = onOpen, modifier = Modifier.fillMaxWidth()) { Text("Open in a MIDI app") }
                 OutlinedButton(onClick = onShare, modifier = Modifier.fillMaxWidth()) { Text("Share…") }
                 OutlinedButton(onClick = onSaveAs, modifier = Modifier.fillMaxWidth()) { Text("Save as… (choose folder)") }
+                HorizontalDivider()
+                FilledTonalButton(onClick = onWav, modifier = Modifier.fillMaxWidth()) { Text("Save audio on $instrument (WAV)") }
                 TextButton(onClick = onMore, modifier = Modifier.fillMaxWidth()) { Text("Other formats: MusicXML, PNG, PDF, CSV") }
             }
         },

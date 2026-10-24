@@ -23,15 +23,23 @@ import com.pianoscribe.core.midi.MusicXmlWriter
 import com.pianoscribe.core.model.Hand
 import com.pianoscribe.core.model.Note
 import com.pianoscribe.core.model.TimeGrid
+import com.pianoscribe.core.perform.Instrument
+import com.pianoscribe.core.perform.PlayedNote
+import com.pianoscribe.core.synth.OfflineRenderer
+import com.pianoscribe.core.synth.Sf2Preset
 import com.pianoscribe.core.theory.KeyDetector
 import com.pianoscribe.core.theory.Pitch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.BufferedOutputStream
 import java.io.File
+import java.io.FileOutputStream
 import java.util.Locale
 
 enum class ExportFormat(val label: String, val ext: String, val mime: String) {
     MIDI("MIDI file (.mid)", "mid", "audio/midi"),
+    MIDI_PERFORMED("MIDI as performed: instrument + human feel (.mid)", "mid", "audio/midi"),
+    WAV("Audio of the performance (.wav)", "wav", "audio/wav"),
     MUSICXML("MusicXML for MuseScore (.musicxml)", "musicxml", "application/vnd.recordare.musicxml+xml"),
     PNG("Piano roll image (.png)", "png", "image/png"),
     NOTES_PDF("Note list (.pdf)", "pdf", "application/pdf"),
@@ -42,15 +50,35 @@ enum class ExportFormat(val label: String, val ext: String, val mime: String) {
 
 /** Writes exports into cache/exports and hands them to Downloads, the share sheet, another app or a chosen location. */
 class Exporter(private val context: Context) {
-    data class Input(val title: String, val notes: List<Note>, val grid: TimeGrid, val key: KeyDetector.Key?, val saPitchClass: Int)
+    /**
+     * @param performance the notes as played on [instrument] (MIDI_PERFORMED and WAV use it)
+     * @param preset SoundFont preset for [instrument], or null for the built-in synth model
+     */
+    data class Input(
+        val title: String,
+        val notes: List<Note>,
+        val grid: TimeGrid,
+        val key: KeyDetector.Key?,
+        val saPitchClass: Int,
+        val performance: List<PlayedNote> = notes.map(PlayedNote::of),
+        val instrument: Instrument = Instrument.PIANO,
+        val preset: Sf2Preset? = null,
+        val expression: Float = 0.6f,
+    )
 
     suspend fun export(format: ExportFormat, input: Input): File = withContext(Dispatchers.IO) {
         val dir = File(context.cacheDir, "exports").apply { mkdirs() }
-        val suffix = when (format) { ExportFormat.ANALYSIS_CSV, ExportFormat.ANALYSIS_PDF -> "-analysis"; ExportFormat.NOTES_PDF, ExportFormat.NOTES_TXT -> "-notes"; else -> "" }
-        val file = File(dir, safeName(input.title) + suffix + "." + format.ext)
+        val file = File(dir, fileName(input.title, format, input.instrument))
         val rows by lazy { AnalysisTable.rows(input.notes, input.grid, input.saPitchClass, input.key) }
         when (format) {
             ExportFormat.MIDI -> file.writeBytes(MidiWriter.write(input.notes, input.grid, input.title))
+            ExportFormat.MIDI_PERFORMED -> {
+                val played = input.performance.mapIndexed { i, p -> Note(i + 1L, p.pitch, p.start, p.duration, p.velocity, 1f, p.hand) }
+                file.writeBytes(MidiWriter.write(played, input.grid, "${input.title} (${input.instrument.label})", input.instrument.gmProgram))
+            }
+            ExportFormat.WAV -> BufferedOutputStream(FileOutputStream(file), 1 shl 16).use {
+                OfflineRenderer.render(input.performance, input.instrument, input.preset, WAV_RATE, it, input.expression)
+            }
             ExportFormat.MUSICXML -> file.writeText(MusicXmlWriter.write(input.notes, input.grid, input.title, input.key?.fifths ?: 0))
             ExportFormat.PNG -> writePianoRollPng(input.notes, input.grid, file)
             ExportFormat.NOTES_TXT -> file.writeText(AnalysisTable.text(rows, input.title, input.grid, input.key?.name))
@@ -134,7 +162,24 @@ class Exporter(private val context: Context) {
             ?: error("Couldn't write to the chosen location")
     }
 
-    private fun safeName(s: String) = s.replace(Regex("[^A-Za-z0-9 _\\-]"), "_").trim().ifEmpty { "PianoScribe" }.take(60)
+    companion object {
+        const val WAV_RATE = 44100
+
+        /** "Song.mid", "Song-notes.pdf", "Song-flute-performed.mid", "Song-flute.wav". */
+        fun fileName(title: String?, format: ExportFormat, instrument: Instrument = Instrument.PIANO): String {
+            val inst = instrument.label.lowercase().replace(' ', '-')
+            val suffix = when (format) {
+                ExportFormat.ANALYSIS_CSV, ExportFormat.ANALYSIS_PDF -> "-analysis"
+                ExportFormat.NOTES_PDF, ExportFormat.NOTES_TXT -> "-notes"
+                ExportFormat.MIDI_PERFORMED -> "-$inst-performed"
+                ExportFormat.WAV -> "-$inst"
+                else -> ""
+            }
+            return safeName(title ?: "PianoScribe") + suffix + "." + format.ext
+        }
+
+        private fun safeName(s: String) = s.replace(Regex("[^A-Za-z0-9 _\\-]"), "_").trim().ifEmpty { "PianoScribe" }.take(60)
+    }
 
     private fun writePianoRollPng(notes: List<Note>, grid: TimeGrid, file: File) {
         val end = (notes.maxOfOrNull { it.end } ?: 1.0) + 0.5
