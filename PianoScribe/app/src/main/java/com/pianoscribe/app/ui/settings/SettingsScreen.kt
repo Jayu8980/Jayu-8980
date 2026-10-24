@@ -41,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pianoscribe.app.AppContainer
 import com.pianoscribe.app.data.Notation
 import com.pianoscribe.app.data.ThemeMode
+import com.pianoscribe.app.ui.components.AudioTypeSelector
 import com.pianoscribe.app.ui.components.LabeledSlider
 import com.pianoscribe.core.theory.Pitch
 import java.util.Locale
@@ -67,6 +68,7 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, onLicenses: () -
         ) {
             val w = Modifier.widthIn(max = 720.dp).fillMaxWidth()
             Section("Transcription", w) {
+                AudioTypeSelector(s.audioType, { t -> store.update { it.copy(audioType = t) } })
                 LabeledSlider("Onset threshold", s.onsetThreshold, String.format(Locale.US, "%.2f", s.onsetThreshold), 0.05f..0.95f,
                     { v -> store.update { it.copy(onsetThreshold = v) } }, help = "Lower finds more note starts (and more false ones).")
                 LabeledSlider("Note threshold", s.frameThreshold, String.format(Locale.US, "%.2f", s.frameThreshold), 0.05f..0.95f,

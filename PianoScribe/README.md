@@ -7,7 +7,9 @@
 - minSdk 26 (Android 8.0), targetSdk 35, compileSdk 36. Package `com.pianoscribe.app`.
 
 > **Accuracy note:** results are best for **solo piano or a single instrument**. Full-band songs (drums, vocals,
-> bass, several instruments) give *approximate* results: expect extra and missing notes.
+> bass, several instruments) give *approximate* results. **Full-song mode** (picked automatically, or chosen on the
+> trim screen) removes the drums first and cleans up the notes, which makes songs far cleaner, but expect some
+> extra and missing notes.
 
 ## Features
 
@@ -15,6 +17,7 @@
 |---|---|
 | Input | Import MP3, WAV, M4A, AAC, OGG, FLAC with the system file picker (Storage Access Framework, no storage permission), or record from the microphone (live waveform, max 10 min). Trim start and end with a preview before converting. You can also "Share" or "Open with" audio into the app. |
 | Transcription | MediaExtractor + MediaCodec decode → mono → 22 050 Hz (band-limited resampler) → Spotify **Basic Pitch** in overlapping 2 s windows on a background thread with progress and cancel → note extraction (onset, note and contour outputs) → pitch, start, duration, velocity, confidence and tuning in cents. |
+| Full songs | **Audio type: Auto / Solo piano / Full song.** Auto runs a quick harmonic/percussive separation on three excerpts and switches to full-song mode when drums are present. Full-song mode removes the drums before the model listens (median-filter HPSS), then drops overtone ghosts (octave / octave+fifth above a clearly louder note), faint background notes (below 55% of the loudest nearby note) and extra simultaneous notes (max 4 RH / 3 LH). If any audio gives too few notes, a more sensitive pass runs automatically. |
 | Settings | Onset threshold, note threshold, minimum note length (ms), pitch range limited to piano A0–C8 (MIDI 21–108), "piano only" quantisation to 1/8 or 1/16 with auto-detected tempo (editable BPM), RH/LH split point (default middle C). |
 | Views | Piano roll (scroll, pinch-zoom, keyboard on the left, colour by hand, playhead), Synthesia-style falling notes with an on-screen keyboard and finger numbers, simple grand-staff sheet music, note list with Western (C D E) or Indian Sargam (Sa Re Ga) names. |
 | Editing | Tap to select, drag to move, drag the end to resize, long-press to delete, double-tap to add (edit mode), undo/redo, transpose ±12, tempo change (re-grid or stretch), quantise, hand split. |
@@ -104,6 +107,19 @@ Android Studio alternative: **Build → Generate Signed App Bundle / APK → APK
 5. **Tempo, hands, key**: onset autocorrelation with a tempo prior plus beat-phase search, RH/LH split, and
    Krumhansl–Kessler key finding (whole song and per 16 s section). "Piano only" mode quantises to the grid.
 
+6. **Full songs**: before step 2, harmonic/percussive separation (median filtering along time and frequency, soft
+   mask, 2048-point STFT) keeps tones and drops drum hits; after step 3 the note list is cleaned up as described above.
+
+   Measured on two synthetic songs (piano chords + melody + drum kit, scored against the known notes: right pitch,
+   onset within 50 ms). The second song was not used for tuning:
+
+   | | Song 1 notes / correct / F1 | Song 2 (held out) notes / correct / F1 |
+   |---|---|---|
+   | Mix as-is (before) | 251 / 69 of 70 / 0.43 | 263 / 79 of 80 / 0.46 |
+   | Full-song mode | 75 / 63 of 70 / 0.87 | 94 / 74 of 80 / 0.85 |
+
+   Real recordings (vocals, reverb, mastering) are harder than these synthetic songs, so expect lower numbers there.
+
 Performance: a 5-minute song is about 185 model windows; on a mid-range phone conversion takes well under two minutes.
 Audio is processed in chunks and read from disk by range to avoid running out of memory.
 
@@ -131,7 +147,8 @@ No storage permission (the system file picker grants access per file) and **no i
 `./gradlew :core:test` covers: MIDI writer (exact bytes, VLQ, round trip), resampler (length, frequency, level,
 anti-aliasing, streaming = one-shot), note post-processing (window geometry, stitching, onsets, energy tolerance,
 melodia trick, pitch range, inferred onsets), quantiser, tempo detection, chord naming and inversions, key detection,
-cents calculation and measurement, bar:beat conversion, note values, intervals, Sargam, MusicXML well-formedness and
+cents calculation and measurement, bar:beat conversion, harmonic/percussive separation (tones kept, drums removed,
+solo piano vs. piano + drums detection), song clean-up (overtone ghosts, quiet notes, polyphony limit), note values, intervals, Sargam, MusicXML well-formedness and
 measure layout, analyser steps/filters, CSV export, fingering, undo/redo and edit operations, SF2 write/read and
 playback, time-stretch and YIN.
 

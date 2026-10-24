@@ -4,6 +4,7 @@ import android.content.Context
 import com.pianoscribe.app.audio.PcmFile
 import com.pianoscribe.app.data.AppSettings
 import com.pianoscribe.app.ml.BasicPitchModel
+import com.pianoscribe.core.audio.Hpss
 import com.pianoscribe.core.audio.Pcm
 import com.pianoscribe.core.audio.PitchAccuracy
 import com.pianoscribe.core.model.Note
@@ -14,8 +15,10 @@ import com.pianoscribe.core.rhythm.TempoDetector
 import com.pianoscribe.core.theory.HandSplitter
 import com.pianoscribe.core.theory.KeyDetector
 import com.pianoscribe.core.transcribe.ActivationAssembler
+import com.pianoscribe.core.transcribe.AudioType
 import com.pianoscribe.core.transcribe.BasicPitch
 import com.pianoscribe.core.transcribe.NotePostProcessor
+import com.pianoscribe.core.transcribe.SongCleanup
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -25,9 +28,22 @@ import java.io.RandomAccessFile
 import kotlin.coroutines.coroutineContext
 
 class SilentAudioException : IOException("The audio is silent (or almost silent), so there are no notes to find.")
-class NoNotesException : IOException("No notes were found. Try lowering the note and onset thresholds in Settings, or use a clearer recording.")
+class NoNotesException(songMode: Boolean = false) : IOException(
+    if (songMode) "No notes were found, even after removing the drums. Try a section where the melody is clear, or lower the note and onset thresholds in Settings."
+    else "No notes were found. If this is a song with drums or vocals, set the audio type to \"Full song\" on the trim screen. You can also lower the note and onset thresholds in Settings.",
+)
 
-data class TranscriptionResult(val notes: List<Note>, val grid: TimeGrid, val key: KeyDetector.Key?)
+/**
+ * @param songMode true when the audio was treated as a full song (drums removed, clean-up applied)
+ * @param retriedSensitive true when too few notes were found and lower thresholds were used
+ */
+data class TranscriptionResult(
+    val notes: List<Note>,
+    val grid: TimeGrid,
+    val key: KeyDetector.Key?,
+    val songMode: Boolean = false,
+    val retriedSensitive: Boolean = false,
+)
 
 /** Progress callback: step label and 0..1 overall progress. */
 typealias ProgressListener = (step: String, progress: Float) -> Unit
@@ -35,6 +51,11 @@ typealias ProgressListener = (step: String, progress: Float) -> Unit
 /**
  * Runs Basic Pitch over a mono 22050 Hz PCM file in overlapping windows (exactly like the
  * reference inference), then turns the activations into notes and adds tuning, tempo, hands and key.
+ *
+ * Full songs take an extra path: drums are removed first (harmonic/percussive separation) so the
+ * model hears tones rather than hits, and the notes are cleaned up afterwards (overtone ghosts,
+ * faint background notes, too many simultaneous notes). "Auto" decides from a quick separation of
+ * a few excerpts.
  */
 class TranscriptionEngine(private val context: Context) {
     suspend fun transcribe(pcm: File, settings: AppSettings, progress: ProgressListener): TranscriptionResult = withContext(Dispatchers.Default) {
@@ -43,28 +64,67 @@ class TranscriptionEngine(private val context: Context) {
         if (length < BasicPitch.SAMPLE_RATE / 4) throw IOException("The audio is too short to transcribe.")
         if (isSilent(pcm, length)) throw SilentAudioException()
 
+        // 1. Decide how to treat the audio and, for songs, remove the drums.
+        val songMode = when (settings.audioType) {
+            AudioType.SOLO_PIANO -> false
+            AudioType.FULL_SONG -> true
+            AudioType.AUTO -> {
+                progress("Checking for drums and band", 0.01f)
+                looksLikeSong(pcm, length)
+            }
+        }
+        coroutineContext.ensureActive()
+        val analysis: File
+        if (songMode) {
+            progress("Full song: removing drums", 0.03f)
+            val audio = PcmFile.readAll(pcm)
+            val harmonic = Hpss().separate(audio) { p -> progress("Full song: removing drums", 0.03f + 0.17f * p) }.harmonic
+            analysis = File(context.cacheDir, "analysis.f32")
+            PcmFile.Writer(analysis).use { it.write(harmonic) }
+        } else {
+            analysis = pcm
+        }
+        coroutineContext.ensureActive()
+
+        // 2. The model.
+        val modelStart = if (songMode) 0.2f else 0.05f
         val assembler = ActivationAssembler(length)
         val windows = BasicPitch.windowCount(length)
         BasicPitchModel(context).use { model ->
-            RandomAccessFile(pcm, "r").use { raf ->
+            RandomAccessFile(analysis, "r").use { raf ->
                 val window = FloatArray(BasicPitch.AUDIO_N_SAMPLES)
                 for (w in 0 until windows) {
                     coroutineContext.ensureActive()
                     BasicPitch.fillWindow(w, length, window) { dst, off, src, count -> PcmFile.read(raf, src, dst, off, count) }
                     val out = model.run(window)
                     assembler.add(w, out.note, out.onset, out.contour)
-                    progress("Listening for notes (${w + 1}/$windows)", 0.05f + 0.75f * (w + 1) / windows)
+                    progress("Listening for notes (${w + 1}/$windows)", modelStart + (0.8f - modelStart) * (w + 1) / windows)
                 }
             }
         }
         coroutineContext.ensureActive()
+
+        // 3. Notes, with one more sensitive pass if a busy mix gave almost nothing.
         progress("Extracting notes", 0.82f)
         val act = assembler.activations
+        val durationSec = length.toDouble() / BasicPitch.SAMPLE_RATE
         var notes = NotePostProcessor.process(act, settings.transcription(), NoteIdGenerator())
-        if (notes.isEmpty()) throw NoNotesException()
+        var retried = false
+        if (SongCleanup.tooFewNotes(notes.size, durationSec)) {
+            progress("Few notes found: listening more closely", 0.84f)
+            val sensitive = NotePostProcessor.process(act, SongCleanup.sensitive(settings.transcription()), NoteIdGenerator())
+            if (sensitive.size > notes.size) { notes = sensitive; retried = true }
+        }
+        if (songMode) {
+            progress("Full song: cleaning up notes", 0.86f)
+            val cleaned = SongCleanup.apply(notes, SongCleanup.Options(splitPitch = settings.splitPoint))
+            // Never let the clean-up empty a transcription that found something.
+            if (cleaned.isNotEmpty()) notes = cleaned
+        }
+        if (notes.isEmpty()) throw NoNotesException(songMode)
 
         progress("Measuring tuning", 0.88f)
-        val audio = PcmFile.readAll(pcm)
+        val audio = PcmFile.readAll(analysis)
         notes = notes.map { n ->
             val c = PitchAccuracy.measureCents(audio, BasicPitch.SAMPLE_RATE, n.pitch, n.start, n.end)
                 ?: run {
@@ -74,15 +134,35 @@ class TranscriptionEngine(private val context: Context) {
                 }
             n.copy(cents = c)
         }
+        if (analysis != pcm) analysis.delete()
 
         coroutineContext.ensureActive()
         progress("Detecting tempo, hands and key", 0.94f)
-        var grid = TempoDetector.detect(notes, settings.beatsPerBar)
+        val grid = TempoDetector.detect(notes, settings.beatsPerBar)
         if (settings.pianoOnly) notes = Quantizer.quantize(notes, grid, settings.quantizeDivision)
         notes = HandSplitter.split(notes, settings.splitPoint)
         val key = KeyDetector.detect(notes)
         progress("Done", 1f)
-        TranscriptionResult(notes, grid, key)
+        TranscriptionResult(notes, grid, key, songMode, retried)
+    }
+
+    /**
+     * Runs the harmonic/percussive separation on up to three 12 s excerpts (start, middle, end)
+     * and reports a full song when drums make up a clear share of the energy.
+     */
+    private fun looksLikeSong(pcm: File, length: Int): Boolean {
+        val excerpt = 12 * BasicPitch.SAMPLE_RATE
+        val starts = if (length <= excerpt * 3) listOf(0) else listOf(0, length / 2 - excerpt / 2, length - excerpt)
+        var weighted = 0.0
+        var total = 0
+        for (s in starts) {
+            val n = minOf(excerpt, length - s)
+            val buf = FloatArray(n)
+            PcmFile.read(pcm, s, buf, 0, n)
+            weighted += Hpss().separate(buf).percussiveRatio * n
+            total += n
+        }
+        return total > 0 && weighted / total > SongCleanup.PERCUSSIVE_SONG_THRESHOLD
     }
 
     private fun isSilent(pcm: File, length: Int): Boolean {

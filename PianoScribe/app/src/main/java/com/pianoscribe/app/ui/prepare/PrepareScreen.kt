@@ -48,6 +48,7 @@ import com.pianoscribe.app.audio.Draft
 import com.pianoscribe.app.audio.PcmFile
 import com.pianoscribe.app.playback.PlayMode
 import com.pianoscribe.app.playback.PlaybackEngine
+import com.pianoscribe.app.ui.components.AudioTypeSelector
 import com.pianoscribe.app.ui.components.Waveform
 import com.pianoscribe.app.ui.components.formatTime
 import com.pianoscribe.core.transcribe.BasicPitch
@@ -140,6 +141,7 @@ class PrepareViewModel(app: Application, private val container: AppContainer, ur
 fun PrepareScreen(container: AppContainer, uri: String?, onBack: () -> Unit, onConvert: (Int, Int) -> Unit) {
     val vm: PrepareViewModel = viewModel { PrepareViewModel(container.app, container, uri) }
     val s by vm.state.collectAsStateWithLifecycle()
+    val settings by container.settings.state.collectAsStateWithLifecycle()
     DisposableEffect(Unit) { onDispose { vm.stopPreview() } }
 
     Scaffold(topBar = {
@@ -199,10 +201,11 @@ fun PrepareScreen(container: AppContainer, uri: String?, onBack: () -> Unit, onC
                     OutlinedButton(onClick = vm::autoTrim) {
                         Icon(Icons.Default.AutoAwesome, null); Text("  Trim silence")
                     }
+                    AudioTypeSelector(settings.audioType, { t -> container.settings.update { it.copy(audioType = t) } }, width)
                     Button(onClick = { vm.stopPreview(); val (a, b) = vm.range(); onConvert(a, b) }, modifier = width.height(56.dp)) {
                         Text("Convert to piano notes", style = MaterialTheme.typography.titleMedium)
                     }
-                    Text("Tip: accuracy is best for solo piano or a single instrument. Full-band songs give approximate results.",
+                    Text("Tip: accuracy is best for solo piano or a single instrument. For songs, full-song mode gives a much cleaner result, but it is still approximate.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }

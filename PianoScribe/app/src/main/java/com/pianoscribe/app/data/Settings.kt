@@ -2,6 +2,7 @@ package com.pianoscribe.app.data
 
 import android.content.Context
 import com.pianoscribe.core.model.Note
+import com.pianoscribe.core.transcribe.AudioType
 import com.pianoscribe.core.transcribe.TranscriptionSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +29,8 @@ data class AppSettings(
     /** content:// URI of a user-chosen .sf2, or null for the bundled piano. */
     val customSoundFont: String? = null,
     val beatsPerBar: Int = 4,
+    /** Solo piano, full song (drums removed + clean-up), or detect automatically. */
+    val audioType: AudioType = AudioType.AUTO,
 ) {
     fun transcription() = TranscriptionSettings(
         onsetThreshold = onsetThreshold,
@@ -51,7 +54,7 @@ class SettingsStore(context: Context) {
         save(next)
     }
 
-    fun reset() = update { AppSettings(theme = it.theme, customSoundFont = it.customSoundFont) }
+    fun reset() = update { AppSettings(theme = it.theme, customSoundFont = it.customSoundFont, audioType = it.audioType) }
 
     private fun load(): AppSettings {
         val d = AppSettings()
@@ -70,6 +73,7 @@ class SettingsStore(context: Context) {
             dynamicColor = prefs.getBoolean("dynamicColor", d.dynamicColor),
             customSoundFont = prefs.getString("soundFont", null),
             beatsPerBar = prefs.getInt("beatsPerBar", d.beatsPerBar),
+            audioType = runCatching { AudioType.valueOf(prefs.getString("audioType", d.audioType.name)!!) }.getOrDefault(d.audioType),
         )
     }
 
@@ -89,6 +93,7 @@ class SettingsStore(context: Context) {
             .putBoolean("dynamicColor", s.dynamicColor)
             .putString("soundFont", s.customSoundFont)
             .putInt("beatsPerBar", s.beatsPerBar)
+            .putString("audioType", s.audioType.name)
             .apply()
     }
 }

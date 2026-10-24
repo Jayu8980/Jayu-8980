@@ -70,7 +70,8 @@ class ConvertViewModel(app: Application, private val container: AppContainer, st
                         name = draft.name, createdAt = now, updatedAt = now, audioPath = "", durationSec = length.toDouble() / BasicPitch.SAMPLE_RATE,
                         bpm = result.grid.bpm, beatsPerBar = result.grid.beatsPerBar, beatUnit = result.grid.beatUnit, gridOffset = result.grid.offset,
                         splitPoint = settings.splitPoint, quantizeDivision = if (settings.pianoOnly) settings.quantizeDivision else 0,
-                        keyName = result.key?.name, noteCount = result.notes.size, source = draft.source,
+                        keyName = result.key?.name, noteCount = result.notes.size,
+                        source = draft.source + if (result.songMode) " · full song" else "",
                     ),
                 )
                 val rel = "projects/$id/audio.f32"
@@ -81,7 +82,11 @@ class ConvertViewModel(app: Application, private val container: AppContainer, st
                 val p = container.repository.load(id)!!.entity.copy(audioPath = rel)
                 container.repository.save(p, result.notes)
                 val secs = (System.nanoTime() - t0) / 1e9
-                _state.value = UiState(String.format(Locale.US, "Done in %.0f s", secs), 1f, doneId = id, elapsed = secs)
+                val mode = buildString {
+                    if (result.songMode) append(" · full-song mode: drums removed")
+                    if (result.retriedSensitive) append(" · used more sensitive settings")
+                }
+                _state.value = UiState(String.format(Locale.US, "Done in %.0f s", secs) + mode, 1f, doneId = id, elapsed = secs)
             } catch (e: CancellationException) {
                 trimmed.delete()
                 throw e
@@ -124,7 +129,7 @@ fun ConvertScreen(container: AppContainer, start: Int, end: Int, onCancel: () ->
             LinearProgressIndicator(progress = { s.progress }, modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth())
             Text("${(s.progress * 100).toInt()}%  ·  ${s.step}", style = MaterialTheme.typography.bodyLarge)
             Text(
-                "1. Decode & trim   2. Listen with the Basic Pitch model   3. Extract notes   4. Tuning, tempo, hands & key",
+                "1. Check audio (songs: remove drums)   2. Listen with the Basic Pitch model   3. Extract & clean up notes   4. Tuning, tempo, hands & key",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text("Everything runs on this phone. No internet is used.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
