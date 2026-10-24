@@ -123,6 +123,11 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        # 36 = Android 16, the newest phones; 34 = Android 14.
+        api-level: [34, 36]
     steps:
       - uses: actions/checkout@v5
 
@@ -159,10 +164,10 @@ jobs:
           name: release-apk-for-tests
           path: PianoScribe/release-apk
 
-      - name: Run on an Android 14 emulator
+      - name: Run on an Android ${{ matrix.api-level }} emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
+          api-level: ${{ matrix.api-level }}
           target: google_apis
           arch: x86_64
           cores: 4
@@ -193,7 +198,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: PianoScribe-device-test-reports
+          name: PianoScribe-device-test-reports-api${{ matrix.api-level }}
           path: |
             PianoScribe/app/build/reports/androidTests/
             PianoScribe/app/build/outputs/androidTest-results/
