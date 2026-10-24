@@ -83,6 +83,16 @@ jobs:
           echo "### Build errors" >> "$GITHUB_STEP_SUMMARY"
           grep -E "^(e: |ERROR:|.*error:|\[ksp\].*(error|Error)|.*FAILED)" build.log | sed 's#file:///home/runner/work/[^ ]*/PianoScribe/##' | sort -u | head -300 | tee -a "$GITHUB_STEP_SUMMARY"
 
+      - name: Report 16 KB page alignment of native libraries
+        run: |
+          mkdir -p so-check && cd so-check
+          unzip -o -q ../app/build/outputs/apk/release/*.apk 'lib/*'
+          for f in lib/*/*.so; do
+            echo "$f LOAD align: $(readelf -lW "$f" | awk '/LOAD/{print $NF}' | sort -u | tr '\n' ' ')"
+          done
+          ZIPALIGN="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/zipalign"
+          "$ZIPALIGN" -c -P 16 -v 4 ../app/build/outputs/apk/release/*.apk | grep -E "lib/|Verification" || true
+
       - name: Verify no INTERNET permission
         run: |
           AAPT="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/aapt"
