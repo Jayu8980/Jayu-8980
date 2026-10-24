@@ -151,8 +151,8 @@ class TranscriptionEngine(private val context: Context) {
             val piano = PianoModel.notes(pianoOut, ids = ids)
                 .filter { it.start < durationSec && it.pitch in settings.minPitch..settings.maxPitch }
                 .map { if (it.end > durationSec) it.copy(duration = maxOf(0.02, durationSec - it.start)) else it }
-            // The piano model leads; keep Basic Pitch's notes only where it found nothing at all.
-            if (piano.isNotEmpty()) { notes = PianoEnsemble.combine(piano, pianoOut, notes, ids); retried = false }
+            // The piano model leads; Basic Pitch is the second opinion that weeds out its overtone ghosts.
+            if (piano.isNotEmpty()) { notes = PianoEnsemble.combine(piano, notes); retried = false }
         }
         if (songMode) {
             progress("Full song: cleaning up notes", 0.86f)

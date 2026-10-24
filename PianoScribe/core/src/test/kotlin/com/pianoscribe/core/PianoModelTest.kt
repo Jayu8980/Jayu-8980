@@ -1,5 +1,7 @@
 package com.pianoscribe.core
 
+import com.pianoscribe.core.model.Note
+import com.pianoscribe.core.transcribe.PianoEnsemble
 import com.pianoscribe.core.transcribe.PianoModel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -61,5 +63,18 @@ class PianoModelTest {
         val notes = PianoModel.notes(PianoModel.Output(on, off, fr, vel))
         assertEquals(listOf(0.5, 0.9), notes.map { Math.round(it.start * 100) / 100.0 })
         assertTrue(notes[0].end <= notes[1].start + 1e-9)
+    }
+
+    @Test fun ensembleDropsOvertoneGhostsAndKeepsOtherNotes() {
+        var id = 0L
+        fun n(pitch: Int, start: Double) = Note(id++, pitch, start, 0.5, 80, 0.9f)
+        val c4 = n(60, 1.0)
+        val ghost = n(72, 1.01) // octave above, same moment, Basic Pitch didn't hear it
+        val e4 = n(64, 2.0) // unconfirmed but not an overtone of anything: kept
+        val late = n(72, 1.5) // same pitch as the ghost, but a separate moment: kept
+        val bp = listOf(n(60, 1.02), n(60, 1.3) /* Basic Pitch re-onset: never added */)
+        val out = PianoEnsemble.combine(listOf(c4, ghost, e4, late), bp)
+        assertEquals(listOf(c4.id, late.id, e4.id), out.map { it.id })
+        assertEquals(listOf(c4.id), PianoEnsemble.combine(listOf(c4, ghost, e4, late), bp, keepUnconfirmed = false).map { it.id })
     }
 }

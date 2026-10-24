@@ -1,35 +1,32 @@
 package com.pianoscribe.core.transcribe
 
 import com.pianoscribe.core.model.Note
-import com.pianoscribe.core.model.NoteIdGenerator
 import kotlin.math.abs
 
 /**
- * Combines the high-resolution piano model with Basic Pitch. The piano model leads (it is far
- * more precise on piano); a Basic Pitch note it has no match for is added only when the piano
- * model's own frame output shows that key sounding there, i.e. the piano model heard the note
- * but its onset detector missed it (typically fast repeated notes).
+ * Combines the high-resolution piano model with Basic Pitch. The two make different mistakes:
+ * the piano model's extra notes are mostly overtones (an octave, twelfth or two octaves above,
+ * an octave below) of notes really played; Basic Pitch's are mostly repeated onsets inside a
+ * held note. So the piano model leads, and Basic Pitch is used as a second opinion:
+ *
+ * - a piano-model note Basic Pitch also has (same pitch, onsets within 50 ms) is kept;
+ * - an unconfirmed one is kept too, unless it sits at an overtone interval from a confirmed
+ *   note starting at the same moment, which is what the piano model's ghosts look like
+ *   ([keepUnconfirmed] = false drops every unconfirmed note).
+ *
+ * Basic Pitch's own extra notes are never added.
  */
 object PianoEnsemble {
     /** Same pitch and onsets this close count as the same note. */
     private const val MATCH_SEC = 0.05
-    /** Mean frame activity of the piano model over the first 60 ms of the candidate. */
-    private const val FRAME_SUPPORT = 0.35f
+    /** Semitone distances (from the confirmed note) where the piano model hears overtones as notes. */
+    private val OVERTONES = setOf(-12, 7, 12, 19, 24, 28)
 
-    fun combine(piano: List<Note>, pianoOut: PianoModel.Output, basicPitch: List<Note>, ids: NoteIdGenerator = NoteIdGenerator().apply { advancePast(piano) }): List<Note> {
-        val byPitch = piano.groupBy { it.pitch }
-        val added = ArrayList<Note>()
-        for (n in basicPitch) {
-            val key = n.pitch - PianoModel.FIRST_KEY
-            if (key !in 0 until PianoModel.KEYS) continue
-            if (byPitch[n.pitch].orEmpty().any { abs(it.start - n.start) <= MATCH_SEC }) continue
-            val f0 = (n.start * PianoModel.FPS).toInt()
-            val f1 = minOf(pianoOut.frames, f0 + 6)
-            if (f0 < 0 || f0 >= f1) continue
-            var s = 0f
-            for (f in f0 until f1) s += pianoOut.frame[f][key]
-            if (s / (f1 - f0) >= FRAME_SUPPORT) added += n.copy(id = ids.next())
-        }
-        return (piano + added).sortedWith(compareBy({ it.start }, { it.pitch }))
+    fun combine(piano: List<Note>, basicPitch: List<Note>, keepUnconfirmed: Boolean = true): List<Note> {
+        val bpByPitch = basicPitch.groupBy { it.pitch }
+        val (confirmed, unconfirmed) = piano.partition { h -> bpByPitch[h.pitch].orEmpty().any { abs(it.start - h.start) <= MATCH_SEC } }
+        if (!keepUnconfirmed) return confirmed.sortedWith(compareBy({ it.start }, { it.pitch }))
+        val kept = unconfirmed.filter { h -> confirmed.none { c -> (h.pitch - c.pitch) in OVERTONES && abs(c.start - h.start) <= MATCH_SEC } }
+        return (confirmed + kept).sortedWith(compareBy({ it.start }, { it.pitch }))
     }
 }
