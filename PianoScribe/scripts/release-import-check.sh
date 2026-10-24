@@ -20,8 +20,10 @@ crashed() { adb logcat -d | grep -q "FATAL EXCEPTION"; }
 
 adb shell am force-stop com.pianoscribe.app
 adb logcat -c
-adb shell am instrument -w -e release true -e asset "$asset" -e class com.pianoscribe.app.ReleaseImportTest \
-  com.pianoscribe.app.debug.test/androidx.test.runner.AndroidJUnitRunner | tail -3
+# In the background: the test process serves the file and must stay alive while the release app reads it.
+adb shell am instrument -w -e release true -e asset "$asset" -e holdSec 300 -e class com.pianoscribe.app.ReleaseImportTest \
+  com.pianoscribe.app.debug.test/androidx.test.runner.AndroidJUnitRunner > instrument.log 2>&1 &
+trap 'adb shell am force-stop com.pianoscribe.app.debug >/dev/null 2>&1' EXIT
 
 found=0
 for i in $(seq 1 40); do

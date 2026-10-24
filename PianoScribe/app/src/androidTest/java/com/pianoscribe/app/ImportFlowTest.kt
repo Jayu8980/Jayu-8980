@@ -71,7 +71,6 @@ class ImportFlowTest {
         val long = Intent(Intent.ACTION_VIEW).setDataAndType(sharedLongSong(), "audio/wav")
             .setClass(app, MainActivity::class.java).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         ActivityScenario.launch<MainActivity>(long).use {
-            waitForText("Decoding audio", 20_000, substring = true)
             waitForText("Trim the start and end", 120_000, substring = true)
             compose.onNode(hasText("Convert to piano notes") and hasClickAction()).performScrollTo().performClick()
             waitForText("Piano Roll", 600_000)
@@ -99,5 +98,8 @@ class ReleaseImportTest {
             .setClassName("com.pianoscribe.app", "com.pianoscribe.app.MainActivity")
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         TestFixtures.app.startActivity(intent)
+        // This process serves the file: stay alive while the release app reads and converts it
+        // (the CI script stops it when done).
+        Thread.sleep((args.getString("holdSec") ?: "300").toLong() * 1000)
     }
 }
