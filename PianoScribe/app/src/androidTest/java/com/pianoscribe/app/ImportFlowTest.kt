@@ -14,9 +14,13 @@ import androidx.core.content.FileProvider
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.By
+import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.Until
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
@@ -55,8 +59,16 @@ fun mimeOf(asset: String) = when (asset.substringAfterLast('.')) { "mp3" -> "aud
 class ImportFlowTest {
     @get:Rule val compose = createEmptyComposeRule()
 
-    private fun waitForText(text: String, timeoutMs: Long, substring: Boolean = false) =
-        compose.waitUntilAtLeastOneExists(hasText(text, substring = substring), timeoutMs)
+    /**
+     * Waits with UI Automator (the accessibility tree, from outside the app) rather than the
+     * Compose test rule: polling the Compose rule for minutes while a conversion updates the
+     * screen runs into its multithreaded measure/draw checks on a loaded emulator.
+     */
+    private fun waitForText(text: String, timeoutMs: Long, substring: Boolean = false) {
+        val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
+        val shown = device.wait(Until.hasObject(if (substring) By.textContains(text) else By.text(text)), timeoutMs)
+        assertTrue("\"$text\" did not appear within ${timeoutMs / 1000} s", shown == true)
+    }
 
     private fun openAndConvert(uri: Uri, mime: String, openTimeoutMs: Long, convertTimeoutMs: Long) {
         val app = TestFixtures.app
