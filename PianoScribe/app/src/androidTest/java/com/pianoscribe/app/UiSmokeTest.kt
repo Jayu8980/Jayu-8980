@@ -95,6 +95,29 @@ class UiSmokeTest {
         }
     }
 
+    @Test fun makesASongFromTheMelody() {
+        val name = "Song maker ${System.currentTimeMillis() % 100000}"
+        val id = seedProject(name)
+        try {
+            ActivityScenario.launch(MainActivity::class.java).use {
+                waitForText(name)
+                compose.onNodeWithText(name).performClick()
+                waitForText("Piano Roll")
+                compose.onNodeWithContentDescription("More").performClick()
+                compose.onNodeWithText("Make a song (chords, bass, drums)…").performClick()
+                waitForText("Make song")
+                compose.onNodeWithText("Make song").performClick()
+                waitForText("Chords: ", timeoutMs = 120_000, substring = true)
+                waitForText("Stop") // it plays straight away
+                compose.onNodeWithText("Stop").performClick()
+                waitForText("Play")
+                compose.onNodeWithText("Close").performClick()
+            }
+        } finally {
+            runBlocking { container.repository.delete(id) }
+        }
+    }
+
     @Test fun everyResultTabOpens() {
         val name = "UI smoke song ${System.currentTimeMillis() % 100000}"
         val id = seedProject(name)

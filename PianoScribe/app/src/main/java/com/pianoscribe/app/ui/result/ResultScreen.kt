@@ -47,6 +47,11 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import com.pianoscribe.core.arrange.Style
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -74,7 +79,7 @@ import com.pianoscribe.core.theory.Pitch
 
 private enum class ResultTab(val title: String) { ROLL("Piano Roll"), FALLING("Falling Notes"), SHEET("Sheet"), NOTES("Notes"), ANALYSER("Analyser"), COMPARE("Compare") }
 
-private enum class Dialog { NONE, MIDI, EXPORT, TRANSPOSE, TEMPO, QUANTIZE, SPLIT, RENAME }
+private enum class Dialog { NONE, MIDI, EXPORT, TRANSPOSE, TEMPO, QUANTIZE, SPLIT, RENAME, SONG }
 
 /**
  * "Save as" that passes the export's real MIME type. The stock CreateDocument contract fixes one type
@@ -147,6 +152,7 @@ fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, o
                                 leadingIcon = { Icon(Icons.Default.IosShare, null) },
                                 onClick = { menu = false; dialog = Dialog.EXPORT },
                             )
+                            DropdownMenuItem(text = { Text("Make a song (chords, bass, drums)…") }, onClick = { menu = false; dialog = Dialog.SONG })
                             DropdownMenuItem(text = { Text("Transpose…") }, onClick = { menu = false; dialog = Dialog.TRANSPOSE })
                             DropdownMenuItem(text = { Text("Tempo & meter…") }, onClick = { menu = false; dialog = Dialog.TEMPO })
                             DropdownMenuItem(text = { Text("Quantise (piano only)…") }, onClick = { menu = false; dialog = Dialog.QUANTIZE })
@@ -292,6 +298,7 @@ fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, o
                 dismissButton = { TextButton(onClick = { dialog = Dialog.NONE }) { Text("Cancel") } },
             )
         }
+        Dialog.SONG -> SongDialog(vm, settings.instrument.label) { vm.stopSong(); dialog = Dialog.NONE }
         Dialog.RENAME -> {
             var name by remember { mutableStateOf(s.project?.name ?: "") }
             AlertDialog(
@@ -305,6 +312,46 @@ fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, o
     }
 }
 
+
+/** "Make a song": the tune of the notes with chords, bass and drums in a chosen style. */
+@Composable
+private fun SongDialog(vm: ResultViewModel, instrument: String, onClose: () -> Unit) {
+    val song by vm.song.collectAsStateWithLifecycle()
+    AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text("Make a song") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("The tune of these notes, played on $instrument, with chords, bass and drums that fit it.", style = MaterialTheme.typography.bodyMedium)
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    Style.entries.forEachIndexed { i, st ->
+                        SegmentedButton(song.style == st, { vm.setSongStyle(st) }, SegmentedButtonDefaults.itemShape(i, Style.entries.size), enabled = !song.making) {
+                            Text(st.label, maxLines = 1)
+                        }
+                    }
+                }
+                if (song.making) {
+                    LinearProgressIndicator(progress = { song.progress }, modifier = Modifier.fillMaxWidth())
+                    Text("Making the song… ${(song.progress * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
+                }
+                song.progression?.let { Text("Chords: $it", style = MaterialTheme.typography.bodyMedium) }
+                if (song.progression != null && !song.making) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { if (song.playing) vm.stopSong() else vm.playSong() }) { Text(if (song.playing) "Stop" else "Play") }
+                        OutlinedButton(onClick = { vm.saveSong(midi = false) { vm.shareSong(midi = false) } }) { Text("Save audio") }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { vm.saveSong(midi = true) { vm.shareSong(midi = true) } }) { Text("Save MIDI") }
+                        OutlinedButton(onClick = { vm.shareSong(midi = false) }) { Text("Share") }
+                    }
+                }
+                song.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            }
+        },
+        confirmButton = { TextButton(onClick = vm::makeSong, enabled = !song.making) { Text(if (song.progression == null) "Make song" else "Make again") } },
+        dismissButton = { TextButton(onClick = onClose) { Text("Close") } },
+    )
+}
 
 /** The easy-version switch, above every view of the notes. */
 @Composable

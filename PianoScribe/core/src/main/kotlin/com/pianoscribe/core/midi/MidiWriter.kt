@@ -3,6 +3,7 @@ package com.pianoscribe.core.midi
 import com.pianoscribe.core.model.Hand
 import com.pianoscribe.core.model.Note
 import com.pianoscribe.core.model.TimeGrid
+import com.pianoscribe.core.perform.PlayedNote
 import java.io.ByteArrayOutputStream
 import kotlin.math.log2
 import kotlin.math.roundToInt
@@ -24,8 +25,27 @@ object MidiWriter {
         out.write(int16(3)) // tracks
         out.write(int16(PPQ))
         writeTrack(out, conductorTrack(grid, title))
-        writeTrack(out, noteTrack(notes.filter { it.hand == Hand.RIGHT }, grid, "Right Hand", 0, program))
-        writeTrack(out, noteTrack(notes.filter { it.hand == Hand.LEFT }, grid, "Left Hand", 1, program))
+        writeTrack(out, noteTrack(notes.filter { it.hand == Hand.RIGHT }.map(::span), grid, "Right Hand", 0, program))
+        writeTrack(out, noteTrack(notes.filter { it.hand == Hand.LEFT }.map(::span), grid, "Left Hand", 1, program))
+        return out.toByteArray()
+    }
+
+    /** Channel 10 (0-based 9): General MIDI drums, where each note number is a drum. */
+    const val DRUM_CHANNEL = 9
+
+    /** One instrument track: General MIDI [program] on [channel] (no program change on [DRUM_CHANNEL]). */
+    data class Track(val name: String, val channel: Int, val program: Int, val notes: List<PlayedNote>)
+
+    /** Type 1 file with the conductor track and one track per [tracks] entry. */
+    fun writeTracks(tracks: List<Track>, grid: TimeGrid, title: String = "PianoScribe"): ByteArray {
+        val out = ByteArrayOutputStream()
+        out.write("MThd".toByteArray(Charsets.US_ASCII))
+        out.write(int32(6))
+        out.write(int16(1))
+        out.write(int16(tracks.size + 1))
+        out.write(int16(PPQ))
+        writeTrack(out, conductorTrack(grid, title))
+        for (t in tracks) writeTrack(out, noteTrack(t.notes.map { Span(it.pitch, it.start, it.end, it.velocity) }, grid, t.name, t.channel, t.program))
         return out.toByteArray()
     }
 
@@ -47,11 +67,13 @@ object MidiWriter {
     }
 
     private class Ev(val tick: Long, val on: Boolean, val pitch: Int, val vel: Int)
+    private class Span(val pitch: Int, val start: Double, val end: Double, val velocity: Int)
+    private fun span(n: Note) = Span(n.pitch, n.start, n.end, n.velocity)
 
-    private fun noteTrack(notes: List<Note>, grid: TimeGrid, name: String, channel: Int, program: Int): ByteArray {
+    private fun noteTrack(notes: List<Span>, grid: TimeGrid, name: String, channel: Int, program: Int): ByteArray {
         val t = ByteArrayOutputStream()
         t.write(vlq(0)); meta(t, 0x03, name.toByteArray(Charsets.UTF_8))
-        t.write(vlq(0)); t.write(0xC0 or channel); t.write(program.coerceIn(0, 127))
+        if (channel != DRUM_CHANNEL) { t.write(vlq(0)); t.write(0xC0 or channel); t.write(program.coerceIn(0, 127)) }
         val evs = ArrayList<Ev>(notes.size * 2)
         for (n in notes) {
             val on = ticks(n.start, grid)

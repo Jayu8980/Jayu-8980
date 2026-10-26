@@ -28,6 +28,9 @@ import com.pianoscribe.core.model.Note
 import com.pianoscribe.core.model.NoteIdGenerator
 import com.pianoscribe.core.model.TimeGrid
 import com.pianoscribe.core.perform.EasyVersion
+import com.pianoscribe.core.arrange.Arranger
+import com.pianoscribe.core.arrange.SongRenderer
+import com.pianoscribe.core.arrange.Style
 import com.pianoscribe.core.perform.Instrument
 import com.pianoscribe.core.perform.Performer
 import com.pianoscribe.core.perform.PlayedNote
@@ -89,6 +92,17 @@ data class SpectrumData(
 )
 
 /** State of the Compare tab. */
+/** The "Make a song" dialog: the chosen style and the song made from the melody. */
+data class SongUi(
+    val style: Style = Style.POP,
+    val making: Boolean = false,
+    val progress: Float = 0f,
+    /** The chords per bar, once a song is made ("C – G – Am – F"). */
+    val progression: String? = null,
+    val playing: Boolean = false,
+    val error: String? = null,
+)
+
 data class CompareUi(
     val running: Boolean = false,
     val step: String = "",
@@ -131,6 +145,13 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
+
+    private val _song = MutableStateFlow(SongUi())
+    val song: StateFlow<SongUi> = _song.asStateFlow()
+    private var songJob: Job? = null
+    private var songWav: File? = null
+    private var songMid: File? = null
+    private var songPlayer: android.media.MediaPlayer? = null
 
     private val _position = MutableStateFlow(0.0)
     val position: StateFlow<Double> = _position.asStateFlow()
@@ -457,7 +478,7 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
 
     // ---------------------------------------------------------------- playback
 
-    fun togglePlay() { stopPractice(); engine?.toggle() }
+    fun togglePlay() { stopPractice(); stopSong(); engine?.toggle() }
     fun seek(t: Double) { engine?.seek(t); _position.value = t }
     fun stop() { engine?.pause(); seek(_state.value.loop?.start ?: 0.0) }
 
@@ -805,7 +826,96 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
 
     fun setNotation(n: Notation) = container.settings.update { it.copy(notation = n) }
 
+    // ---------------------------------------------------------------- make a song
+
+    fun setSongStyle(style: Style) {
+        if (style == _song.value.style) return
+        stopSong()
+        _song.update { SongUi(style = style) }
+    }
+
+    /**
+     * Makes a song from the tune of the notes (one note at a time, as played): chords that fit it,
+     * bass and drums in the chosen style, rendered to WAV for listening and kept as MIDI.
+     */
+    fun makeSong() {
+        stopSong()
+        engine?.pause()
+        songJob?.cancel()
+        val style = _song.value.style
+        val notes = history.current
+        val s = _state.value
+        val instrument = settings.value.instrument
+        songJob = viewModelScope.launch {
+            _song.update { it.copy(making = true, progress = 0f, progression = null, error = null) }
+            try {
+                val song = withContext(Dispatchers.Default) {
+                    Arranger.arrange(EasyVersion.singleLine(notes), s.grid, s.derived.key, style, instrument)
+                }
+                if (song.bars.isEmpty()) error("There is no melody to make a song from")
+                val presets = (listOf(Instrument.PIANO, style.chordInstrument, instrument)).distinct().associateWith { container.soundFonts.preset(it) }
+                val dir = File(getApplication<Application>().cacheDir, "exports").apply { mkdirs() }
+                val base = Exporter.fileName(exportName(), ExportFormat.MIDI).removeSuffix(".mid") + "-song-" + style.name.lowercase()
+                val wav = File(dir, "$base.wav")
+                val mid = File(dir, "$base.mid")
+                withContext(Dispatchers.IO) {
+                    wav.outputStream().buffered().use { out ->
+                        SongRenderer.renderWav(song, { presets[it] }, Exporter.WAV_RATE, out) { p -> _song.update { it.copy(progress = p) } }
+                    }
+                    mid.writeBytes(SongRenderer.midi(song, "${exportName()} (${style.label})"))
+                }
+                songWav = wav; songMid = mid
+                _song.update { it.copy(making = false, progress = 1f, progression = song.progression()) }
+                playSong()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                _song.update { it.copy(making = false) }
+                throw e
+            } catch (e: Throwable) {
+                _song.update { it.copy(making = false, error = e.message ?: e.javaClass.simpleName) }
+            }
+        }
+    }
+
+    fun playSong() {
+        val f = songWav ?: return
+        stopSong()
+        engine?.pause()
+        runCatching {
+            songPlayer = android.media.MediaPlayer().apply {
+                setDataSource(f.path)
+                setOnCompletionListener { _song.update { s -> s.copy(playing = false) } }
+                prepare()
+                start()
+            }
+            _song.update { it.copy(playing = true) }
+        }.onFailure { msg("Couldn't play the song: ${it.message}") }
+    }
+
+    fun stopSong() {
+        songPlayer?.runCatching { stop(); release() }
+        songPlayer = null
+        _song.update { it.copy(playing = false) }
+    }
+
+    /** Saves the song's audio (WAV) or its MIDI (melody, chords, bass, drums tracks) to Downloads. */
+    fun saveSong(midi: Boolean, onUnsupported: () -> Unit) {
+        val f = (if (midi) songMid else songWav) ?: return
+        val format = if (midi) ExportFormat.MIDI else ExportFormat.WAV
+        viewModelScope.launch {
+            runCatching { exporter.saveToDownloads(f, format) }
+                .onSuccess { where -> if (where == null) onUnsupported() else msg("Saved to $where") }
+                .onFailure { msg("Save failed: ${it.message ?: it.javaClass.simpleName}") }
+        }
+    }
+
+    fun shareSong(midi: Boolean) {
+        val f = (if (midi) songMid else songWav) ?: return
+        runCatching { exporter.share(f, if (midi) ExportFormat.MIDI else ExportFormat.WAV) }
+            .onFailure { msg("Share failed: ${it.message ?: it.javaClass.simpleName}") }
+    }
+
     override fun onCleared() {
+        stopSong()
         stopPractice()
         engine?.release()
         model?.close()
