@@ -68,6 +68,26 @@ fun LabeledSlider(
     }
 }
 
+/** All notes / single notes (the tune) choice, with a one-line explanation. */
+@Composable
+fun NotesSelector(single: Boolean, onChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text("Notes", style = MaterialTheme.typography.titleSmall)
+        val options = listOf(false to "All notes", true to "Single notes")
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            options.forEachIndexed { i, (v, label) ->
+                SegmentedButton(single == v, { onChange(v) }, SegmentedButtonDefaults.itemShape(i, options.size)) { Text(label) }
+            }
+        }
+        Text(
+            if (single) "Only the tune, one note at a time, as it is played: the accompaniment, chords and bass are left out."
+            else "Every note: tune, chords and bass.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
 /** Solo piano / full song / auto choice, with a one-line explanation of the selected mode. */
 @Composable
 fun AudioTypeSelector(value: AudioType, onChange: (AudioType) -> Unit, modifier: Modifier = Modifier) {

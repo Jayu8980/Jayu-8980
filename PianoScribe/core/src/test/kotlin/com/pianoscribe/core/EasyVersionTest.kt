@@ -90,5 +90,18 @@ class EasyVersionTest {
         assertTrue(easy.all { it.pitch in 60..84 })
     }
 
+    @Test fun singleLineKeepsTheTuneAsPlayed() {
+        // Fast notes, a high register and a held note: nothing is thinned or moved, only the
+        // accompaniment goes and overlaps are cut.
+        val tune = listOf(n(96, 0.0, 0.3), n(98, 0.125, 0.3), n(100, 0.25, 1.0), n(101, 0.5, 0.2))
+        val chord = listOf(n(48, 0.0, 1.0), n(52, 0.0, 1.0), n(55, 0.0, 1.0))
+        val line = EasyVersion.singleLine(tune + chord)
+        assertEquals(listOf(96, 98, 100, 101), line.map { it.pitch })
+        assertEquals(listOf(0.0, 0.125, 0.25, 0.5), line.map { it.start })
+        // The held note now ends where the next one starts.
+        assertEquals(0.245, line[2].duration, 1e-9)
+        assertOneAtATime(line)
+    }
+
     @Test fun emptyStaysEmpty() = assertTrue(EasyVersion.make(emptyList(), grid).isEmpty())
 }

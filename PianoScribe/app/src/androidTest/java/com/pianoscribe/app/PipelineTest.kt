@@ -86,6 +86,20 @@ class PipelineTest {
         assertTrue("recall $r", r >= 0.8)
     }
 
+    @Test fun singleNotesKeepsTheTuneOneNoteAtATime() = runBlocking<Unit> {
+        val result = TranscriptionEngine(TestFixtures.app).transcribe(pcm, AppSettings(audioType = AudioType.SOLO_PIANO, highAccuracyPiano = false, singleNotes = true)) { _, _ -> }
+        val line = result.notes.sortedBy { it.start }
+        val tune = TestFixtures.expected.filter { it.pitch >= 72 }
+        val found = tune.count { e -> line.any { it.pitch == e.pitch && abs(it.start - e.start) < 0.08 } }
+        android.util.Log.i("PianoScribeTest", "Single notes: ${line.size} notes, $found/${tune.size} of the tune: ${line.map { it.pitch to "%.2f".format(it.start) }}")
+        assertTrue(result.singleNotes)
+        assertTrue("tune notes found: $found of ${tune.size}", found >= 6)
+        assertTrue("only the tune: ${line.size} notes", line.size <= tune.size + 4)
+        assertTrue("no chord notes", line.none { it.pitch < 60 })
+        assertTrue("one note at a time", line.zipWithNext().all { (a, b) -> a.end <= b.start + 1e-9 })
+        assertTrue(line.all { it.hand == com.pianoscribe.core.model.Hand.RIGHT })
+    }
+
     @Test fun fullSongModeRunsAndKeepsTheNotes() = runBlocking<Unit> {
         val result = TranscriptionEngine(TestFixtures.app).transcribe(pcm, AppSettings(audioType = AudioType.FULL_SONG)) { _, _ -> }
         assertTrue(result.songMode)

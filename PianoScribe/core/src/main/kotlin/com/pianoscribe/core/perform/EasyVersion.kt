@@ -46,8 +46,28 @@ object EasyVersion {
 
     fun make(notes: List<Note>, grid: TimeGrid, options: Options = Options()): List<Note> {
         if (notes.isEmpty()) return emptyList()
-        val line = thin(tune(notes), grid, options)
-        return fitRange(sustain(line, options), options)
+        return fromLine(tune(notes), grid, options)
+    }
+
+    /**
+     * The tune as played: step 1 only, one note at a time with each note ending where the next
+     * begins, at its real pitch and timing (nothing simplified or moved). What "Single notes"
+     * conversion keeps.
+     */
+    fun singleLine(notes: List<Note>): List<Note> {
+        val line = tune(notes)
+        return line.mapIndexed { i, n ->
+            val next = line.getOrNull(i + 1)
+            val dur = if (next == null) n.duration else minOf(n.duration, next.start - n.start - 0.005)
+            n.copy(duration = dur.coerceAtLeast(0.03), hand = Hand.RIGHT)
+        }
+    }
+
+    /** Steps 2-4 for a line that already has one note at a time. */
+    fun fromLine(line: List<Note>, grid: TimeGrid, options: Options = Options()): List<Note> {
+        if (line.isEmpty()) return emptyList()
+        val thinned = thin(line.sortedBy { it.start }, grid, options)
+        return fitRange(sustain(thinned, options), options)
     }
 
     /**

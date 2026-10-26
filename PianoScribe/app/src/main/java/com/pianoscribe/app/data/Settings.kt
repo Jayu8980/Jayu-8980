@@ -40,6 +40,8 @@ data class AppSettings(
     val autoClean: Boolean = true,
     /** Solo piano: also run the high-resolution piano model and let it lead. */
     val highAccuracyPiano: Boolean = true,
+    /** Convert to the tune alone, one note at a time, instead of every note. */
+    val singleNotes: Boolean = false,
 ) {
     fun transcription() = TranscriptionSettings(
         onsetThreshold = onsetThreshold,
@@ -89,6 +91,7 @@ class SettingsStore(context: Context) {
             humanFeel = prefs.getFloat("humanFeel", d.humanFeel),
             autoClean = prefs.getBoolean("autoClean", d.autoClean),
             highAccuracyPiano = prefs.getBoolean("highAccuracyPiano", d.highAccuracyPiano),
+            singleNotes = prefs.getBoolean("singleNotes", d.singleNotes),
         )
     }
 
@@ -113,6 +116,7 @@ class SettingsStore(context: Context) {
             .putFloat("humanFeel", s.humanFeel)
             .putBoolean("autoClean", s.autoClean)
             .putBoolean("highAccuracyPiano", s.highAccuracyPiano)
+            .putBoolean("singleNotes", s.singleNotes)
             .apply()
     }
 }

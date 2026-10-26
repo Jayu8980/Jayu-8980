@@ -20,6 +20,7 @@ import com.pianoscribe.core.transcribe.AudioType
 import com.pianoscribe.core.transcribe.BasicPitch
 import com.pianoscribe.core.transcribe.NotePostProcessor
 import com.pianoscribe.core.transcribe.PianoEnsemble
+import com.pianoscribe.core.perform.EasyVersion
 import com.pianoscribe.core.transcribe.PianoModel
 import com.pianoscribe.core.transcribe.SongCleanup
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +42,7 @@ class NoNotesException(songMode: Boolean = false) : IOException(
  * @param retriedSensitive true when too few notes were found and lower thresholds were used
  * @param cleanup what was filtered out before listening ("50 Hz hum removed"), if anything
  * @param pianoModel true when the high-resolution piano model made the notes (with Basic Pitch)
+ * @param singleNotes true when only the tune was kept, one note at a time
  */
 data class TranscriptionResult(
     val notes: List<Note>,
@@ -50,6 +52,7 @@ data class TranscriptionResult(
     val retriedSensitive: Boolean = false,
     val cleanup: List<String> = emptyList(),
     val pianoModel: Boolean = false,
+    val singleNotes: Boolean = false,
 )
 
 /** Progress callback: step label and 0..1 overall progress. */
@@ -184,9 +187,15 @@ class TranscriptionEngine(private val context: Context) {
         val grid = TempoDetector.detect(notes, settings.beatsPerBar)
         if (settings.pianoOnly) notes = Quantizer.quantize(notes, grid, settings.quantizeDivision)
         notes = HandSplitter.split(notes, settings.splitPoint)
+        // Tempo and key come from all the notes, also when only the tune is kept.
         val key = KeyDetector.detect(notes)
+        if (settings.singleNotes) {
+            progress("Keeping the tune, one note at a time", 0.97f)
+            val line = EasyVersion.singleLine(notes)
+            if (line.isNotEmpty()) notes = line
+        }
         progress("Done", 1f)
-        TranscriptionResult(notes, grid, key, songMode, retried, cleanup, pianoModel = usedPiano)
+        TranscriptionResult(notes, grid, key, songMode, retried, cleanup, pianoModel = usedPiano, singleNotes = settings.singleNotes)
     }
 
     /**
