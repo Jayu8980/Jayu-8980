@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EditOff
@@ -45,6 +46,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -110,7 +112,7 @@ fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, o
     }
     fun saveAs(f: ExportFormat) {
         pendingSave = f
-        saveLauncher.launch(Exporter.fileName(s.project?.name, f, settings.instrument) to f.mime)
+        saveLauncher.launch(Exporter.fileName(vm.exportName(), f, settings.instrument) to f.mime)
     }
     // Downloads needs Android 10+; older phones get the system "Save as" screen instead.
     fun saveToDownloads(f: ExportFormat) = vm.saveToDownloads(f) { saveAs(f) }
@@ -170,6 +172,7 @@ fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, o
                     PrimaryScrollableTabRow(selectedTabIndex = tab, edgePadding = 8.dp) {
                         ResultTab.entries.forEach { t -> Tab(selected = tab == t.ordinal, onClick = { tab = t.ordinal }, text = { Text(t.title) }) }
                     }
+                    EasyStrip(s.easy, vm::setEasy)
                     val d = s.derived
                     val flats = d.key?.preferFlats ?: false
                     Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -210,7 +213,7 @@ fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, o
             val f = if (performed) ExportFormat.MIDI_PERFORMED else ExportFormat.MIDI
             MidiDialog(
                 noteCount = s.derived.notes.size,
-                fileName = Exporter.fileName(s.project?.name, f, settings.instrument),
+                fileName = Exporter.fileName(vm.exportName(), f, settings.instrument),
                 instrument = settings.instrument.label,
                 performed = performed,
                 onPerformed = { performed = it },
@@ -302,6 +305,23 @@ fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, o
     }
 }
 
+
+/** The easy-version switch, above every view of the notes. */
+@Composable
+private fun EasyStrip(easy: Boolean, onEasy: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        FilterChip(
+            selected = easy,
+            onClick = { onEasy(!easy) },
+            label = { Text("Easy: one note at a time") },
+            leadingIcon = if (easy) { { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) } } else null,
+        )
+        if (easy) Text(
+            "  The tune for the right hand. All notes are kept: turn it off to see them.",
+            Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
 
 @Composable
 private fun InfoStrip(s: ResultViewModel.UiState, position: Double) {

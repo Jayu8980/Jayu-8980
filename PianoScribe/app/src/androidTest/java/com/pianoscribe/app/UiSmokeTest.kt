@@ -32,8 +32,8 @@ class UiSmokeTest {
 
     private val container get() = (TestFixtures.app.applicationContext as PianoScribeApp).container
 
-    private fun waitForText(text: String, timeoutMs: Long = 20_000) =
-        compose.waitUntilAtLeastOneExists(hasText(text), timeoutMs)
+    private fun waitForText(text: String, timeoutMs: Long = 20_000, substring: Boolean = false) =
+        compose.waitUntilAtLeastOneExists(hasText(text, substring = substring), timeoutMs)
 
     /** A project with the test recording and its expected notes, as if it had just been converted. */
     private fun seedProject(name: String): Long = runBlocking {
@@ -57,6 +57,41 @@ class UiSmokeTest {
             compose.onNodeWithContentDescription("Settings").performClick()
             waitForText("Transcription")
             compose.onNodeWithText("Audio type").assertIsDisplayed()
+        }
+    }
+
+    /** The note count shown above the piano roll ("14 notes · 120 BPM ..."). */
+    private fun shownNoteCount(): Int? = compose.onAllNodes(hasText(" notes · ", substring = true)).fetchSemanticsNodes()
+        .firstNotNullOfOrNull { n -> n.config.getOrNull(SemanticsProperties.Text)?.joinToString { it.text } }
+        ?.let { Regex("""(\d+) notes""").find(it)?.groupValues?.get(1)?.toInt() }
+
+    @Test fun easyVersionShowsTheTuneOneNoteAtATime() {
+        val name = "Easy song ${System.currentTimeMillis() % 100000}"
+        val id = seedProject(name)
+        try {
+            ActivityScenario.launch(MainActivity::class.java).use {
+                waitForText(name)
+                compose.onNodeWithText(name).performClick()
+                waitForText("Piano Roll")
+                val all = TestFixtures.expected.size
+                compose.waitUntil(10_000) { shownNoteCount() == all }
+                compose.onNodeWithText("Easy: one note at a time").performClick()
+                waitForText("The tune for the right hand", substring = true)
+                // The test piece's tune: the 8 notes from 72 up; the left-hand chords go.
+                compose.waitUntil(10_000) { shownNoteCount() == TestFixtures.expected.count { it.pitch >= 72 } }
+                // Editing waits until the easy version is off.
+                compose.onNodeWithContentDescription("Editing off").performClick()
+                waitForText("Turn off \"Easy\" to edit the notes")
+                for (tab in listOf("Falling Notes", "Sheet", "Analyser", "Piano Roll")) {
+                    compose.onNode(hasText(tab) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)).performScrollTo().performClick()
+                    compose.waitForIdle()
+                }
+                // Off again: every note is back, nothing was lost.
+                compose.onNodeWithText("Easy: one note at a time").performClick()
+                compose.waitUntil(10_000) { shownNoteCount() == all }
+            }
+        } finally {
+            runBlocking { container.repository.delete(id) }
         }
     }
 
