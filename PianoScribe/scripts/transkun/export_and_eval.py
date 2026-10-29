@@ -81,6 +81,9 @@ for c, s in sums.items():
 
 # ---- 2. Export ----
 D = model.scorer.size
+# Gradient checkpointing (a training-time memory saver) can't be traced: run the layers directly.
+for mod in model.modules():
+    if hasattr(mod, "useGradientCheckpoint"): mod.useGradientCheckpoint = False
 
 class Core(torch.nn.Module):
     def __init__(self, m):
