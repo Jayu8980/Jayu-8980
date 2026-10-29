@@ -75,6 +75,44 @@ jobs:
           path: PianoScribe/piano-model-out
           retention-days: 7
 
+  transkun-model:
+    # Transkun 2.0 (MIT): accuracy on the evaluation set, ONNX export and a check of the
+    # decomposed pipeline the app would use. Not bundled yet: only measured.
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: PianoScribe
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/cache@v4
+        id: cache
+        with:
+          path: PianoScribe/transkun-out
+          key: transkun-v1-${{ hashFiles('PianoScribe/scripts/transkun/**', 'PianoScribe/eval/**') }}
+
+      - uses: actions/setup-python@v5
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          python-version: "3.11"
+
+      - name: Evaluate, export and check Transkun
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          pip install --quiet torch==2.5.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install --quiet --no-deps transkun==2.0.1
+          pip install --quiet moduleconf pretty_midi mir_eval soundfile scipy onnx==1.17.0 onnxruntime==1.20.1 "numpy<2"
+          set -o pipefail
+          python scripts/transkun/export_and_eval.py eval transkun-out 2>&1 | grep -E "^TK|Error|error|Traceback|File " | tee transkun.log
+          ls -la transkun-out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: transkun-model
+          path: PianoScribe/transkun-out
+          retention-days: 7
+
   build:
     needs: piano-model
     runs-on: ubuntu-latest
