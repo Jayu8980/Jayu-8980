@@ -155,38 +155,40 @@ Android Studio alternative: **Build → Generate Signed App Bundle / APK → APK
    general: no resynthesis sounds exactly like a real instrument in a real room, and notes hidden under others or
    under drums can't always be recovered.
 
-8. **High-accuracy piano model** (solo piano; Settings → "High-accuracy piano model", on by default): the
-   ByteDance high-resolution piano transcription model (Kong et al. 2021; 96.7% note F1 on the MAESTRO real-piano
-   test set in the paper) runs on the phone with ONNX Runtime, next to Basic Pitch. It takes 16 kHz audio in 10 s
-   segments overlapping by half and regresses, for every 10 ms frame and key, how close an onset or offset is, which
-   gives onset times finer than a frame. `core/.../transcribe/PianoModel.kt` is a port of the reference stitching and
-   `RegressionPostProcessor`; CI checks it gives exactly the same notes as the official Python package on the same
-   audio (18 of 18 recordings identical). The model is converted in CI from the published checkpoint
-   (`scripts/piano_model/export_and_reference.py`) and checked against PyTorch (max difference 2e-4). It is fp32
-   (99 MB): int8 quantisation was tried and wrecked the output without being faster. Up to 15 minutes of audio; it
-   takes about 0.25 s per second of audio on a desktop CPU, more on a phone.
+8. **High-accuracy piano model** (solo piano; Settings → "High-accuracy piano model", on by default):
+   **Transkun 2.0** (Yan & Duan, "Skipping the Frame-Level: Event-Based Piano Transcription With Neural
+   Semi-CRFs", NeurIPS 2021; MIT licence) runs on the phone with ONNX Runtime, next to Basic Pitch. Instead of
+   deciding frame by frame, it scores every possible note *interval* (onset to offset) per key with a transformer
+   and picks the best set of non-overlapping notes exactly (semi-CRF Viterbi decoding), then refines onset/offset
+   times below a frame and predicts velocity. Audio is resampled to 44.1 kHz and taken in 16 s segments every 8 s.
+   The network is exported in CI from the published weights (`scripts/transkun/export_and_eval.py`) as three ONNX
+   parts (51 MB + 3.4 MB + a tiny scorer); the front end (six analysis windows, FFT, mel filters), the decoding,
+   the refinement and the segment stitching are ported to Kotlin (`core/.../transcribe/Transkun.kt`). CI checks the
+   port gives exactly the same notes as the official Python package on the same audio (18 of 18 recordings
+   identical). On the phone the network's large intermediate outputs stay in native memory (ONNX Runtime writes
+   them straight into direct buffers). Up to 15 minutes of audio; about 0.37 s per second of audio on a desktop
+   CPU, more on a phone. It replaced the ByteDance high-resolution model (Kong et al. 2021) used before, which
+   scored lower on every test condition (table below).
 
-   **Combining the two.** They make different mistakes: the piano model's extra notes are overtones of notes really
-   played (an octave, twelfth or two octaves above), Basic Pitch's are repeated onsets inside held notes. So the
-   piano model leads and Basic Pitch is a second opinion: a piano-model note Basic Pitch also heard is kept, and an
-   unconfirmed one is dropped only when it sits at an overtone interval from a confirmed note starting at the same
-   moment (`PianoEnsemble.kt`). Basic Pitch's own extra notes are never added.
+   **Combining the two.** The piano model leads and Basic Pitch is a second opinion: a piano-model note Basic
+   Pitch also heard is kept, and an unconfirmed one is dropped only when it sits at an overtone interval (an
+   octave, twelfth or two octaves) from a confirmed note starting at the same moment (`PianoEnsemble.kt`). Basic
+   Pitch's own extra notes (mostly repeated onsets inside held notes) are never added.
 
    Measured in CI on 6 piano pieces with known notes (`eval/`, 15 s each, with fast repeated notes and chords),
    each as a clean, a room-reverb and a "phone" recording (reverb, boxy EQ, noise at 25 dB SNR). Note F1, right
    pitch with the onset within 50 ms (precision / recall in brackets):
 
-   | Recording | Basic Pitch | Piano model alone | **Combined (what the app does)** |
-   |---|---|---|---|
-   | Clean | 0.73 (0.59 / 0.98) | 0.78 (0.67 / 0.95) | **0.91** (0.90 / 0.93) |
-   | Phone | 0.74 (0.64 / 0.89) | 0.69 (0.55 / 0.94) | **0.88** (0.84 / 0.92) |
-   | Room reverb | 0.69 (0.60 / 0.82) | 0.67 (0.52 / 0.94) | **0.83** (0.79 / 0.88) |
+   | Recording | Basic Pitch | Transkun alone | **Transkun + Basic Pitch (the app)** | Before: ByteDance + Basic Pitch |
+   |---|---|---|---|---|
+   | Clean | 0.73 (0.59 / 0.98) | 0.90 (0.90 / 0.90) | **0.91** (0.95 / 0.88) | 0.91 (0.90 / 0.93) |
+   | Phone | 0.74 (0.64 / 0.89) | 0.93 (0.88 / 0.99) | **0.96** (0.96 / 0.97) | 0.88 (0.84 / 0.92) |
+   | Room reverb | 0.69 (0.60 / 0.82) | 0.83 (0.73 / 0.98) | **0.90** (0.88 / 0.93) | 0.83 (0.79 / 0.88) |
 
-   Read these with care. The test pieces are played by this project's synthetic SoundFont piano, whose bright tone
-   makes the piano model (trained on real grand pianos) hear overtones as notes, so it scores far lower here than
-   on real piano recordings; on a real piano expect it to be closer to its published accuracy, and the combination
-   to help less. No transcription is 100% accurate: notes hidden under louder ones, heavy pedal and reverberant rooms
-   still cause misses and extras.
+   Read these with care: the test pieces are played by this project's synthetic SoundFont piano, not a real one.
+   No transcription is 100% accurate: notes hidden under louder ones, heavy pedal and reverberant rooms still
+   cause misses and extras. For other instruments the general model (Basic Pitch) is used: the more accurate
+   multi-instrument models (MT3, YourMT3+, MuScriptor) are far too large to run on a phone, or not licensed for it.
 
 ### Audio clean-up and separation: what helps
 
@@ -228,7 +230,7 @@ Audio is processed in chunks and read from disk by range to avoid running out of
 | Asset | Source | License |
 |---|---|---|
 | `models/basic_pitch_nmp.tflite` | Spotify Basic Pitch, ICASSP 2022 model, `basic_pitch/saved_models/icassp_2022/nmp.tflite` from the `basic-pitch` 0.4.0 package on PyPI ([github.com/spotify/basic-pitch](https://github.com/spotify/basic-pitch)). SHA-256 `3db297d54af8e01c6e5618245c956b1d71b6a2b978cb2dedb527173186552676`. | Apache License 2.0, © 2022 Spotify AB (full text in `assets/licenses/`) |
-| `models/piano_transcription.onnx` (not in git; CI builds it) | ByteDance high-resolution piano transcription note model ([github.com/bytedance/piano_transcription](https://github.com/bytedance/piano_transcription), inference package `piano_transcription_inference` 0.0.6), checkpoint `CRNN_note_F1=0.9677_pedal_F1=0.9186.pth` from [Zenodo record 4034264](https://zenodo.org/record/4034264), converted to ONNX by `scripts/piano_model/export_and_reference.py`. | Code Apache License 2.0; weights Creative Commons Attribution 4.0 |
+| `models/transkun/` (not in git; CI builds it) | Transkun 2.0 piano transcription model by Yujia Yan ([github.com/Yujia-Yan/Skipping-The-Frame-Level](https://github.com/Yujia-Yan/Skipping-The-Frame-Level), PyPI `transkun` 2.0.1, pretrained weights `2.0.pt`), exported to ONNX by `scripts/transkun/export_and_eval.py`, with `frontend.bin` (its analysis windows and mel filters). | MIT License, Copyright (c) 2021 Yujia Yan |
 | Other instruments | No samples: synthesised on the phone by `core/.../synth/ModelVoices.kt` (wavetables with breath/bow noise and vibrato, Karplus-Strong plucked strings, FM electric piano, additive organ). With a General MIDI SoundFont loaded in Settings, its sample for that instrument is used instead. | Apache License 2.0 (part of this project) |
 | `fonts/bravura.otf` | Bravura 1.392, the SMuFL reference music font by Steinberg ([github.com/steinbergmedia/bravura](https://github.com/steinbergmedia/bravura), via the `@vexflow-fonts/bravura` 1.0.2 package). SHA-256 `dca2d90c88437a701b1c2e71fa54e76f9fa41d7deee935d74dc871ea66ecfdd2`. | SIL Open Font License 1.1 (full text in `assets/licenses/`) |
 | `soundfonts/pianoscribe_piano.sf2` | Generated by this project's own additive piano model (`core/.../synth/PianoSampleGenerator.kt`): 22 samples, one every 4 semitones, 24 kHz. Regenerate with `./gradlew :core:generateSoundFont`. | Apache License 2.0 (part of this project) |

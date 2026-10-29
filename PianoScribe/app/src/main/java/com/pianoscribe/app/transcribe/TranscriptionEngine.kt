@@ -4,7 +4,7 @@ import android.content.Context
 import com.pianoscribe.app.audio.PcmFile
 import com.pianoscribe.app.data.AppSettings
 import com.pianoscribe.app.ml.ModelRunner
-import com.pianoscribe.app.ml.PianoModelRunner
+import com.pianoscribe.app.ml.TranskunRunner
 import com.pianoscribe.core.audio.AudioCleaner
 import com.pianoscribe.core.audio.Hpss
 import com.pianoscribe.core.audio.Pcm
@@ -22,7 +22,6 @@ import com.pianoscribe.core.transcribe.BasicPitch
 import com.pianoscribe.core.transcribe.NotePostProcessor
 import com.pianoscribe.core.transcribe.PianoEnsemble
 import com.pianoscribe.core.perform.EasyVersion
-import com.pianoscribe.core.transcribe.PianoModel
 import com.pianoscribe.core.transcribe.SongCleanup
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
@@ -42,7 +41,7 @@ class NoNotesException(songMode: Boolean = false) : IOException(
  * @param songMode true when the audio was treated as a full song (drums removed, clean-up applied)
  * @param retriedSensitive true when too few notes were found and lower thresholds were used
  * @param cleanup what was filtered out before listening ("50 Hz hum removed"), if anything
- * @param pianoModel true when the high-resolution piano model made the notes (with Basic Pitch)
+ * @param pianoModel true when the piano model (Transkun) made the notes (with Basic Pitch)
  * @param singleNotes true when only the tune was kept, one note at a time
  */
 data class TranscriptionResult(
@@ -122,10 +121,10 @@ class TranscriptionEngine(private val context: Context) {
         }
         coroutineContext.ensureActive()
 
-        // 2. The models. Solo piano also gets the high-resolution piano model, which leads.
+        // 2. The models. Solo piano also gets the piano model (Transkun), which leads.
         // Notes are written for the instrument in the recording; the piano model only knows piano.
         val source = settings.sourceInstrument
-        val usePiano = source == SourceInstrument.PIANO && !songMode && settings.highAccuracyPiano && PianoModelRunner.isAvailable(context) &&
+        val usePiano = source == SourceInstrument.PIANO && !songMode && settings.highAccuracyPiano && TranskunRunner.isAvailable(context) &&
             length <= PIANO_MODEL_MAX_SEC * BasicPitch.SAMPLE_RATE
         val modelStart = if (songMode) 0.2f else 0.05f
         val modelEnd = if (usePiano) 0.3f else 0.8f
@@ -134,8 +133,8 @@ class TranscriptionEngine(private val context: Context) {
                 progress("Listening for notes ($done/$total)", modelStart + (modelEnd - modelStart) * done / total)
             }
         }
-        val pianoOut = if (usePiano) {
-            PianoModelRunner.run(context, PcmFile.readAll(analysis)) { done, total ->
+        val pianoNotes = if (usePiano) {
+            TranskunRunner.run(context, PcmFile.readAll(analysis), NoteIdGenerator()) { done, total ->
                 progress("High-accuracy piano model ($done/$total)", 0.3f + 0.5f * done / total)
             }
         } else null
@@ -152,10 +151,9 @@ class TranscriptionEngine(private val context: Context) {
             if (sensitive.size > notes.size) { notes = sensitive; retried = true }
         }
         var usedPiano = false
-        if (pianoOut != null) {
+        if (pianoNotes != null) {
             progress("Combining the piano model with Basic Pitch", 0.85f)
-            val ids = NoteIdGenerator()
-            val piano = PianoModel.notes(pianoOut, ids = ids)
+            val piano = pianoNotes
                 .filter { it.start < durationSec && it.pitch in settings.minPitch..settings.maxPitch }
                 .map { if (it.end > durationSec) it.copy(duration = maxOf(0.02, durationSec - it.start)) else it }
             // The piano model leads; Basic Pitch is the second opinion that weeds out its overtone ghosts.

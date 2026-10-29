@@ -39,7 +39,7 @@ data class AppSettings(
     val humanFeel: Float = 0.6f,
     /** Remove mains hum and rumble before transcribing, when the analysis finds them. */
     val autoClean: Boolean = true,
-    /** Solo piano: also run the high-resolution piano model and let it lead. */
+    /** Solo piano: also run the piano model (Transkun) and let it lead. */
     val highAccuracyPiano: Boolean = true,
     /** Convert to the tune alone, one note at a time, instead of every note. */
     val singleNotes: Boolean = false,

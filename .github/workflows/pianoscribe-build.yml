@@ -76,8 +76,8 @@ jobs:
           retention-days: 7
 
   transkun-model:
-    # Transkun 2.0 (MIT): accuracy on the evaluation set, ONNX export and a check of the
-    # decomposed pipeline the app would use. Not bundled yet: only measured.
+    # Transkun 2.0 (MIT), the app's piano model: accuracy on the evaluation set, ONNX export
+    # and a check of the decomposed pipeline the app uses against the official one.
     runs-on: ubuntu-latest
     timeout-minutes: 90
     defaults:
@@ -145,7 +145,7 @@ jobs:
           ./gradlew --no-daemon :core:test --tests '*TranskunEval*' -Dorg.gradle.jvmargs=-Xmx4g 2>&1 | grep -E "TK|FAIL|BUILD|Exception|expected" | tee tk-eval.log
 
   build:
-    needs: piano-model
+    needs: [piano-model, transkun-model]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -179,11 +179,16 @@ jobs:
           chmod +x ./gradlew
           ./gradlew --no-daemon :core:test --tests '*PianoModelEval*' 2>&1 | grep -E "EVAL|PARITY|RESULT|FALSEPOS|FAIL|BUILD" || true
 
-      - name: Bundle the piano model
+      - uses: actions/download-artifact@v4
+        with:
+          name: transkun-model
+          path: PianoScribe/transkun-out
+
+      - name: Bundle the piano model (Transkun 2.0)
         run: |
-          mkdir -p app/src/main/assets/models
-          cp piano-model-out/piano_fp32.onnx app/src/main/assets/models/piano_transcription.onnx
-          ls -la app/src/main/assets/models
+          mkdir -p app/src/main/assets/models/transkun
+          cp transkun-out/transkun_core.onnx transkun-out/transkun_score.onnx transkun-out/transkun_heads.onnx transkun-out/frontend.bin app/src/main/assets/models/transkun/
+          ls -la app/src/main/assets/models/transkun
 
       - name: Decode release keystore (if provided)
         env:
@@ -262,7 +267,7 @@ jobs:
   # playback, every export, compare/auto-fix), a UI smoke test, and a launch check of the
   # minified release APK.
   device-tests:
-    needs: [build, piano-model]
+    needs: [build, piano-model, transkun-model]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
@@ -301,11 +306,16 @@ jobs:
           name: piano-model
           path: PianoScribe/piano-model-out
 
-      - name: Bundle the piano model
+      - uses: actions/download-artifact@v4
+        with:
+          name: transkun-model
+          path: PianoScribe/transkun-out
+
+      - name: Bundle the piano model (Transkun 2.0)
         run: |
-          mkdir -p app/src/main/assets/models
-          cp piano-model-out/piano_fp32.onnx app/src/main/assets/models/piano_transcription.onnx
-          ls -la app/src/main/assets/models
+          mkdir -p app/src/main/assets/models/transkun
+          cp transkun-out/transkun_core.onnx transkun-out/transkun_score.onnx transkun-out/transkun_heads.onnx transkun-out/frontend.bin app/src/main/assets/models/transkun/
+          ls -la app/src/main/assets/models/transkun
 
       - name: Build the debug app and test APKs
         run: |

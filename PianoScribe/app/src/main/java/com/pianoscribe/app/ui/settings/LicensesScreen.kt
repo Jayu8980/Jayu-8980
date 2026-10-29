@@ -33,8 +33,8 @@ fun LicensesScreen(onBack: () -> Unit) {
         Column(Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Basic Pitch", style = MaterialTheme.typography.titleMedium)
             Text("Polyphonic note transcription model by Spotify (ICASSP 2022), bundled as TensorFlow Lite (nmp.tflite from the basic-pitch 0.4.0 package). Licensed under the Apache License 2.0.")
-            Text("High-resolution piano transcription", style = MaterialTheme.typography.titleMedium)
-            Text("Piano note model by ByteDance (Kong, Li, Song, Wan, Wang: \"High-resolution Piano Transcription with Pedals by Regressing Onset and Offset Times\", 2021), converted to ONNX. Code (github.com/bytedance/piano_transcription) under the Apache License 2.0; trained weights from Zenodo record 4034264 under Creative Commons Attribution 4.0.")
+            Text("Transkun piano transcription", style = MaterialTheme.typography.titleMedium)
+            Text("Transkun 2.0 piano transcription model by Yujia Yan (Yan & Duan: \"Skipping the Frame-Level: Event-Based Piano Transcription With Neural Semi-CRFs\", NeurIPS 2021), converted to ONNX; decoding ported to Kotlin. Code and trained weights (github.com/Yujia-Yan/Skipping-The-Frame-Level, PyPI transkun 2.0.1) under the MIT License, Copyright (c) 2021 Yujia Yan.")
             Text("Bravura music font", style = MaterialTheme.typography.titleMedium)
             Text("The notation font of the score view and score PDF, by Steinberg Media Technologies (SMuFL reference font, version 1.392). Licensed under the SIL Open Font License 1.1.")
             Text("PianoScribe Grand SoundFont", style = MaterialTheme.typography.titleMedium)

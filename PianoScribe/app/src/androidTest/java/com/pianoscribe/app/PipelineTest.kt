@@ -75,7 +75,7 @@ class PipelineTest {
     }
 
     @Test fun highAccuracyPianoModelFindsTheNotes() = runBlocking<Unit> {
-        org.junit.Assume.assumeTrue("piano model bundled", com.pianoscribe.app.ml.PianoModelRunner.isAvailable(TestFixtures.app))
+        org.junit.Assume.assumeTrue("piano model bundled", com.pianoscribe.app.ml.TranskunRunner.isAvailable(TestFixtures.app))
         val t0 = System.currentTimeMillis()
         val result = TranscriptionEngine(TestFixtures.app).transcribe(pcm, AppSettings(audioType = AudioType.SOLO_PIANO, highAccuracyPiano = true)) { _, _ -> }
         val ms = System.currentTimeMillis() - t0
