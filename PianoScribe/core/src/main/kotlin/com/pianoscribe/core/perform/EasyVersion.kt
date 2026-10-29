@@ -63,6 +63,37 @@ object EasyVersion {
         }
     }
 
+    /**
+     * Intermediate: both hands, simplified. The right hand plays the tune as played (only runs
+     * faster than 16ths thinned); the left hand keeps the bass of each chord and one more note
+     * (its highest), at most one chord per beat, the one nearest the beat. Without a left hand, it
+     * gets the bass notes of chords that fit the tune (one per bar).
+     */
+    fun intermediate(notes: List<Note>, grid: TimeGrid, key: com.pianoscribe.core.theory.KeyDetector.Key? = null): List<Note> {
+        if (notes.isEmpty()) return emptyList()
+        val tune = thin(singleLine(notes), grid, Options(minGapBeats = 0.25, minGapSec = 0.1)).let { sustain(it, Options(minGapSec = 0.1)) }
+        val tuneIds = tune.map { it.id }.toSet()
+        val left = notes.filter { it.hand == Hand.LEFT && it.id !in tuneIds }
+        val bass = if (left.isNotEmpty()) {
+            val steps = Steps.build(left).map { st ->
+                val sorted = st.notes.sortedBy { it.pitch }
+                (listOf(sorted.first()) + listOfNotNull(sorted.last().takeIf { sorted.size > 1 && it.pitch - sorted.first().pitch <= 16 }))
+            }
+            // At most one chord per beat: the one whose bass is nearest the beat.
+            steps.groupBy { Math.floor(grid.timeToBeats(it.first().start) + 0.25).toInt() }
+                .map { (_, cands) -> cands.maxBy { metricWeight(grid.timeToBeats(it.first().start)) } }
+                .flatten()
+        } else {
+            val song = com.pianoscribe.core.arrange.Arranger.arrange(tune, grid, key, com.pianoscribe.core.arrange.Style.BALLAD)
+            var next = (notes.maxOf { it.id }) + 1
+            song.bars.map { b ->
+                val root = 48 + (b.chord.rootPc - 48 % 12 + 12) % 12 // C3..B3
+                Note(next++, root, b.start, (b.end - b.start) * 0.95, 70, 1f, Hand.LEFT)
+            }
+        }
+        return (tune.map { it.copy(hand = Hand.RIGHT) } + bass.map { it.copy(hand = Hand.LEFT) }).sortedWith(compareBy({ it.start }, { it.pitch }))
+    }
+
     /** Steps 2-4 for a line that already has one note at a time. */
     fun fromLine(line: List<Note>, grid: TimeGrid, options: Options = Options()): List<Note> {
         if (line.isEmpty()) return emptyList()

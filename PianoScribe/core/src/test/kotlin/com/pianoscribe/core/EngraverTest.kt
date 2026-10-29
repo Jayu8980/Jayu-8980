@@ -56,6 +56,24 @@ class EngraverTest {
         assertEquals(listOf(4 to 2, 6 to 4), ScoreBuilder.metricSplit(4, 10, 12, 6, 6)) // shown at the middle of the bar
     }
 
+    @Test fun chordLabelsAtEachChange() {
+        // C for two beats, then G, with a passing melody note that must not rename the chord.
+        val notes = listOf(48, 52, 55).map { n(it, 0.0, 2.0) } + listOf(43, 47, 50).map { n(it, 2.0, 2.0) } + n(74, 0.5, 0.2)
+        val labels = com.pianoscribe.core.analysis.ChordTrack.labels(notes, grid)
+        assertEquals(listOf("C", "G"), labels.map { it.name })
+        assertEquals(listOf(0.0, 1.0), labels.map { it.time })
+    }
+
+    @Test fun writtenNotesFollowTheScore() {
+        // Slightly uneven eighths, a staccato quarter and a note tied over the bar: as written.
+        val notes = listOf(n(72, 0.04, 0.45), n(74, 0.47, 0.5), n(76, 1.0, 0.3), n(77, 2.0, 0.9), n(79, 3.0, 2.0))
+        val w = ScoreBuilder.writtenNotes(notes, grid).associateBy { it.pitch }
+        assertEquals(0.0, w.getValue(72).start, 1e-9); assertEquals(0.25, w.getValue(72).duration, 1e-9)
+        assertEquals(0.25, w.getValue(74).start, 1e-9)
+        assertEquals(0.5, w.getValue(76).duration, 1e-9) // staccato at its full written value
+        assertEquals(1.5, w.getValue(79).start, 1e-9); assertEquals(1.0, w.getValue(79).duration, 1e-9) // tied pieces joined
+    }
+
     @Test fun staccatoNotesAreWrittenAtFullValue() {
         val notes = listOf(n(72, 0.0, 0.3), n(74, 1.0, 0.3), n(76, 2.0, 2.0))
         val treble = ScoreBuilder.build(notes, grid)[0].treble

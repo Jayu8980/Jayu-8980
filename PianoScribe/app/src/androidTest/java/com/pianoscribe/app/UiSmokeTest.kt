@@ -65,7 +65,7 @@ class UiSmokeTest {
         .firstNotNullOfOrNull { n -> n.config.getOrNull(SemanticsProperties.Text)?.joinToString { it.text } }
         ?.let { Regex("""(\d+) notes""").find(it)?.groupValues?.get(1)?.toInt() }
 
-    @Test fun easyVersionShowsTheTuneOneNoteAtATime() {
+    @Test fun difficultyLevels() {
         val name = "Easy song ${System.currentTimeMillis() % 100000}"
         val id = seedProject(name)
         try {
@@ -75,19 +75,22 @@ class UiSmokeTest {
                 waitForText("Piano Roll")
                 val all = TestFixtures.expected.size
                 compose.waitUntil(10_000) { shownNoteCount() == all }
-                compose.onNodeWithText("Easy: one note at a time").performClick()
-                waitForText("The tune for the right hand", substring = true)
+                compose.onNodeWithText("Beginner").performClick()
+                waitForText("The tune alone", substring = true)
                 // The test piece's tune: the 8 notes from 72 up; the left-hand chords go.
                 compose.waitUntil(10_000) { shownNoteCount() == TestFixtures.expected.count { it.pitch >= 72 } }
-                // Editing waits until the easy version is off.
+                // Editing waits for the Advanced version.
                 compose.onNodeWithContentDescription("Editing off").performClick()
-                waitForText("Turn off \"Easy\" to edit the notes")
+                waitForText("Switch to Advanced to edit the notes")
+                // Intermediate: the tune and a simpler left hand (the chords become bass + one note).
+                compose.onNodeWithText("Intermediate").performClick()
+                compose.waitUntil(10_000) { (shownNoteCount() ?: 0) in 9 until TestFixtures.expected.size }
                 for (tab in listOf("Falling Notes", "Sheet", "Analyser", "Piano Roll")) {
                     compose.onNode(hasText(tab) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)).performScrollTo().performClick()
                     compose.waitForIdle()
                 }
-                // Off again: every note is back, nothing was lost.
-                compose.onNodeWithText("Easy: one note at a time").performClick()
+                // Advanced again: every note is back, nothing was lost.
+                compose.onNodeWithText("Advanced").performClick()
                 compose.waitUntil(10_000) { shownNoteCount() == all }
             }
         } finally {

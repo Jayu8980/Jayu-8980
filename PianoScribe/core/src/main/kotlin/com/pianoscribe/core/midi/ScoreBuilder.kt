@@ -114,6 +114,26 @@ object ScoreBuilder {
         return (0 until nMeasures).map { Measure(it, tm[it], bm[it]) }
     }
 
+    /**
+     * The notes as written in the score: each starts and ends where the score puts it (tied
+     * pieces joined again, staccato notes at their written value). For views that follow the
+     * score rather than the performance.
+     */
+    fun writtenNotes(notes: List<Note>, grid: TimeGrid): List<Note> {
+        val divPerBeat = DIVISIONS * 4 / grid.beatUnit
+        fun time(div: Int) = grid.beatsToTime(div.toDouble() / divPerBeat)
+        val span = HashMap<Long, IntArray>() // id -> [start, end]
+        for (m in build(notes, grid)) for (e in m.treble + m.bass) for (id in e.noteIds) {
+            val r = span.getOrPut(id) { intArrayOf(e.startDiv, e.startDiv + e.durDiv) }
+            r[0] = minOf(r[0], e.startDiv); r[1] = maxOf(r[1], e.startDiv + e.durDiv)
+        }
+        return notes.mapNotNull { n ->
+            val r = span[n.id] ?: return@mapNotNull null
+            val start = time(r[0])
+            n.copy(start = start, duration = time(r[1]) - start)
+        }
+    }
+
     /** Allowed onset error per grid, in beats: quarters, then eighths; 16ths always fit. */
     private val SNAP = listOf(1 to 0.14, 2 to 0.11, 4 to 1.0)
 

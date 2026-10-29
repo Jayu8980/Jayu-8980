@@ -21,7 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EditOff
@@ -46,7 +45,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -178,7 +176,7 @@ fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, o
                     PrimaryScrollableTabRow(selectedTabIndex = tab, edgePadding = 8.dp) {
                         ResultTab.entries.forEach { t -> Tab(selected = tab == t.ordinal, onClick = { tab = t.ordinal }, text = { Text(t.title) }) }
                     }
-                    EasyStrip(s.easy, vm::setEasy)
+                    DifficultyStrip(s.difficulty, vm::setDifficulty)
                     val d = s.derived
                     val flats = d.key?.preferFlats ?: false
                     Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -197,7 +195,7 @@ fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, o
                                     Modifier.padding(horizontal = 12.dp, vertical = 4.dp), style = MaterialTheme.typography.bodySmall,
                                 )
                             }
-                            ResultTab.FALLING -> FallingNotes(d.notes, position, d.duration, d.pitchLo, d.pitchHi, d.fingers, Modifier.fillMaxSize(), onSeek = vm::seek)
+                            ResultTab.FALLING -> FallingNotes(d.notes, s.grid, flats, position, d.duration, d.pitchLo, d.pitchHi, d.fingers, Modifier.fillMaxSize(), onSeek = vm::seek)
                             ResultTab.SHEET -> SheetView(
                                 d.notes, s.grid, d.key, s.project?.name, position, playing, s.selectedId, Modifier.fillMaxSize(),
                                 editable = !s.easy, onSeek = vm::seek, onSelect = vm::select, onPitch = vm::fixPitch, onDelete = vm::fixDelete,
@@ -357,19 +355,18 @@ private fun SongDialog(vm: ResultViewModel, instrument: String, onClose: () -> U
     )
 }
 
-/** The easy-version switch, above every view of the notes. */
+/** Difficulty, above every view of the notes: the simplified versions or every note. */
 @Composable
-private fun EasyStrip(easy: Boolean, onEasy: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        FilterChip(
-            selected = easy,
-            onClick = { onEasy(!easy) },
-            label = { Text("Easy: one note at a time") },
-            leadingIcon = if (easy) { { Icon(Icons.Default.Check, null, Modifier.size(18.dp)) } } else null,
-        )
-        if (easy) Text(
-            "  The tune for the right hand. All notes are kept: turn it off to see them.",
-            Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+private fun DifficultyStrip(difficulty: Difficulty, onChange: (Difficulty) -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp)) {
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            Difficulty.entries.forEachIndexed { i, d ->
+                SegmentedButton(difficulty == d, { onChange(d) }, SegmentedButtonDefaults.itemShape(i, Difficulty.entries.size)) { Text(d.label, maxLines = 1) }
+            }
+        }
+        if (difficulty != Difficulty.ADVANCED) Text(
+            difficulty.help + " Every note is kept: choose Advanced to see them all.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

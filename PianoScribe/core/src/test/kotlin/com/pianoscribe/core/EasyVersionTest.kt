@@ -103,5 +103,28 @@ class EasyVersionTest {
         assertOneAtATime(line)
     }
 
+    @Test fun intermediateKeepsTwoSimplifiedHands() {
+        // Tune with a 32nd-note flourish, and a left hand of four-note chords on every eighth.
+        val tune = listOf(n(72, 0.0, 0.5), n(74, 0.5, 0.06), n(76, 0.56, 0.06), n(77, 0.62, 0.38), n(79, 1.0, 1.0))
+        val left = (0 until 4).flatMap { i -> listOf(36, 43, 48, 52).map { p -> n(p, i * 0.25, 0.25, hand = Hand.LEFT) } }
+        val mid = EasyVersion.intermediate(tune + left, grid)
+        val rh = mid.filter { it.hand == Hand.RIGHT }
+        val lh = mid.filter { it.hand == Hand.LEFT }
+        assertTrue("tune kept: ${rh.map { it.pitch }}", rh.map { it.pitch }.containsAll(listOf(72, 79)))
+        assertTrue("fast flourish thinned", rh.size < tune.size)
+        assertOneAtATime(rh)
+        // Left hand: one chord per beat (0.5 s), two notes each, bass and top.
+        val chords = lh.groupBy { it.start }
+        assertEquals(2, chords.size)
+        assertTrue(chords.values.all { c -> c.map { it.pitch }.sorted() == listOf(36, 52) })
+    }
+
+    @Test fun intermediateGivesATuneOnlyAPieceABass() {
+        val tune = listOf(n(72, 0.0, 0.5), n(76, 0.5, 0.5), n(79, 1.0, 0.5), n(76, 1.5, 0.5), n(77, 2.0, 0.5), n(81, 2.5, 0.5), n(84, 3.0, 0.5), n(81, 3.5, 0.5))
+        val mid = EasyVersion.intermediate(tune, grid)
+        val lh = mid.filter { it.hand == Hand.LEFT }
+        assertEquals(listOf(48, 53), lh.map { it.pitch }) // bars of 2 s: C E G E, then F A C A
+    }
+
     @Test fun emptyStaysEmpty() = assertTrue(EasyVersion.make(emptyList(), grid).isEmpty())
 }

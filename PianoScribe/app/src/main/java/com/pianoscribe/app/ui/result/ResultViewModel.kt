@@ -103,6 +103,13 @@ data class SongUi(
     val error: String? = null,
 )
 
+/** How hard the shown version is: the simplified versions, or every note as transcribed. */
+enum class Difficulty(val label: String, val help: String) {
+    BEGINNER("Beginner", "The tune alone, one note at a time, for the right hand, in an easy range."),
+    INTERMEDIATE("Intermediate", "The tune as played, and a simpler left hand: bass and one chord note per beat."),
+    ADVANCED("Advanced", "Every note as transcribed."),
+}
+
 data class CompareUi(
     val running: Boolean = false,
     val step: String = "",
@@ -139,9 +146,15 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
         val message: String? = null,
         val usingSoundFont: Boolean = true,
         val compare: CompareUi = CompareUi(),
-        /** Showing and playing the easy version (the tune alone, one note at a time) instead of all notes. */
-        val easy: Boolean = false,
-    )
+        /** Which version is shown, played and exported (Advanced = every note as transcribed). */
+        val difficulty: Difficulty = Difficulty.ADVANCED,
+        /** Semitones transposed in this session (shown in the player bar). */
+        val transposed: Int = 0,
+        val metronome: Boolean = false,
+    ) {
+        /** A simplified version is shown: the notes as transcribed can't be edited from it. */
+        val easy: Boolean get() = difficulty != Difficulty.ADVANCED
+    }
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -205,9 +218,12 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
 
     // ---------------------------------------------------------------- derived data
 
-    /** The notes shown, played and exported: the easy version when it is on, otherwise [notes] as edited. */
-    private fun shownNotes(notes: List<Note> = history.current): List<Note> =
-        if (_state.value.easy) EasyVersion.make(notes, _state.value.grid) else notes
+    /** The notes shown, played and exported at the chosen difficulty ([notes] as edited for Advanced). */
+    private fun shownNotes(notes: List<Note> = history.current): List<Note> = when (_state.value.difficulty) {
+        Difficulty.BEGINNER -> EasyVersion.make(notes, _state.value.grid)
+        Difficulty.INTERMEDIATE -> EasyVersion.intermediate(notes, _state.value.grid, KeyDetector.detect(notes))
+        Difficulty.ADVANCED -> notes
+    }
 
     private fun derive(edited: List<Note>) {
         deriveJob?.cancel()
@@ -322,24 +338,30 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
     fun redo() { if (history.canRedo) applyNotes(history.redo()) }
     fun toggleEditMode() { if (editable()) _state.update { it.copy(editMode = !it.editMode) } }
 
-    /** Turns the easy version (the tune alone, one note at a time, right hand) on or off. */
-    fun setEasy(on: Boolean) {
-        if (on == _state.value.easy) return
-        _state.update { it.copy(easy = on, editMode = false, selectedId = null, focusedNoteId = null) }
+    /** Shows, plays and exports the [d] version of the song. */
+    fun setDifficulty(d: Difficulty) {
+        if (d == _state.value.difficulty) return
+        _state.update { it.copy(difficulty = d, editMode = false, selectedId = null, focusedNoteId = null) }
         derive(history.current)
         perform()
-        if (on) msg("Easy version: the tune alone, one note at a time, for the right hand")
+        if (d != Difficulty.ADVANCED) msg("${d.label}: ${d.help}")
     }
 
-    /** Edits change the full transcription, so they wait until the easy version is off. */
+    /** Edits change the full transcription, so they wait for the Advanced (every note) version. */
     private fun editable(): Boolean {
         if (!_state.value.easy) return true
-        msg("Turn off \"Easy\" to edit the notes")
+        msg("Switch to Advanced to edit the notes")
         return false
     }
 
-    /** The grid changed: replay, and rebuild the easy version, which follows the beat. */
+    fun setMetronome(on: Boolean) {
+        _state.update { it.copy(metronome = on) }
+        engine?.metronome = if (on) _state.value.grid else null
+    }
+
+    /** The grid changed: replay, and rebuild the simplified versions, which follow the beat. */
     private fun gridChanged() {
+        if (_state.value.metronome) engine?.metronome = _state.value.grid
         perform()
         if (_state.value.easy) derive(history.current)
         scheduleSave()
@@ -390,6 +412,7 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
     fun transpose(semitones: Int) {
         if (semitones == 0) return
         commit(NoteOps.transpose(history.current, semitones))
+        _state.update { it.copy(transposed = it.transposed + semitones) }
         msg("Transposed ${if (semitones > 0) "+" else ""}$semitones semitones")
     }
 
@@ -400,6 +423,7 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
         if (stretch) {
             val notes = NoteOps.changeTempo(history.current, g.bpm, newBpm, g.offset)
             _state.update { it.copy(grid = g.copy(bpm = newBpm)) }
+            if (_state.value.metronome) engine?.metronome = _state.value.grid
             val end = notes.maxOfOrNull { it.end } ?: 0.0
             engine?.duration = end
             commit(notes)
@@ -779,7 +803,7 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
     fun exportName(): String {
         val s = _state.value
         val name = s.project?.name ?: "PianoScribe"
-        return if (s.easy) "$name (easy)" else name
+        return if (s.easy) "$name (${s.difficulty.label.lowercase()})" else name
     }
 
     private fun exportable(): Boolean {
