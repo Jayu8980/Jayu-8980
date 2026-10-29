@@ -1,5 +1,6 @@
 package com.pianoscribe.core.midi
 
+import com.pianoscribe.core.analysis.ChordTrack
 import com.pianoscribe.core.model.Hand
 import com.pianoscribe.core.model.Note
 import com.pianoscribe.core.model.TimeGrid
@@ -17,17 +18,50 @@ import kotlin.math.roundToLong
 object MidiWriter {
     const val PPQ = 480
 
-    fun write(notes: List<Note>, grid: TimeGrid, title: String = "PianoScribe", program: Int = 0): ByteArray {
+    /**
+     * The two hands, with [chords] as marker events (chord names a DAW shows on its timeline).
+     * With [chordTrack], also a third track, "Piano Chords" on channel 3: each chord as a block
+     * piano chord held until the next one (root position around C3, its bass below when it differs).
+     */
+    fun write(
+        notes: List<Note>,
+        grid: TimeGrid,
+        title: String = "PianoScribe",
+        program: Int = 0,
+        chords: List<ChordTrack.Label> = emptyList(),
+        chordTrack: Boolean = false,
+    ): ByteArray {
+        val withChords = chordTrack && chords.isNotEmpty()
         val out = ByteArrayOutputStream()
         out.write("MThd".toByteArray(Charsets.US_ASCII))
         out.write(int32(6))
         out.write(int16(1)) // format 1
-        out.write(int16(3)) // tracks
+        out.write(int16(if (withChords) 4 else 3)) // tracks
         out.write(int16(PPQ))
-        writeTrack(out, conductorTrack(grid, title))
+        writeTrack(out, conductorTrack(grid, title, chords))
         writeTrack(out, noteTrack(notes.filter { it.hand == Hand.RIGHT }.map(::span), grid, "Right Hand", 0, program))
         writeTrack(out, noteTrack(notes.filter { it.hand == Hand.LEFT }.map(::span), grid, "Left Hand", 1, program))
+        if (withChords) {
+            val end = notes.maxOfOrNull { it.end } ?: chords.last().time + grid.secondsPerBeat * grid.beatsPerBar
+            writeTrack(out, noteTrack(chordVoicings(chords, end), grid, "Piano Chords", 2, 0))
+        }
         return out.toByteArray()
+    }
+
+    /** Block chords for [chords], each held until the next chord (the last until [end]). */
+    private fun chordVoicings(chords: List<ChordTrack.Label>, end: Double): List<Span> = chords.flatMapIndexed { i, c ->
+        val stop = (chords.getOrNull(i + 1)?.time ?: end) - 0.01
+        if (stop <= c.time) return@flatMapIndexed emptyList()
+        chordPitches(c.chord).map { Span(it, c.time, stop, 64) }
+    }
+
+    /** Root at C3..B3 with the chord's intervals above it, and a different bass an octave lower. */
+    internal fun chordPitches(chord: com.pianoscribe.core.theory.ChordNamer.Chord): List<Int> {
+        val root = 48 + Math.floorMod(chord.rootPc, 12)
+        // Ninths sit an octave up, above the rest of the chord.
+        val tones = chord.intervals.map { root + if (it in 1..2) it + 12 else it }
+        val bass = if (chord.bassPc != chord.rootPc) listOf(36 + Math.floorMod(chord.bassPc, 12)) else emptyList()
+        return (bass + tones).distinct().sorted()
     }
 
     /** Channel 10 (0-based 9): General MIDI drums, where each note number is a drum. */
@@ -52,7 +86,7 @@ object MidiWriter {
     /** Seconds -> ticks. Tick 0 is the first downbeat (grid offset) so bars line up in a DAW. */
     fun ticks(sec: Double, grid: TimeGrid): Long = (grid.timeToBeats(sec) * PPQ).roundToLong().coerceAtLeast(0)
 
-    private fun conductorTrack(grid: TimeGrid, title: String): ByteArray {
+    private fun conductorTrack(grid: TimeGrid, title: String, chords: List<ChordTrack.Label> = emptyList()): ByteArray {
         val t = ByteArrayOutputStream()
         // Track name
         t.write(vlq(0)); meta(t, 0x03, title.toByteArray(Charsets.UTF_8))
@@ -62,6 +96,13 @@ object MidiWriter {
         // Tempo in microseconds per quarter note.
         val usPerQuarter = (60_000_000.0 / grid.bpm * (grid.beatUnit / 4.0)).roundToInt().coerceIn(1, 0xFFFFFF)
         t.write(vlq(0)); meta(t, 0x51, byteArrayOf((usPerQuarter shr 16).toByte(), (usPerQuarter shr 8).toByte(), usPerQuarter.toByte()))
+        // Chord names as markers.
+        var last = 0L
+        for (c in chords) {
+            val tick = maxOf(last, ticks(c.time, grid))
+            t.write(vlq(tick - last)); meta(t, 0x06, c.name.toByteArray(Charsets.UTF_8))
+            last = tick
+        }
         t.write(vlq(0)); meta(t, 0x2F, ByteArray(0))
         return t.toByteArray()
     }

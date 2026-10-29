@@ -85,6 +85,8 @@ object Engraver {
         /** Shown left above the first system ("♩ = 120"). */
         val showTempo: Boolean = true,
         val dynamics: Boolean = true,
+        /** Chord symbols written above the treble staff where each chord begins. */
+        val chords: List<com.pianoscribe.core.analysis.ChordTrack.Label> = emptyList(),
     )
 
     private const val STAFF_GAP = 7f // between treble bottom line and bass top line
@@ -275,7 +277,9 @@ object Engraver {
         val allItems = measures.flatMap { m -> m.columns.flatMap { it.items } }
         val trebleHigh = allItems.filter { it.treble && !it.ev.isRest }.maxOfOrNull { it.pos.last() } ?: 0
         val bassLow = allItems.filter { !it.treble && !it.ev.isRest }.minOfOrNull { it.pos.first() } ?: 0
-        val trebleTop = top + maxOf(2.5f, (trebleHigh - 4) * 0.5f + 2.5f)
+        // Room for chord symbols above the notes.
+        val chordRoom = if (options.chords.isNotEmpty()) 2.4f else 0f
+        val trebleTop = top + maxOf(2.5f, (trebleHigh - 4) * 0.5f + 2.5f) + chordRoom
         val bassTop = trebleTop + 4 + STAFF_GAP
         val bassBottom = bassTop + 4
         val bottom = bassBottom + maxOf(2.5f, (-4 - bassLow) * 0.5f + 2.5f)
@@ -351,6 +355,20 @@ object Engraver {
                 marks += Mark.Line(mx - 0.9f, trebleTop, mx - 0.9f, bassBottom, 0.16f)
                 marks += Mark.Line(mx - 0.25f, trebleTop, mx - 0.25f, bassBottom, 0.5f)
             } else marks += Mark.Line(mx, trebleTop, mx, bassBottom, 0.16f)
+        }
+        // Chord symbols at the first note column of each chord, above the highest note, never overlapping.
+        if (options.chords.isNotEmpty() && cols.isNotEmpty()) {
+            val t0 = cols.first().second
+            val tEnd = time(measures.last().measureStartDiv + measureDiv)
+            val y = minOf(trebleTop - 1.6f, yOf(true, trebleHigh) - 2.6f).coerceAtLeast(top + 1.4f)
+            var lastEnd = Float.NEGATIVE_INFINITY
+            for (ch in options.chords) {
+                if (ch.time < t0 - 0.02 || ch.time >= tEnd - 0.02) continue
+                val x = cols.firstOrNull { it.second >= ch.time - 0.02 }?.first ?: continue
+                if (x < lastEnd + 0.8f) continue
+                marks += Mark.Text(ch.name, x, y, 1.7f, bold = true)
+                lastEnd = x + ch.name.length * 0.95f
+            }
         }
         // Ties that run on into the next system: draw to the end of this one.
         for (t in ties.open.values) marks += Mark.Tie(t.x, t.y, right - 0.3f, t.y, t.above)

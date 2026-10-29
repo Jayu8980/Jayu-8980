@@ -16,6 +16,7 @@ import com.pianoscribe.core.rhythm.Quantizer
 import com.pianoscribe.core.rhythm.TempoDetector
 import com.pianoscribe.core.theory.HandSplitter
 import com.pianoscribe.core.theory.KeyDetector
+import com.pianoscribe.core.transcribe.SourceInstrument
 import com.pianoscribe.core.transcribe.AudioType
 import com.pianoscribe.core.transcribe.BasicPitch
 import com.pianoscribe.core.transcribe.NotePostProcessor
@@ -122,7 +123,9 @@ class TranscriptionEngine(private val context: Context) {
         coroutineContext.ensureActive()
 
         // 2. The models. Solo piano also gets the high-resolution piano model, which leads.
-        val usePiano = !songMode && settings.highAccuracyPiano && PianoModelRunner.isAvailable(context) &&
+        // Notes are written for the instrument in the recording; the piano model only knows piano.
+        val source = settings.sourceInstrument
+        val usePiano = source == SourceInstrument.PIANO && !songMode && settings.highAccuracyPiano && PianoModelRunner.isAvailable(context) &&
             length <= PIANO_MODEL_MAX_SEC * BasicPitch.SAMPLE_RATE
         val modelStart = if (songMode) 0.2f else 0.05f
         val modelEnd = if (usePiano) 0.3f else 0.8f
@@ -166,6 +169,11 @@ class TranscriptionEngine(private val context: Context) {
             // Never let the clean-up empty a transcription that found something.
             if (cleaned.isNotEmpty()) notes = cleaned
         }
+        if (source != SourceInstrument.PIANO) {
+            progress("Writing the notes for ${source.label.lowercase()}", 0.87f)
+            val shaped = source.shape(notes)
+            if (shaped.isNotEmpty()) notes = shaped
+        }
         if (notes.isEmpty()) throw NoNotesException(songMode)
 
         progress("Measuring tuning", 0.88f)
@@ -189,7 +197,7 @@ class TranscriptionEngine(private val context: Context) {
         notes = HandSplitter.split(notes, settings.splitPoint)
         // Tempo and key come from all the notes, also when only the tune is kept.
         val key = KeyDetector.detect(notes)
-        if (settings.singleNotes) {
+        if (settings.singleNotes && !source.monophonic) {
             progress("Keeping the tune, one note at a time", 0.97f)
             val line = EasyVersion.singleLine(notes)
             if (line.isNotEmpty()) notes = line

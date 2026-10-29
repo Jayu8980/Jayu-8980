@@ -8,7 +8,7 @@ import kotlin.math.floor
 
 /** Chord names over time, for labelling a view: where each new chord begins. */
 object ChordTrack {
-    data class Label(val time: Double, val name: String)
+    data class Label(val time: Double, val name: String, val chord: ChordNamer.Chord)
 
     /** No transcribed note rings longer than this. */
     private const val MAX_NOTE_SEC = 30.0
@@ -33,9 +33,10 @@ object ChordTrack {
             val pitches = sorted.subList(i0, sorted.size).asSequence().takeWhile { it.start < t1 }
                 .filter { minOf(it.end, t1) - maxOf(it.start, t0) >= (t1 - t0) * 0.4 }.map { it.pitch }.toList()
             if (pitches.map { Math.floorMod(it, 12) }.distinct().size < 3) continue
-            val name = ChordNamer.name(pitches, preferFlats)?.name ?: continue
-            if (name.contains('+')) continue
-            if (out.lastOrNull()?.name != name) out += Label(t0, name)
+            val chord = ChordNamer.name(pitches, preferFlats) ?: continue
+            // Intervals and clusters are not chord symbols.
+            if (chord.intervals.isEmpty()) continue
+            if (out.lastOrNull()?.name != chord.name) out += Label(t0, chord.name, chord)
         }
         return out
     }

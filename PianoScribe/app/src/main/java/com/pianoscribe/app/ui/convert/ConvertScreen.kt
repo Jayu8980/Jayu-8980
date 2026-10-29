@@ -1,5 +1,6 @@
 package com.pianoscribe.app.ui.convert
 
+import com.pianoscribe.core.transcribe.SourceInstrument
 import android.app.Application
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -71,7 +72,7 @@ class ConvertViewModel(app: Application, private val container: AppContainer, st
                         bpm = result.grid.bpm, beatsPerBar = result.grid.beatsPerBar, beatUnit = result.grid.beatUnit, gridOffset = result.grid.offset,
                         splitPoint = settings.splitPoint, quantizeDivision = if (settings.pianoOnly) settings.quantizeDivision else 0,
                         keyName = result.key?.name, noteCount = result.notes.size,
-                        source = draft.source + (if (result.songMode) " · full song" else "") + (if (result.pianoModel) " · piano model" else "") + (if (result.singleNotes) " · single notes" else "") + result.cleanup.joinToString("") { " · $it" },
+                        source = draft.source + (if (result.songMode) " · full song" else "") + (if (result.pianoModel) " · piano model" else "") + (if (result.singleNotes) " · single notes" else "") + (if (settings.sourceInstrument != SourceInstrument.PIANO) " · ${settings.sourceInstrument.label.lowercase()}" else "") + result.cleanup.joinToString("") { " · $it" },
                     ),
                 )
                 val rel = "projects/$id/audio.f32"
@@ -81,6 +82,8 @@ class ConvertViewModel(app: Application, private val container: AppContainer, st
                 }
                 val p = container.repository.load(id)!!.entity.copy(audioPath = rel)
                 container.repository.save(p, result.notes)
+                // Played back on the closest sound to the instrument in the recording.
+                if (settings.sourceInstrument != SourceInstrument.PIANO) container.settings.update { it.copy(instrument = settings.sourceInstrument.playback) }
                 val secs = (System.nanoTime() - t0) / 1e9
                 val mode = buildString {
                     if (result.songMode) append(" · full-song mode: drums removed")

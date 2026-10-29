@@ -86,6 +86,19 @@ class PipelineTest {
         assertTrue("recall $r", r >= 0.8)
     }
 
+    @Test fun melodyInstrumentGetsOneNoteAtATimeInItsRange() = runBlocking<Unit> {
+        val settings = AppSettings(audioType = AudioType.SOLO_PIANO, highAccuracyPiano = true, sourceInstrument = com.pianoscribe.core.transcribe.SourceInstrument.FLUTE)
+        val result = TranscriptionEngine(TestFixtures.app).transcribe(pcm, settings) { _, _ -> }
+        val line = result.notes.sortedBy { it.start }
+        val tune = TestFixtures.expected.filter { it.pitch >= 72 }
+        val found = tune.count { e -> line.any { it.pitch == e.pitch && abs(it.start - e.start) < 0.08 } }
+        android.util.Log.i("PianoScribeTest", "Flute: ${line.size} notes, $found/${tune.size} of the tune")
+        assertTrue("the piano model is only for piano", !result.pianoModel)
+        assertTrue("in the flute's range", line.all { it.pitch in 60..98 })
+        assertTrue("one note at a time", line.zipWithNext().all { (a, b) -> a.end <= b.start + 1e-9 })
+        assertTrue("tune notes found: $found of ${tune.size}", found >= 5)
+    }
+
     @Test fun singleNotesKeepsTheTuneOneNoteAtATime() = runBlocking<Unit> {
         val result = TranscriptionEngine(TestFixtures.app).transcribe(pcm, AppSettings(audioType = AudioType.SOLO_PIANO, highAccuracyPiano = false, singleNotes = true)) { _, _ -> }
         val line = result.notes.sortedBy { it.start }

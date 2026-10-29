@@ -42,6 +42,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.pianoscribe.app.ui.score.ScorePainter
 import com.pianoscribe.app.ui.theme.LocalMusicColors
+import com.pianoscribe.core.analysis.ChordTrack
 import com.pianoscribe.core.model.Note
 import com.pianoscribe.core.model.TimeGrid
 import com.pianoscribe.core.score.EngravedScore
@@ -90,7 +91,10 @@ fun SheetView(
         var score by remember { mutableStateOf<EngravedScore?>(null) }
         // Engrave off the main thread whenever the notes or the available width change.
         LaunchedEffect(notes, grid, key, title, Math.round(widthSpaces)) {
-            score = withContext(Dispatchers.Default) { Engraver.engrave(notes, grid, key, widthSpaces, Engraver.Options(title = title)) }
+            score = withContext(Dispatchers.Default) {
+                val chords = ChordTrack.labels(notes, grid, key?.preferFlats ?: false)
+                Engraver.engrave(notes, grid, key, widthSpaces, Engraver.Options(title = title, chords = chords))
+            }
         }
         val sc = score
         if (sc == null) {

@@ -1,5 +1,6 @@
 package com.pianoscribe.app.ui.prepare
 
+import com.pianoscribe.core.transcribe.SourceInstrument
 import android.app.Application
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
@@ -56,6 +57,7 @@ import com.pianoscribe.app.playback.PlayMode
 import com.pianoscribe.app.playback.PlaybackEngine
 import com.pianoscribe.app.ui.components.AudioTypeSelector
 import com.pianoscribe.app.ui.components.NotesSelector
+import com.pianoscribe.app.ui.components.SourceInstrumentSelector
 import com.pianoscribe.app.ui.components.Waveform
 import com.pianoscribe.app.ui.components.formatTime
 import com.pianoscribe.core.transcribe.BasicPitch
@@ -278,10 +280,11 @@ fun PrepareScreen(container: AppContainer, uri: String?, onBack: () -> Unit, onC
                             Icon(Icons.Default.Tune, null); Text("  Edit & clean audio")
                         }
                     }
+                    SourceInstrumentSelector(settings.sourceInstrument, { v -> container.settings.update { it.copy(sourceInstrument = v) } }, width)
                     AudioTypeSelector(settings.audioType, { t -> container.settings.update { it.copy(audioType = t) } }, width)
                     NotesSelector(settings.singleNotes, { v -> container.settings.update { it.copy(singleNotes = v) } }, width)
                     Button(onClick = { vm.stopPreview(); val (a, b) = vm.range(); onConvert(a, b) }, modifier = width.height(56.dp)) {
-                        Text("Convert to piano notes", style = MaterialTheme.typography.titleMedium)
+                        Text(if (settings.sourceInstrument == SourceInstrument.PIANO) "Convert to piano notes" else "Convert ${settings.sourceInstrument.label.lowercase()} to notes", style = MaterialTheme.typography.titleMedium)
                     }
                     Text("Tip: accuracy is best for solo piano or a single instrument. For songs, full-song mode gives a much cleaner result, but it is still approximate.",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
