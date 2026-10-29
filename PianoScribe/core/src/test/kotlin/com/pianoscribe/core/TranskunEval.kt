@@ -26,24 +26,23 @@ class TranskunEval {
         private val core = env.createSession(File(dir, "transkun_core.onnx").path, opts)
         private val score = env.createSession(File(dir, "transkun_score.onnx").path, opts)
         private val heads = env.createSession(File(dir, "transkun_heads.onnx").path, opts)
-        private fun copy(t: OnnxTensor): FloatBuffer = t.floatBuffer // a heap copy
+        private var result: OrtSession.Result? = null
+        override var chunks = 0
 
-        override fun core(features: FloatArray): Transkun.CoreOut =
+        override fun core(features: FloatArray) {
+            result?.close()
             OnnxTensor.createTensor(env, FloatBuffer.wrap(features), longArrayOf(1, fe.nFrame.toLong(), fe.nMel.toLong(), fe.nWin.toLong())).use { t ->
-                core.run(mapOf("features" to t)).use { r ->
-                    fun get(n: String) = copy(r.get(n).get() as OnnxTensor)
-                    Transkun.CoreOut(get("q"), get("k"), get("diag"), get("ctx"))
-                }
-            }
-
-        override fun score(q: FloatBuffer, k: FloatBuffer, n: Int): FloatBuffer {
-            val shape = longArrayOf(n.toLong(), fe.nFrame.toLong(), fe.d.toLong())
-            return OnnxTensor.createTensor(env, q, shape).use { tq ->
-                OnnxTensor.createTensor(env, k, shape).use { tk ->
-                    score.run(mapOf("q" to tq, "k" to tk)).use { r -> copy(r.get(0) as OnnxTensor) }
-                }
+                result = core.run(mapOf("features" to t)).also { chunks = it.size() }
             }
         }
+
+        override fun ctx(index: Int): FloatArray =
+            (result!!.get(index) as OnnxTensor).floatBuffer.let { b -> FloatArray(b.remaining()).also { b.get(it) } }
+
+        override fun score(ctx: FloatArray, n: Int): Transkun.Scores =
+            OnnxTensor.createTensor(env, FloatBuffer.wrap(ctx), longArrayOf(n.toLong(), fe.nFrame.toLong(), fe.d.toLong())).use { t ->
+                score.run(mapOf("ctx" to t)).use { r -> Transkun.Scores((r.get(0) as OnnxTensor).floatBuffer, (r.get(1) as OnnxTensor).floatBuffer) }
+            }
 
         override fun heads(attr: FloatArray, n: Int): Pair<FloatArray, FloatArray> =
             OnnxTensor.createTensor(env, FloatBuffer.wrap(attr), longArrayOf(n.toLong(), 3L * fe.d)).use { t ->

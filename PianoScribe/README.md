@@ -165,9 +165,9 @@ Android Studio alternative: **Build → Generate Signed App Bundle / APK → APK
    parts (51 MB + 3.4 MB + a tiny scorer); the front end (six analysis windows, FFT, mel filters), the decoding,
    the refinement and the segment stitching are ported to Kotlin (`core/.../transcribe/Transkun.kt`). CI checks the
    port gives exactly the same notes as the official Python package on the same audio (18 of 18 recordings
-   identical). On the phone the network's large intermediate outputs stay in native memory (ONNX Runtime writes
-   them straight into direct buffers). Up to 15 minutes of audio; about 0.37 s per second of audio on a desktop
-   CPU, more on a phone. It replaced the ByteDance high-resolution model (Kong et al. 2021) used before, which
+   identical). On the phone the network's per-key output (64 MB per segment) stays in ONNX Runtime's native memory
+   and is read 10 keys at a time, so the app's heap holds only a few MB of it. Recordings up to 6 minutes (longer
+   ones use the general model alone); about 0.37 s per second of audio on a desktop CPU, more on a phone. It replaced the ByteDance high-resolution model (Kong et al. 2021) used before, which
    scored lower on every test condition (table below).
 
    **Combining the two.** The piano model leads and Basic Pitch is a second opinion: a piano-model note Basic

@@ -94,8 +94,10 @@ class ConvertViewModel(app: Application, private val container: AppContainer, st
                 trimmed.delete()
                 throw e
             } catch (e: OutOfMemoryError) {
+                android.util.Log.e("PianoScribe", "Conversion ran out of memory", e)
                 _state.value = UiState(error = "Not enough memory for this song. Trim it into shorter parts and convert each one.")
             } catch (e: Exception) {
+                android.util.Log.e("PianoScribe", "Conversion failed", e)
                 trimmed.delete()
                 _state.value = UiState(error = e.message ?: "Conversion failed")
             }

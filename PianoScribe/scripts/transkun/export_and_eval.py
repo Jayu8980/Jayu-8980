@@ -4,8 +4,10 @@ for on-device use: accuracy on the evaluation set, ONNX export and reference out
 The network runs in ONNX Runtime; what ONNX cannot hold is done the way the app does it, and
 step 3 below checks that decomposition against the official pipeline before any Kotlin exists:
   - front end (6 windows, real FFT, mel filters, log): frontend.bin holds the windows and filters
-  - transkun_core.onnx: 16 s of features -> per pitch q, k, diag (interval scorer) and ctx
-  - transkun_score.onnx: q, k -> interval scores S[b, e] = (q_e . k_b) * |e - b|, begin-major (diag added after)
+  - transkun_core.onnx: 16 s of features -> per-key context ctx, as 9 outputs of 10 keys each, so the app
+    reads one small chunk at a time while the rest stays in ONNX Runtime's native memory
+  - transkun_score.onnx: ctx of some keys -> interval scores S[b, e] = (q_e . k_b) * |e - b|, begin-major,
+    and the single-frame scores diag (added on S's diagonal by the decoder)
   - transkun_heads.onnx: interval features -> velocity logits and onset/offset refinement
   - semi-CRF Viterbi decoding, segment stitching and overlap resolution: plain code
 
@@ -85,19 +87,24 @@ D = model.scorer.size
 for mod in model.modules():
     if hasattr(mod, "useGradientCheckpoint"): mod.useGradientCheckpoint = False
 
+CHUNK = 10
+NCHUNK = math.ceil(len(PITCHES) / CHUNK)
+
 class Core(torch.nn.Module):
     def __init__(self, m):
         super().__init__(); self.m = m
-    def forward(self, feat):  # [1, T, 229, 6]
-        ctx = self.m.backbone(feat, outputIndices=torch.tensor(self.m.targetMIDIPitch))
-        q, k, diag = self.m.scorer.map(ctx).split([D, D, 1], dim=-1)
-        q = q / math.sqrt(D)
-        return q[0], k[0], diag[0, ..., 0], ctx[0]
+    def forward(self, feat):  # [1, T, 229, 6] -> NCHUNK x [<=CHUNK, T, D]
+        ctx = self.m.backbone(feat, outputIndices=torch.tensor(self.m.targetMIDIPitch))[0]
+        return tuple(ctx.split(CHUNK, dim=0))
 
 class Score(torch.nn.Module):
-    def forward(self, q, k):  # [n, T, D] each -> [n, T(begin), T(end)]
-        t = torch.arange(q.shape[1], dtype=torch.float32)
-        return torch.matmul(k, q.transpose(1, 2)) * (t.unsqueeze(1) - t.unsqueeze(0)).abs()
+    def __init__(self, m):
+        super().__init__(); self.m = m
+    def forward(self, ctx):  # [n, T, D] -> S [n, T(begin), T(end)], diag [n, T]
+        q, k, diag = self.m.scorer.map(ctx).split([D, D, 1], dim=-1)
+        q = q / math.sqrt(D)
+        t = torch.arange(ctx.shape[1], dtype=torch.float32)
+        return torch.matmul(k, q.transpose(1, 2)) * (t.unsqueeze(1) - t.unsqueeze(0)).abs(), diag[..., 0]
 
 class Heads(torch.nn.Module):
     def __init__(self, m):
@@ -109,10 +116,10 @@ nmel = model.framewiseFeatureExtractor.outputDim
 nch = model.framewiseFeatureExtractor.nChannel
 core_path = os.path.join(out, "transkun_core.onnx")
 torch.onnx.export(Core(model).eval(), torch.zeros(1, NFRAME, nmel, nch), core_path, input_names=["features"],
-                  output_names=["q", "k", "diag", "ctx"], opset_version=17, do_constant_folding=True)
-torch.onnx.export(Score().eval(), (torch.zeros(10, NFRAME, D), torch.zeros(10, NFRAME, D)), os.path.join(out, "transkun_score.onnx"),
-                  input_names=["q", "k"], output_names=["score"], opset_version=17,
-                  dynamic_axes={"q": {0: "n", 1: "t"}, "k": {0: "n", 1: "t"}, "score": {0: "n", 1: "t", 2: "t"}})
+                  output_names=[f"ctx{i}" for i in range(NCHUNK)], opset_version=17, do_constant_folding=True)
+torch.onnx.export(Score(model).eval(), torch.zeros(CHUNK, NFRAME, D), os.path.join(out, "transkun_score.onnx"),
+                  input_names=["ctx"], output_names=["score", "diag"], opset_version=17,
+                  dynamic_axes={"ctx": {0: "n", 1: "t"}, "score": {0: "n", 1: "t", 2: "t"}, "diag": {0: "n", 1: "t"}})
 torch.onnx.export(Heads(model).eval(), torch.zeros(5, 3 * D), os.path.join(out, "transkun_heads.onnx"),
                   input_names=["attr"], output_names=["velocity", "offsets"], opset_version=17,
                   dynamic_axes={"attr": {0: "n"}, "velocity": {0: "n"}, "offsets": {0: "n"}})
@@ -187,11 +194,12 @@ def port(y):
         seg = x[i:min(i + SEG, n)]
         seg = np.pad(seg, (0, SEG - len(seg)))
         begin = i / FS - pad_t
-        qv, kv, diag, ctx = core.run(None, {"features": features(seg)})
+        chunks = core.run(None, {"features": features(seg)})
+        ctx = np.concatenate(chunks, axis=0)
         events, last_p = [], []
         for j, pitch in enumerate(PITCHES):
-            S = score.run(None, {"q": qv[j:j + 1], "k": kv[j:j + 1]})[0][0]
-            S[np.arange(NFRAME), np.arange(NFRAME)] += diag[j]
+            S, dg = score.run(None, {"ctx": ctx[j:j + 1]})
+            S = S[0]; S[np.arange(NFRAME), np.arange(NFRAME)] += dg[0]
             iv = viterbi_backward(S, start_pos[j])
             cur_last = 0
             if iv:

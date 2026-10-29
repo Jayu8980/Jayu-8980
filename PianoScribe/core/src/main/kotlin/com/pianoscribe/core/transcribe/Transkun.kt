@@ -127,14 +127,22 @@ object Transkun {
         return out
     }
 
-    /** What the network gives for one segment, per symbol: [nSym, T, D] (q, k, ctx) and [nSym, T] (diag). */
-    class CoreOut(val q: FloatBuffer, val k: FloatBuffer, val diag: FloatBuffer, val ctx: FloatBuffer)
+    /** Interval scores of some symbols: [n, T(begin), T(end)] and single-frame scores [n, T]. */
+    class Scores(val s: FloatBuffer, val diag: FloatBuffer)
 
-    /** The three ONNX models. Buffers returned stay valid until the next call of the same kind. */
+    /**
+     * The three ONNX models. The network's per-symbol context comes out in chunks of a few
+     * symbols, read one at a time, so only one chunk is ever in the app's heap.
+     */
     interface Net {
-        fun core(features: FloatArray): CoreOut
-        /** Interval scores for [n] symbols: [n, T(begin), T(end)] = (q_end . k_begin) * |end - begin|. */
-        fun score(q: FloatBuffer, k: FloatBuffer, n: Int): FloatBuffer
+        /** Runs the network on one segment's features; its outputs are then read with [ctx]. */
+        fun core(features: FloatArray)
+        /** Number of context chunks per segment. */
+        val chunks: Int
+        /** Context [n, T, D] of chunk [index] of the last [core] run. */
+        fun ctx(index: Int): FloatArray
+        /** Interval and single-frame scores for a context chunk of [n] symbols. */
+        fun score(ctx: FloatArray, n: Int): Scores
         /** Velocity logits [n, 128] and onset/offset refinement [n, 4] for interval features [n, 3D]. */
         fun heads(attr: FloatArray, n: Int): Pair<FloatArray, FloatArray>
     }
@@ -198,7 +206,6 @@ object Transkun {
         net: Net,
         audio: FloatArray,
         ids: NoteIdGenerator = NoteIdGenerator(),
-        symbolsPerScore: Int = 8,
         onProgress: (Int, Int) -> Unit = { _, _ -> },
     ): List<Note> {
         val fs = fe.fs; val hop = fe.hop; val t = fe.nFrame; val d = fe.d
@@ -225,23 +232,24 @@ object Transkun {
             }
             val begin = i.toDouble() / fs - padT
             features(fe, seg, feat)
-            val out = net.core(feat)
+            net.core(feat)
             val events = ArrayList<Event>()
             val lastP = IntArray(nSym)
             var s0 = 0
-            while (s0 < nSym) {
-                val cnt = minOf(symbolsPerScore, nSym - s0)
-                val scores = net.score(slice(out.q, s0 * t * d, cnt * t * d), slice(out.k, s0 * t * d, cnt * t * d), cnt)
+            for (chunk in 0 until net.chunks) {
+                val ctx = net.ctx(chunk)
+                val cnt = ctx.size / (t * d)
+                val scores = net.score(ctx, cnt)
                 for (c in 0 until cnt) {
                     val sym = s0 + c
-                    val iv = viterbiBackward(scores, c * t * t, out.diag, sym * t, t, startPos[sym])
+                    val iv = viterbiBackward(scores.s, c * t * t, scores.diag, c * t, t, startPos[sym])
                     if (iv.isEmpty()) continue
                     val attr = FloatArray(iv.size * 3 * d)
                     for ((r, pair) in iv.withIndex()) {
-                        val a = (sym * t + pair[0]) * d; val b = (sym * t + pair[1]) * d
+                        val a = (c * t + pair[0]) * d; val b = (c * t + pair[1]) * d
                         val o = r * 3 * d
                         for (x in 0 until d) {
-                            val ca = out.ctx.get(a + x); val cb = out.ctx.get(b + x)
+                            val ca = ctx[a + x]; val cb = ctx[b + x]
                             attr[o + x] = ca; attr[o + d + x] = cb; attr[o + 2 * d + x] = ca * cb
                         }
                     }
@@ -295,9 +303,4 @@ object Transkun {
         }
     }
 
-    private fun slice(b: FloatBuffer, from: Int, len: Int): FloatBuffer {
-        val dup = b.duplicate()
-        dup.position(from); dup.limit(from + len)
-        return dup.slice()
-    }
 }

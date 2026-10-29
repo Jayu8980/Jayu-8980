@@ -70,7 +70,7 @@ typealias ProgressListener = (step: String, progress: Float) -> Unit
 class TranscriptionEngine(private val context: Context) {
     companion object {
         /** Longer recordings use Basic Pitch alone, to keep memory in bounds. */
-        const val PIANO_MODEL_MAX_SEC = 15 * 60
+        const val PIANO_MODEL_MAX_SEC = 6 * 60
     }
 
     suspend fun transcribe(input: File, settings: AppSettings, progress: ProgressListener): TranscriptionResult = withContext(Dispatchers.Default) {
