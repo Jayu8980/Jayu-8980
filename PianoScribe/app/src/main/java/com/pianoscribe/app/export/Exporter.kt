@@ -26,6 +26,8 @@ import com.pianoscribe.core.model.TimeGrid
 import com.pianoscribe.core.perform.Instrument
 import com.pianoscribe.core.perform.PlayedNote
 import com.pianoscribe.core.score.Engraver
+import com.pianoscribe.core.score.TabWriter
+import com.pianoscribe.core.score.Tablature
 import com.pianoscribe.app.ui.score.ScorePainter
 import com.pianoscribe.core.synth.OfflineRenderer
 import com.pianoscribe.core.synth.Sf2Preset
@@ -42,6 +44,8 @@ enum class ExportFormat(val label: String, val ext: String, val mime: String) {
     MIDI("MIDI file (.mid)", "mid", "audio/midi"),
     MIDI_PERFORMED("MIDI as performed: instrument + human feel (.mid)", "mid", "audio/midi"),
     SCORE_PDF("Sheet music, printable (.pdf)", "pdf", "application/pdf"),
+    GUITAR_TAB("Guitar tab (.txt)", "txt", "text/plain"),
+    GUITAR_TAB_XML("Guitar tab for Guitar Pro / MuseScore (.musicxml)", "musicxml", "application/vnd.recordare.musicxml+xml"),
     WAV("Audio of the performance (.wav)", "wav", "audio/wav"),
     MUSICXML("MusicXML for MuseScore (.musicxml)", "musicxml", "application/vnd.recordare.musicxml+xml"),
     PNG("Piano roll image (.png)", "png", "image/png"),
@@ -84,6 +88,8 @@ class Exporter(private val context: Context) {
             }
             ExportFormat.MUSICXML -> file.writeText(MusicXmlWriter.write(input.notes, input.grid, input.title, input.key?.fifths ?: 0, input.key))
             ExportFormat.SCORE_PDF -> writeScorePdf(file, input)
+            ExportFormat.GUITAR_TAB -> file.writeText(TabWriter.ascii(Tablature.arrange(input.notes), input.grid, input.title))
+            ExportFormat.GUITAR_TAB_XML -> file.writeText(TabWriter.musicXml(Tablature.arrange(input.notes), input.grid, input.title))
             ExportFormat.PNG -> writePianoRollPng(input.notes, input.grid, file)
             ExportFormat.NOTES_TXT -> file.writeText(AnalysisTable.text(rows, input.title, input.grid, input.key?.name))
             ExportFormat.ANALYSIS_CSV -> file.writeText(AnalysisTable.csv(rows))
@@ -176,6 +182,7 @@ class Exporter(private val context: Context) {
                 ExportFormat.ANALYSIS_CSV, ExportFormat.ANALYSIS_PDF -> "-analysis"
                 ExportFormat.NOTES_PDF, ExportFormat.NOTES_TXT -> "-notes"
                 ExportFormat.SCORE_PDF -> "-score"
+                ExportFormat.GUITAR_TAB, ExportFormat.GUITAR_TAB_XML -> "-guitar-tab"
                 ExportFormat.MIDI_PERFORMED -> "-$inst-performed"
                 ExportFormat.WAV -> "-$inst"
                 else -> ""

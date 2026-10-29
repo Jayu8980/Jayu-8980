@@ -126,7 +126,7 @@ class UiSmokeTest {
                 waitForText(name)
                 compose.onNodeWithText(name).performClick()
                 waitForText("Piano Roll")
-                for (tab in listOf("Falling Notes", "Sheet", "Notes", "Analyser", "Compare", "Piano Roll")) {
+                for (tab in listOf("Falling Notes", "Sheet", "Guitar Tab", "Notes", "Analyser", "Compare", "Piano Roll")) {
                     // "Notes" is also the play-mode button, so match the tab itself.
                     compose.onNode(hasText(tab) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)).performScrollTo().performClick()
                     compose.waitForIdle()

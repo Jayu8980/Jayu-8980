@@ -98,6 +98,27 @@ class ImportFlowTest {
     @Test fun m4a() = openAndConvert(sharedAudio("test_melody.m4a"), "audio/mp4", 60_000, 180_000)
     @Test fun wav() = openAndConvert(sharedAudio("test_melody.wav"), "audio/wav", 60_000, 180_000)
 
+    /** A MIDI file opens straight into a project with its notes (no listening needed). */
+    @Test fun midiFile() {
+        val app = TestFixtures.app
+        val notes = TestFixtures.expected.mapIndexed { i, e ->
+            com.pianoscribe.core.model.Note(i + 1L, e.pitch, e.start, e.duration, 90, 1f,
+                if (e.pitch >= 60) com.pianoscribe.core.model.Hand.RIGHT else com.pianoscribe.core.model.Hand.LEFT)
+        }
+        val f = File(File(app.cacheDir, "exports").apply { mkdirs() }, "test_melody_midi.mid")
+        f.writeBytes(com.pianoscribe.core.midi.MidiWriter.write(notes, com.pianoscribe.core.model.TimeGrid(bpm = 120.0), "test_melody MIDI"))
+        val uri = FileProvider.getUriForFile(app, app.packageName + ".files", f)
+        val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, "audio/midi")
+            .setClass(app, MainActivity::class.java).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        ActivityScenario.launch<MainActivity>(intent).use {
+            waitForText("Piano Roll", 60_000)
+        }
+        val repo = (app.applicationContext as PianoScribeApp).container.repository
+        val project = runBlocking { repo.projects.first() }.first { it.name == "test_melody MIDI" }
+        org.junit.Assert.assertEquals("MIDI file", project.source)
+        org.junit.Assert.assertEquals(notes.size, runBlocking { repo.load(project.id)!!.notes.size })
+    }
+
     /** A 3-minute song must open (decoding runs off the main thread) and convert. */
     @Test fun threeMinuteSong() = openAndConvert(sharedLongSong(), "audio/wav", 600_000, 900_000)
 }

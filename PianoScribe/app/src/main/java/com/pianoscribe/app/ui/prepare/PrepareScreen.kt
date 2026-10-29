@@ -45,6 +45,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.pianoscribe.app.AppContainer
 import com.pianoscribe.app.audio.AudioDecoder
+import androidx.compose.runtime.LaunchedEffect
+import com.pianoscribe.core.theory.KeyDetector
+import com.pianoscribe.core.model.Note
+import com.pianoscribe.core.midi.MidiImporter
+import com.pianoscribe.app.data.ProjectEntity
 import com.pianoscribe.app.audio.Draft
 import com.pianoscribe.app.audio.PcmFile
 import com.pianoscribe.app.playback.PlayMode
@@ -74,6 +79,8 @@ class PrepareViewModel(app: Application, private val container: AppContainer, ur
         val trimEnd: Float = 0f,
         val playing: Boolean = false,
         val position: Double = 0.0,
+        /** A MIDI file became this project: open it. */
+        val openProject: Long? = null,
     )
 
     private val _state = MutableStateFlow(UiState())
@@ -85,6 +92,11 @@ class PrepareViewModel(app: Application, private val container: AppContainer, ur
     init {
         viewModelScope.launch {
             try {
+                // A MIDI file needs no listening: its notes become a project straight away.
+                if (uri != null && isMidi(Uri.parse(uri))) {
+                    _state.value = _state.value.copy(openProject = importMidi(Uri.parse(uri)))
+                    return@launch
+                }
                 val draft = if (uri != null) decode(Uri.parse(uri)) else container.draft.value ?: error("Nothing to convert")
                 container.draft.value = draft
                 show(draft)
@@ -108,6 +120,37 @@ class PrepareViewModel(app: Application, private val container: AppContainer, ur
         val p = PlaybackEngine(null, draft.file).apply { mode = PlayMode.ORIGINAL; duration = draft.durationSec }
         player = p
         playerJob = viewModelScope.launch { p.state.collect { s -> _state.value = _state.value.copy(playing = s.playing, position = s.position) } }
+    }
+
+    private suspend fun isMidi(uri: Uri): Boolean = withContext(Dispatchers.IO) {
+        val ctx = getApplication<Application>()
+        if (ctx.contentResolver.getType(uri)?.contains("midi") == true) return@withContext true
+        runCatching {
+            ctx.contentResolver.openInputStream(uri)?.use { s -> val b = ByteArray(4); s.read(b) == 4 && String(b, Charsets.US_ASCII) == "MThd" } == true
+        }.getOrDefault(false)
+    }
+
+    /** Reads a MIDI file into a new project (no recording) and returns its id. */
+    private suspend fun importMidi(uri: Uri): Long {
+        val ctx = getApplication<Application>()
+        val bytes = withContext(Dispatchers.IO) {
+            ctx.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: error("Couldn't open this file")
+        }
+        val imported = withContext(Dispatchers.Default) { MidiImporter.read(bytes) }
+        val name = imported.title ?: AudioDecoder.displayName(ctx, uri)
+        val key = withContext(Dispatchers.Default) { KeyDetector.detect(imported.notes) }
+        val now = System.currentTimeMillis()
+        val g = imported.grid
+        val repo = container.repository
+        val id = repo.create(
+            ProjectEntity(
+                name = name, createdAt = now, updatedAt = now, audioPath = "", durationSec = imported.durationSec,
+                bpm = g.bpm, beatsPerBar = g.beatsPerBar, beatUnit = g.beatUnit, gridOffset = g.offset,
+                splitPoint = Note.MIDDLE_C, quantizeDivision = 0, keyName = key?.name, noteCount = imported.notes.size, source = "MIDI file",
+            ),
+        )
+        repo.save(repo.load(id)!!.entity, imported.notes)
+        return id
     }
 
     private suspend fun decode(uri: Uri): Draft {
@@ -166,9 +209,10 @@ class PrepareViewModel(app: Application, private val container: AppContainer, ur
 }
 
 @Composable
-fun PrepareScreen(container: AppContainer, uri: String?, onBack: () -> Unit, onConvert: (Int, Int) -> Unit, onStudio: () -> Unit = {}) {
+fun PrepareScreen(container: AppContainer, uri: String?, onBack: () -> Unit, onConvert: (Int, Int) -> Unit, onStudio: () -> Unit = {}, onOpenProject: (Long) -> Unit = {}) {
     val vm: PrepareViewModel = viewModel { PrepareViewModel(container.app, container, uri) }
     val s by vm.state.collectAsStateWithLifecycle()
+    LaunchedEffect(s.openProject) { s.openProject?.let(onOpenProject) }
     val settings by container.settings.state.collectAsStateWithLifecycle()
     DisposableEffect(Unit) { onDispose { vm.stopPreview() } }
 

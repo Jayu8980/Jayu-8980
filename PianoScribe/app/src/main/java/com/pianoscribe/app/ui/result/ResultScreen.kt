@@ -77,7 +77,7 @@ import com.pianoscribe.app.export.Exporter
 import com.pianoscribe.app.ui.components.LabeledSlider
 import com.pianoscribe.core.theory.Pitch
 
-private enum class ResultTab(val title: String) { ROLL("Piano Roll"), FALLING("Falling Notes"), SHEET("Sheet"), NOTES("Notes"), ANALYSER("Analyser"), COMPARE("Compare") }
+private enum class ResultTab(val title: String) { ROLL("Piano Roll"), FALLING("Falling Notes"), SHEET("Sheet"), GUITAR("Guitar Tab"), NOTES("Notes"), ANALYSER("Analyser"), COMPARE("Compare") }
 
 private enum class Dialog { NONE, MIDI, EXPORT, TRANSPOSE, TEMPO, QUANTIZE, SPLIT, RENAME, SONG }
 
@@ -202,6 +202,7 @@ fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, o
                                 d.notes, s.grid, d.key, s.project?.name, position, playing, s.selectedId, Modifier.fillMaxSize(),
                                 editable = !s.easy, onSeek = vm::seek, onSelect = vm::select, onPitch = vm::fixPitch, onDelete = vm::fixDelete,
                             )
+                            ResultTab.GUITAR -> TabView(d.notes, s.grid, position, Modifier.fillMaxSize(), onSeek = vm::seek)
                             ResultTab.NOTES -> NotesList(
                                 d.notes, s.grid, settings.notation, settings.saPitchClass, flats, s.selectedId,
                                 onNotation = vm::setNotation, onSelect = { n -> vm.select(n.id); vm.seek(n.start) }, modifier = Modifier.fillMaxSize(),

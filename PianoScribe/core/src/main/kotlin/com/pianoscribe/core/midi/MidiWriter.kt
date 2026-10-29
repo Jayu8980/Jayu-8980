@@ -135,14 +135,18 @@ object MidiReader {
         fun u32() = (u16() shl 16) or u16()
         fun tag(): String { val s = String(bytes, p, 4, Charsets.US_ASCII); p += 4; return s }
         fun vlq(): Long { var v = 0L; while (true) { val b = u8(); v = (v shl 7) or (b and 0x7F).toLong(); if (b and 0x80 == 0) return v } }
-        require(tag() == "MThd") { "Not a MIDI file" }
-        require(u32() == 6)
+        require(bytes.size >= 14 && tag() == "MThd") { "Not a MIDI file" }
+        val headerLen = u32()
         val format = u16(); val ntracks = u16(); val division = u16()
+        p = 8 + headerLen // some files have a longer header
         val events = ArrayList<Event>()
         for (tr in 0 until ntracks) {
+            // Skip unknown chunks between tracks.
+            while (p + 8 <= bytes.size && String(bytes, p, 4, Charsets.US_ASCII) != "MTrk") { p += 4; p += u32() }
+            if (p + 8 > bytes.size) break
             require(tag() == "MTrk")
             val len = u32()
-            val end = p + len
+            val end = minOf(p + len, bytes.size)
             var tick = 0L
             var running = 0
             while (p < end) {
