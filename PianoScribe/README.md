@@ -241,7 +241,11 @@ You can load any other General MIDI SoundFont (for example a Salamander or Fluid
 | `RECORD_AUDIO` | Recording, and microphone practice mode. Asked only when you use them. |
 | `BLUETOOTH_SCAN` / `BLUETOOTH_CONNECT` (Android 12+), location (Android 8–11) | Only to find Bluetooth LE MIDI keyboards, asked when you tap "Scan Bluetooth". |
 
-No storage permission (the system file picker grants access per file) and **no internet permission**.
+No storage permission (the system file picker grants access per file) and **no internet permission**: the manifest
+strips `INTERNET`, `ACCESS_NETWORK_STATE` and `ACCESS_WIFI_STATE` even if a library asks for them, and CI fails the
+build if any of them reaches the APK. There is no network code, no song links (YouTube and the like), no
+analytics and no accounts: songs come only from files on the phone, the microphone, or "Open with" / "Share" of an
+audio, video or MIDI file.
 
 ## Tests
 

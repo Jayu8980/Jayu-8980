@@ -158,8 +158,9 @@ jobs:
       - name: Verify no INTERNET permission
         run: |
           AAPT="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/aapt"
-          if "$AAPT" dump permissions app/build/outputs/apk/release/*.apk | grep -q "android.permission.INTERNET"; then
-            echo "INTERNET permission found in the APK"; exit 1
+          # Fully offline: no internet or network-state permission may reach the APK.
+          if "$AAPT" dump permissions app/build/outputs/apk/release/*.apk | grep -qE "android.permission.(INTERNET|ACCESS_NETWORK_STATE|ACCESS_WIFI_STATE)"; then
+            echo "A network permission was found in the APK"; exit 1
           fi
           "$AAPT" dump permissions app/build/outputs/apk/release/*.apk
 
