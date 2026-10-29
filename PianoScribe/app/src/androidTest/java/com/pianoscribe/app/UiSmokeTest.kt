@@ -131,6 +131,10 @@ class UiSmokeTest {
                     compose.onNode(hasText(tab) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)).performScrollTo().performClick()
                     compose.waitForIdle()
                 }
+                // The engraved score: drawn, with its editing hint.
+                compose.onNode(hasText("Sheet") and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)).performScrollTo().performClick()
+                waitForText("Tap a note to select it")
+                compose.onNode(hasText("Piano Roll") and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)).performScrollTo().performClick()
                 // Instrument picker.
                 compose.onNodeWithText("Piano").performClick()
                 waitForText("Flute  · melody")

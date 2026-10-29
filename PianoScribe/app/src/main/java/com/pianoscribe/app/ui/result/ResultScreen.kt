@@ -198,7 +198,10 @@ fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, o
                                 )
                             }
                             ResultTab.FALLING -> FallingNotes(d.notes, position, d.duration, d.pitchLo, d.pitchHi, d.fingers, Modifier.fillMaxSize(), onSeek = vm::seek)
-                            ResultTab.SHEET -> SheetView(d.notes, s.grid, position, flats, Modifier.fillMaxSize(), onSeek = vm::seek)
+                            ResultTab.SHEET -> SheetView(
+                                d.notes, s.grid, d.key, s.project?.name, position, playing, s.selectedId, Modifier.fillMaxSize(),
+                                editable = !s.easy, onSeek = vm::seek, onSelect = vm::select, onPitch = vm::fixPitch, onDelete = vm::fixDelete,
+                            )
                             ResultTab.NOTES -> NotesList(
                                 d.notes, s.grid, settings.notation, settings.saPitchClass, flats, s.selectedId,
                                 onNotation = vm::setNotation, onSelect = { n -> vm.select(n.id); vm.seek(n.start) }, modifier = Modifier.fillMaxSize(),

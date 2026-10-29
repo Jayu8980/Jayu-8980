@@ -94,6 +94,16 @@ class EngraverTest {
         assertEquals(1, glyphs(score, Smufl.NATURAL).size)
     }
 
+    @Test fun musicXmlMatchesTheScore() {
+        // D major: F# needs no accidental, F natural gets one natural sign per bar; a staccato quarter.
+        val notes = listOf(n(66, 0.0, 0.3), n(65, 1.0, 1.0), n(65, 2.0, 1.0), n(62, 3.0, 1.0))
+        val xml = com.pianoscribe.core.midi.MusicXmlWriter.write(notes, grid, "D", 2, key(2))
+        assertEquals(1, Regex("<accidental>natural</accidental>").findAll(xml).count())
+        assertTrue(!xml.contains("<accidental>sharp</accidental>"))
+        assertTrue(xml.contains("<step>F</step><alter>1</alter><octave>4</octave>"))
+        assertTrue(xml.contains("<staccato/>"))
+    }
+
     @Test fun tiesAcrossTheBarline() {
         val notes = listOf(n(72, 2.0, 4.0)) // beats 3-6: tied over the bar
         val score = Engraver.engrave(notes, grid, key(0), 100f)

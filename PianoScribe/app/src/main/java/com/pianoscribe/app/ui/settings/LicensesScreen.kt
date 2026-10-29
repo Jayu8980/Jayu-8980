@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 fun LicensesScreen(onBack: () -> Unit) {
     val ctx = LocalContext.current
     val basicPitch = remember { runCatching { ctx.assets.open("licenses/BASIC_PITCH_LICENSE.txt").bufferedReader().readText() }.getOrDefault("") }
+    val bravura = remember { runCatching { ctx.assets.open("licenses/BRAVURA_LICENSE.txt").bufferedReader().readText() }.getOrDefault("") }
     Scaffold(topBar = {
         TopAppBar(title = { Text("Licenses & credits") }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } })
     }) { pad ->
@@ -34,12 +35,16 @@ fun LicensesScreen(onBack: () -> Unit) {
             Text("Polyphonic note transcription model by Spotify (ICASSP 2022), bundled as TensorFlow Lite (nmp.tflite from the basic-pitch 0.4.0 package). Licensed under the Apache License 2.0.")
             Text("High-resolution piano transcription", style = MaterialTheme.typography.titleMedium)
             Text("Piano note model by ByteDance (Kong, Li, Song, Wan, Wang: \"High-resolution Piano Transcription with Pedals by Regressing Onset and Offset Times\", 2021), converted to ONNX. Code (github.com/bytedance/piano_transcription) under the Apache License 2.0; trained weights from Zenodo record 4034264 under Creative Commons Attribution 4.0.")
+            Text("Bravura music font", style = MaterialTheme.typography.titleMedium)
+            Text("The notation font of the score view and score PDF, by Steinberg Media Technologies (SMuFL reference font, version 1.392). Licensed under the SIL Open Font License 1.1.")
             Text("PianoScribe Grand SoundFont", style = MaterialTheme.typography.titleMedium)
             Text("Piano samples synthesised by PianoScribe's own generator (core/PianoSampleGenerator.kt). Released with the app under the Apache License 2.0.")
             Text("Open-source libraries", style = MaterialTheme.typography.titleMedium)
             Text("AndroidX, Jetpack Compose, Material 3, Room, Navigation, Kotlin coroutines (Apache 2.0); TensorFlow Lite (Apache 2.0); ONNX Runtime (MIT).")
             Text("Basic Pitch license", style = MaterialTheme.typography.titleMedium)
             Text(basicPitch, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+            Text("Bravura license", style = MaterialTheme.typography.titleMedium)
+            Text(bravura, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
         }
     }
 }
