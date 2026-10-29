@@ -5,7 +5,7 @@ The network runs in ONNX Runtime; what ONNX cannot hold is done the way the app 
 step 3 below checks that decomposition against the official pipeline before any Kotlin exists:
   - front end (6 windows, real FFT, mel filters, log): frontend.bin holds the windows and filters
   - transkun_core.onnx: 16 s of features -> per pitch q, k, diag (interval scorer) and ctx
-  - transkun_score.onnx: q, k -> interval scores S[e, b] = (q_e . k_b) * |e - b| (diag added after)
+  - transkun_score.onnx: q, k -> interval scores S[b, e] = (q_e . k_b) * |e - b|, begin-major (diag added after)
   - transkun_heads.onnx: interval features -> velocity logits and onset/offset refinement
   - semi-CRF Viterbi decoding, segment stitching and overlap resolution: plain code
 
@@ -92,9 +92,9 @@ class Core(torch.nn.Module):
         return q[0], k[0], diag[0, ..., 0], ctx[0]
 
 class Score(torch.nn.Module):
-    def forward(self, q, k):  # [n, T, D] each -> [n, T(e), T(b)]
+    def forward(self, q, k):  # [n, T, D] each -> [n, T(begin), T(end)]
         t = torch.arange(q.shape[1], dtype=torch.float32)
-        return torch.matmul(q, k.transpose(1, 2)) * (t.unsqueeze(1) - t.unsqueeze(0)).abs()
+        return torch.matmul(k, q.transpose(1, 2)) * (t.unsqueeze(1) - t.unsqueeze(0)).abs()
 
 class Heads(torch.nn.Module):
     def __init__(self, m):
@@ -145,13 +145,13 @@ def features(seg):
     mel = (np.log(mel + EPS) - math.log(EPS)) / (-math.log(EPS))
     return mel.transpose(0, 2, 1)[None].astype(np.float32)  # [1, T, mel, 6]
 
-def viterbi_backward(S, start):  # S[e, b] for one symbol, noise score 0
+def viterbi_backward(S, start):  # S[b, e] for one symbol, noise score 0
     T = S.shape[0]
     q = np.zeros(T); ptr = np.zeros(T, dtype=np.int64)  # ptr[b] = chosen end, -1 = skip
     d = np.diagonal(S)
     q[T - 1] = d[T - 1] * (d[T - 1] > 0)
     for b in range(T - 2, -1, -1):
-        cand = q[b + 1:] + S[b + 1:, b]
+        cand = q[b + 1:] + S[b, b + 1:]
         best = int(np.argmax(cand)); skip = q[b + 1]
         if skip >= cand[best]: ptr[b] = -1; v = skip  # torch max returns the first maximum: skip comes first
         else: ptr[b] = b + 1 + best; v = cand[best]

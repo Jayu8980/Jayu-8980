@@ -28,12 +28,12 @@ import kotlin.math.abs
 class PianoModelEval {
     private val env = OrtEnvironment.getEnvironment()
 
-    private fun f32(f: File): FloatArray {
+    internal fun f32(f: File): FloatArray {
         val b = ByteBuffer.wrap(f.readBytes()).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer()
         return FloatArray(b.remaining()).also { b.get(it) }
     }
 
-    private fun basicPitch(s: OrtSession, audio: FloatArray): List<Note> {
+    internal fun basicPitch(s: OrtSession, audio: FloatArray): List<Note> {
         val asm = ActivationAssembler(audio.size)
         val w = FloatArray(BasicPitch.AUDIO_N_SAMPLES)
         for (i in 0 until BasicPitch.windowCount(audio.size)) {
@@ -72,7 +72,7 @@ class PianoModelEval {
     data class Truth(val pitch: Int, val start: Double, val end: Double)
 
     /** Onset F1 (50 ms, mir_eval style one-to-one matching); [offsets] also needs the end within 20% / 50 ms. */
-    private fun f1(est: List<Note>, truth: List<Truth>, offsets: Boolean = false): Triple<Double, Double, Double> {
+    internal fun f1(est: List<Note>, truth: List<Truth>, offsets: Boolean = false): Triple<Double, Double, Double> {
         val used = BooleanArray(truth.size); var tp = 0
         for (n in est.sortedBy { it.start }) {
             val i = truth.indices.firstOrNull { !used[it] && truth[it].pitch == n.pitch && abs(truth[it].start - n.start) <= 0.05 &&

@@ -113,6 +113,37 @@ jobs:
           path: PianoScribe/transkun-out
           retention-days: 7
 
+  transkun-eval:
+    # The Kotlin port of Transkun against the official pipeline, and its accuracy as the app runs it.
+    needs: [piano-model, transkun-model]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: piano-model
+          path: PianoScribe/piano-model-out
+      - uses: actions/download-artifact@v4
+        with:
+          name: transkun-model
+          path: PianoScribe/transkun-out
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Transkun port check and accuracy
+        env:
+          TRANSKUN_DIR: ${{ github.workspace }}/PianoScribe/transkun-out
+          BASIC_PITCH_ONNX: ${{ github.workspace }}/PianoScribe/piano-model-out/basic_pitch.onnx
+          EVAL_DATA: ${{ github.workspace }}/PianoScribe/piano-model-out
+          EVAL_TRUTH: ${{ github.workspace }}/PianoScribe/eval
+        run: |
+          chmod +x ./gradlew
+          set -o pipefail
+          ./gradlew --no-daemon :core:test --tests '*TranskunEval*' -Dorg.gradle.jvmargs=-Xmx4g 2>&1 | grep -E "TK|FAIL|BUILD|Exception|expected" | tee tk-eval.log
+
   build:
     needs: piano-model
     runs-on: ubuntu-latest
