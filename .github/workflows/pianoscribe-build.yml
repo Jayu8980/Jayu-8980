@@ -371,6 +371,7 @@ jobs:
                       print("\n".join((fail.text or "").splitlines()[:60]))
           PY
           test -f logcat-tests.txt && grep -B2 -A40 "FATAL EXCEPTION\|performMeasureAndLayout\|E PianoScribe" logcat-tests.txt | head -150 || true
+          test -f logcat-tests.txt && grep " PianoScribe: " logcat-tests.txt | head -80 || true
 
       - name: Upload test reports and logcat
         if: always()

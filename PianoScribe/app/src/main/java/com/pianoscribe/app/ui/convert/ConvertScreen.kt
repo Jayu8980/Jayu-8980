@@ -60,9 +60,12 @@ class ConvertViewModel(app: Application, private val container: AppContainer, st
                 _state.value = UiState("Trimming audio", 0.01f)
                 withContext(Dispatchers.IO) { PcmFile.copyRange(draft.file, start, end.coerceAtMost(draft.lengthSamples), trimmed) }
                 val settings = container.settings.value
+                var lastStep = ""
                 val result = TranscriptionEngine(ctx).transcribe(trimmed, settings) { step, p ->
+                    if (step != lastStep) { lastStep = step; android.util.Log.i("PianoScribe", "Converting: $step") }
                     _state.value = UiState(step, p, elapsed = (System.nanoTime() - t0) / 1e9)
                 }
+                android.util.Log.i("PianoScribe", "Converted: ${result.notes.size} notes")
                 _state.value = UiState("Saving project", 1f)
                 val now = System.currentTimeMillis()
                 val length = PcmFile.length(trimmed)
