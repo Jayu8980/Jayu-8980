@@ -278,7 +278,7 @@ object Engraver {
         val trebleHigh = allItems.filter { it.treble && !it.ev.isRest }.maxOfOrNull { it.pos.last() } ?: 0
         val bassLow = allItems.filter { !it.treble && !it.ev.isRest }.minOfOrNull { it.pos.first() } ?: 0
         // Room for chord symbols above the notes.
-        val chordRoom = if (options.chords.isNotEmpty()) 2.4f else 0f
+        val chordRoom = if (options.chords.isNotEmpty()) 3.5f else 0f
         val trebleTop = top + maxOf(2.5f, (trebleHigh - 4) * 0.5f + 2.5f) + chordRoom
         val bassTop = trebleTop + 4 + STAFF_GAP
         val bassBottom = bassTop + 4
@@ -360,7 +360,8 @@ object Engraver {
         if (options.chords.isNotEmpty() && cols.isNotEmpty()) {
             val t0 = cols.first().second
             val tEnd = time(measures.last().measureStartDiv + measureDiv)
-            val y = minOf(trebleTop - 1.6f, yOf(true, trebleHigh) - 2.6f).coerceAtLeast(top + 1.4f)
+            // Clear of an up-stem (3.5 spaces) on the highest note.
+            val y = minOf(trebleTop - 1.6f, yOf(true, trebleHigh) - 4.5f).coerceAtLeast(top + 1.4f)
             var lastEnd = Float.NEGATIVE_INFINITY
             for (ch in options.chords) {
                 if (ch.time < t0 - 0.02 || ch.time >= tEnd - 0.02) continue
