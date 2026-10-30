@@ -72,7 +72,7 @@ class ImportFlowTest {
             if (runBlocking { repo.projects.first() }.any { it.createdAt >= since && it.audioPath.isNotEmpty() }) return
             Thread.sleep(1000)
         }
-        throw AssertionError("conversion did not finish within ${timeoutMs / 1000} s; on screen: ${screenText()}")
+        throw AssertionError("conversion did not finish within ${timeoutMs / 1000} s; on screen: ${screenText()}; app log: ${appLog()}")
     }
 
     private fun openAndConvert(uri: Uri, mime: String, openTimeoutMs: Long, convertTimeoutMs: Long) {
@@ -90,6 +90,12 @@ class ImportFlowTest {
         }
         android.util.Log.i("PianoScribeTest", "Imported and converted $uri")
     }
+
+    /** The app's own recent log lines (this process's), for failure messages. */
+    private fun appLog(): String = runCatching {
+        val p = ProcessBuilder("logcat", "-d", "-v", "brief", "-s", "PianoScribe:*", "AndroidRuntime:*").redirectErrorStream(true).start()
+        p.inputStream.bufferedReader().readLines().takeLast(30).joinToString(" / ")
+    }.getOrElse { "(unreadable: $it)" }
 
     /** Every text on screen, read through accessibility (not the Compose test rule), for failure messages. */
     private fun screenText(): String = runCatching {
