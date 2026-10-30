@@ -8,7 +8,8 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.performClick
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.core.content.FileProvider
 import androidx.test.core.app.ActivityScenario
@@ -81,7 +82,9 @@ class ImportFlowTest {
         ActivityScenario.launch<MainActivity>(intent).use {
             waitForText("Trim the start and end", openTimeoutMs, substring = true)
             val since = System.currentTimeMillis()
-            compose.onNode(hasText("Convert to piano notes") and hasClickAction()).performScrollTo().performClick()
+            // Press the button through its click action: an injected touch at its centre can land on
+            // whatever covers that spot once the long trim screen is scrolled (the release check taps for real).
+            compose.onNode(hasText("Convert to piano notes") and hasClickAction()).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
             waitForProject(since, convertTimeoutMs)
             waitForText("Piano Roll", 60_000)
         }
