@@ -31,6 +31,8 @@ data class AppSettings(
     /** content:// URI of a user-chosen .sf2, or null for the bundled piano. */
     val customSoundFont: String? = null,
     val beatsPerBar: Int = 4,
+    /** Detect the time signature and the first downbeat from the notes ([beatsPerBar] when off). */
+    val autoMeter: Boolean = true,
     /** Solo piano, full song (drums removed + clean-up), or detect automatically. */
     val audioType: AudioType = AudioType.AUTO,
     /** Instrument the transcription is played on. */
@@ -89,6 +91,7 @@ class SettingsStore(context: Context) {
             dynamicColor = prefs.getBoolean("dynamicColor", d.dynamicColor),
             customSoundFont = prefs.getString("soundFont", null),
             beatsPerBar = prefs.getInt("beatsPerBar", d.beatsPerBar),
+            autoMeter = prefs.getBoolean("autoMeter", d.autoMeter),
             audioType = runCatching { AudioType.valueOf(prefs.getString("audioType", d.audioType.name)!!) }.getOrDefault(d.audioType),
             instrument = runCatching { Instrument.valueOf(prefs.getString("instrument", d.instrument.name)!!) }.getOrDefault(d.instrument),
             humanFeel = prefs.getFloat("humanFeel", d.humanFeel),
@@ -115,6 +118,7 @@ class SettingsStore(context: Context) {
             .putBoolean("dynamicColor", s.dynamicColor)
             .putString("soundFont", s.customSoundFont)
             .putInt("beatsPerBar", s.beatsPerBar)
+            .putBoolean("autoMeter", s.autoMeter)
             .putString("audioType", s.audioType.name)
             .putString("instrument", s.instrument.name)
             .putFloat("humanFeel", s.humanFeel)

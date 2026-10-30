@@ -1,5 +1,6 @@
 package com.pianoscribe.app.transcribe
 
+import com.pianoscribe.core.rhythm.MeterDetector
 import android.content.Context
 import com.pianoscribe.app.audio.PcmFile
 import com.pianoscribe.app.data.AppSettings
@@ -190,7 +191,9 @@ class TranscriptionEngine(private val context: Context) {
 
         coroutineContext.ensureActive()
         progress("Detecting tempo, hands and key", 0.94f)
-        val grid = TempoDetector.detect(notes, settings.beatsPerBar)
+        val beatGrid = TempoDetector.detect(notes, settings.beatsPerBar)
+        // Time signature (2/4, 3/4, 4/4, 6/8 ...) and the first downbeat, from accents on the beats.
+        val grid = if (settings.autoMeter) MeterDetector.apply(notes, beatGrid) else beatGrid
         if (settings.pianoOnly) notes = Quantizer.quantize(notes, grid, settings.quantizeDivision)
         notes = HandSplitter.split(notes, settings.splitPoint)
         // Tempo and key come from all the notes, also when only the tune is kept.

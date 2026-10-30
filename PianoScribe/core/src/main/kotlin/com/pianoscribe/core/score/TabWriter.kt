@@ -96,8 +96,9 @@ object TabWriter {
                 // Guitar music is written an octave above how it sounds.
                 sb.append("        <transpose><diatonic>0</diatonic><chromatic>0</chromatic><octave-change>-1</octave-change></transpose>\n")
                 sb.append("      </attributes>\n")
-                sb.append("      <direction placement=\"above\"><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>")
-                    .append(Math.round(grid.bpm)).append("</per-minute></metronome></direction-type><sound tempo=\"").append(Math.round(grid.bpm)).append("\"/></direction>\n")
+                sb.append("      <direction placement=\"above\"><direction-type>")
+                    .append(com.pianoscribe.core.midi.MusicXmlWriter.metronome(grid)).append("</direction-type><sound tempo=\"")
+                    .append(Math.round(grid.bpm * 4 / grid.beatUnit)).append("\"/></direction>\n")
             }
             for (e in m.treble) {
                 if (e.isRest) {

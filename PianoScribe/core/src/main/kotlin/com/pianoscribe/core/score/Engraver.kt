@@ -18,6 +18,7 @@ object Smufl {
     const val HEAD_BLACK = ''
     const val DOT = ''
     const val MET_QUARTER = ''
+    const val MET_DOT = '\uECB7'
     const val FLAG_8_UP = ''
     const val FLAG_8_DOWN = ''
     const val FLAG_16_UP = ''
@@ -106,7 +107,11 @@ object Engraver {
         options.title?.let { header += Mark.Text(it, width / 2, 3.2f, 3.0f, bold = true, center = true); y = 5f }
         if (options.showTempo) {
             header += Mark.Glyph(Smufl.MET_QUARTER, 0.5f, y + 2.2f)
-            header += Mark.Text("= ${Math.round(grid.bpm)}", 2.0f, y + 2.2f, 1.6f)
+            // Compound time (6/8 ...) is counted in dotted quarters.
+            val compound = com.pianoscribe.core.rhythm.MeterDetector.isCompound(grid)
+            if (compound) header += Mark.Glyph(Smufl.MET_DOT, 1.75f, y + 2.2f)
+            val bpm = if (compound) grid.bpm / 3 else grid.bpm * 4 / grid.beatUnit
+            header += Mark.Text("= ${Math.round(bpm)}", if (compound) 2.5f else 2.0f, y + 2.2f, 1.6f)
             y += 2.5f
         }
         val headerBottom = y

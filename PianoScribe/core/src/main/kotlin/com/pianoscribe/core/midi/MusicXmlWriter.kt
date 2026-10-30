@@ -45,9 +45,9 @@ object MusicXmlWriter {
                 sb.append("        <clef number=\"1\"><sign>G</sign><line>2</line></clef>\n")
                 sb.append("        <clef number=\"2\"><sign>F</sign><line>4</line></clef>\n")
                 sb.append("      </attributes>\n")
-                sb.append("      <direction placement=\"above\"><direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>")
-                    .append(Math.round(grid.bpm)).append("</per-minute></metronome></direction-type><sound tempo=\"")
-                    .append(Math.round(grid.bpm)).append("\"/></direction>\n")
+                sb.append("      <direction placement=\"above\"><direction-type>")
+                    .append(metronome(grid)).append("</direction-type><sound tempo=\"")
+                    .append(Math.round(grid.bpm * 4 / grid.beatUnit)).append("\"/></direction>\n")
             }
             val start = m.index * measureDiv
             val inBar = chordAt.filter { it.first >= start && it.first < start + measureDiv }
@@ -157,6 +157,12 @@ object MusicXmlWriter {
         if (offset > 0) sb.append("<offset>").append(offset).append("</offset>")
         sb.append("<staff>1</staff></harmony>\n")
     }
+
+    /** Metronome mark: a quarter (or, in compound time, a dotted quarter) per minute. */
+    internal fun metronome(grid: TimeGrid): String =
+        if (com.pianoscribe.core.rhythm.MeterDetector.isCompound(grid))
+            "<metronome><beat-unit>quarter</beat-unit><beat-unit-dot/><per-minute>${Math.round(grid.bpm / 3)}</per-minute></metronome>"
+        else "<metronome><beat-unit>quarter</beat-unit><per-minute>${Math.round(grid.bpm * 4 / grid.beatUnit)}</per-minute></metronome>"
 
     private fun esc(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
 }

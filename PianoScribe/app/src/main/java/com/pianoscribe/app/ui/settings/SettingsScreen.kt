@@ -115,7 +115,15 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, onLicenses: () -
                 }
                 LabeledSlider("Hand split point", s.splitPoint.toFloat(), Pitch.name(s.splitPoint), 36f..84f,
                     { v -> store.update { it.copy(splitPoint = Math.round(v)) } }, steps = 47, help = "Notes at or above go to the right hand. Default: middle C (C4).")
-                LabeledSlider("Beats per bar", s.beatsPerBar.toFloat(), "${s.beatsPerBar}/4", 2f..7f, { v -> store.update { it.copy(beatsPerBar = Math.round(v)) } }, steps = 4)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Detect the time signature", style = MaterialTheme.typography.bodyLarge)
+                        Text("Finds 2/4, 3/4, 4/4 or 6/8 and where bar 1 starts (also with a pickup) from the accents in the music.",
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                    Switch(s.autoMeter, { v -> store.update { it.copy(autoMeter = v) } })
+                }
+                if (!s.autoMeter) LabeledSlider("Beats per bar", s.beatsPerBar.toFloat(), "${s.beatsPerBar}/4", 2f..7f, { v -> store.update { it.copy(beatsPerBar = Math.round(v)) } }, steps = 4)
                 TextButton(onClick = store::reset) { Text("Reset transcription defaults") }
             }
             Section("Notation", w) {
