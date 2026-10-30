@@ -70,7 +70,8 @@ fun AppNavHost(container: AppContainer) {
             )
         }
         composable(Routes.RESULT, arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
-            ResultScreen(container, entry.arguments!!.getLong("id"), onBack = { nav.popBackStack() }, onSettings = { nav.navigate(Routes.SETTINGS) })
+            ResultScreen(container, entry.arguments!!.getLong("id"), onBack = { nav.popBackStack() }, onSettings = { nav.navigate(Routes.SETTINGS) },
+                onOpenProject = { id -> nav.navigate(Routes.result(id)) })
         }
         composable(Routes.SETTINGS) { SettingsScreen(container, onBack = { nav.popBackStack() }, onLicenses = { nav.navigate(Routes.LICENSES) }) }
         composable(Routes.LICENSES) { LicensesScreen(onBack = { nav.popBackStack() }) }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -77,7 +78,7 @@ import com.pianoscribe.core.theory.Pitch
 
 private enum class ResultTab(val title: String) { ROLL("Piano Roll"), FALLING("Falling Notes"), SHEET("Sheet"), GUITAR("Guitar Tab"), NOTES("Notes"), ANALYSER("Analyser"), COMPARE("Compare") }
 
-private enum class Dialog { NONE, MIDI, EXPORT, TRANSPOSE, TEMPO, QUANTIZE, SPLIT, RENAME, SONG }
+private enum class Dialog { NONE, MIDI, EXPORT, TRANSPOSE, TEMPO, QUANTIZE, SPLIT, RENAME, SONG, KEY, COVER }
 
 /**
  * "Save as" that passes the export's real MIME type. The stock CreateDocument contract fixes one type
@@ -95,7 +96,7 @@ private class CreateTypedDocument : ActivityResultContract<Pair<String, String>,
 }
 
 @Composable
-fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, onSettings: () -> Unit) {
+fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, onSettings: () -> Unit, onOpenProject: (Long) -> Unit = {}) {
     val vm: ResultViewModel = viewModel(key = "result-$projectId") { ResultViewModel(container.app, container, projectId) }
     val s by vm.state.collectAsStateWithLifecycle()
     val position by vm.position.collectAsStateWithLifecycle()
@@ -151,8 +152,10 @@ fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, o
                                 onClick = { menu = false; dialog = Dialog.EXPORT },
                             )
                             DropdownMenuItem(text = { Text("Make a song (chords, bass, drums)…") }, onClick = { menu = false; dialog = Dialog.SONG })
+                            DropdownMenuItem(text = { Text("Piano cover…") }, onClick = { menu = false; dialog = Dialog.COVER })
                             DropdownMenuItem(text = { Text("Transpose…") }, onClick = { menu = false; dialog = Dialog.TRANSPOSE })
                             DropdownMenuItem(text = { Text("Tempo & meter…") }, onClick = { menu = false; dialog = Dialog.TEMPO })
+                            DropdownMenuItem(text = { Text("Key signature…") }, onClick = { menu = false; dialog = Dialog.KEY })
                             DropdownMenuItem(text = { Text("Quantise (piano only)…") }, onClick = { menu = false; dialog = Dialog.QUANTIZE })
                             DropdownMenuItem(text = { Text("Hand split point…") }, onClick = { menu = false; dialog = Dialog.SPLIT })
                             DropdownMenuItem(text = { Text("Loop selected bar") }, onClick = { menu = false; vm.loopSelection() })
@@ -176,7 +179,7 @@ fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, o
                     PrimaryScrollableTabRow(selectedTabIndex = tab, edgePadding = 8.dp) {
                         ResultTab.entries.forEach { t -> Tab(selected = tab == t.ordinal, onClick = { tab = t.ordinal }, text = { Text(t.title) }) }
                     }
-                    DifficultyStrip(s.difficulty, vm::setDifficulty)
+                    DifficultyStrip(s.difficulty, vm::setDifficulty, s.hands, vm::setHands)
                     val d = s.derived
                     val flats = d.key?.preferFlats ?: false
                     Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -248,6 +251,51 @@ fun ResultScreen(container: AppContainer, projectId: Long, onBack: () -> Unit, o
                 text = { LabeledSlider("Semitones", semis.toFloat(), (if (semis > 0) "+" else "") + semis, -12f..12f, { semis = Math.round(it) }, steps = 23) },
                 confirmButton = { TextButton(onClick = { vm.transpose(semis); dialog = Dialog.NONE }) { Text("Apply") } },
                 dismissButton = { TextButton(onClick = { dialog = Dialog.NONE }) { Text("Cancel") } },
+            )
+        }
+        Dialog.COVER -> AlertDialog(
+            onDismissRequest = { dialog = Dialog.NONE },
+            title = { Text("Piano cover") },
+            text = {
+                Column {
+                    Text("The tune in the right hand, as played, and a left-hand accompaniment on the song's own chords. Saved as a new project.",
+                        style = MaterialTheme.typography.bodySmall)
+                    com.pianoscribe.core.arrange.PianoCover.Pattern.entries.forEach { pat ->
+                        TextButton(onClick = { dialog = Dialog.NONE; vm.makePianoCover(pat, onOpenProject) }) {
+                            Column {
+                                Text(pat.label)
+                                Text(pat.help, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { dialog = Dialog.NONE }) { Text("Cancel") } },
+        )
+        Dialog.KEY -> {
+            // The 24 keys in circle-of-fifths order, plus going back to the detected key.
+            val keys = remember {
+                (-6..6).flatMap { f -> listOf(com.pianoscribe.core.theory.KeyDetector.Key(Math.floorMod(7 * f, 12), false, 1.0)) } +
+                    (-6..6).map { f -> com.pianoscribe.core.theory.KeyDetector.Key(Math.floorMod(7 * f + 9, 12), true, 1.0) }
+            }.distinctBy { it.name }
+            AlertDialog(
+                onDismissRequest = { dialog = Dialog.NONE },
+                title = { Text("Key signature") },
+                text = {
+                    Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                        Text("Sets the key the score is written in (sharps or flats and note spelling) and the exports. The notes do not change; use Transpose to move them.",
+                            style = MaterialTheme.typography.bodySmall)
+                        TextButton(onClick = { vm.setKey(null); dialog = Dialog.NONE }) {
+                            Text(if (s.keyOverride == null) "✓ Detect from the notes" else "Detect from the notes")
+                        }
+                        keys.forEach { k ->
+                            TextButton(onClick = { vm.setKey(k); dialog = Dialog.NONE }) {
+                                Text((if (s.keyOverride?.name == k.name) "✓ " else "") + k.name)
+                            }
+                        }
+                    }
+                },
+                confirmButton = { TextButton(onClick = { dialog = Dialog.NONE }) { Text("Close") } },
             )
         }
         Dialog.TEMPO -> {
@@ -357,11 +405,17 @@ private fun SongDialog(vm: ResultViewModel, instrument: String, onClose: () -> U
 
 /** Difficulty, above every view of the notes: the simplified versions or every note. */
 @Composable
-private fun DifficultyStrip(difficulty: Difficulty, onChange: (Difficulty) -> Unit) {
+private fun DifficultyStrip(difficulty: Difficulty, onChange: (Difficulty) -> Unit, hands: Hands, onHands: (Hands) -> Unit) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp)) {
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             Difficulty.entries.forEachIndexed { i, d ->
                 SegmentedButton(difficulty == d, { onChange(d) }, SegmentedButtonDefaults.itemShape(i, Difficulty.entries.size)) { Text(d.label, maxLines = 1) }
+            }
+        }
+        // Practise one hand at a time: only its notes are shown, played and exported.
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+            Hands.entries.forEachIndexed { i, h ->
+                SegmentedButton(hands == h, { onHands(h) }, SegmentedButtonDefaults.itemShape(i, Hands.entries.size)) { Text(h.label, maxLines = 1) }
             }
         }
         if (difficulty != Difficulty.ADVANCED) Text(

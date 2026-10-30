@@ -67,6 +67,9 @@ data class Derived(
     val duration: Double = 1.0,
 )
 
+/** Which hand is shown, played and exported, for practising one hand at a time. */
+enum class Hands(val label: String) { BOTH("Both hands"), RIGHT("Right hand"), LEFT("Left hand") }
+
 enum class PracticeSource { MIC, MIDI }
 enum class PracticeStatus { IDLE, LISTENING, CORRECT, WRONG }
 
@@ -151,6 +154,9 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
         /** Semitones transposed in this session (shown in the player bar). */
         val transposed: Int = 0,
         val metronome: Boolean = false,
+        val hands: Hands = Hands.BOTH,
+        /** A key signature chosen by the user (null: detected from the notes). */
+        val keyOverride: KeyDetector.Key? = null,
     ) {
         /** A simplified version is shown: the notes as transcribed can't be edited from it. */
         val easy: Boolean get() = difficulty != Difficulty.ADVANCED
@@ -158,6 +164,8 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
+    // A chosen key signature is kept per project.
+    private val keyPrefs = app.getSharedPreferences("keys", android.content.Context.MODE_PRIVATE)
 
     private val _song = MutableStateFlow(SongUi())
     val song: StateFlow<SongUi> = _song.asStateFlow()
@@ -204,7 +212,7 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
                 setInstrument(instrument, preset, settings.value.humanFeel)
             }
             engine = e
-            _state.update { it.copy(loading = false, project = p.entity, grid = p.grid, hasAudio = audio != null, usingSoundFont = preset != null) }
+            _state.update { it.copy(loading = false, project = p.entity, grid = p.grid, hasAudio = audio != null, usingSoundFont = preset != null, keyOverride = savedKey()) }
             derive(p.notes)
             perform()
             launch { e.state.collect { s -> _position.value = s.position; _playing.value = s.playing } }
@@ -219,10 +227,63 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
     // ---------------------------------------------------------------- derived data
 
     /** The notes shown, played and exported at the chosen difficulty ([notes] as edited for Advanced). */
-    private fun shownNotes(notes: List<Note> = history.current): List<Note> = when (_state.value.difficulty) {
-        Difficulty.BEGINNER -> EasyVersion.make(notes, _state.value.grid)
-        Difficulty.INTERMEDIATE -> EasyVersion.intermediate(notes, _state.value.grid, KeyDetector.detect(notes))
-        Difficulty.ADVANCED -> notes
+    private fun shownNotes(notes: List<Note> = history.current): List<Note> {
+        val level = when (_state.value.difficulty) {
+            Difficulty.BEGINNER -> EasyVersion.make(notes, _state.value.grid)
+            Difficulty.INTERMEDIATE -> EasyVersion.intermediate(notes, _state.value.grid, KeyDetector.detect(notes))
+            Difficulty.ADVANCED -> notes
+        }
+        return when (_state.value.hands) {
+            Hands.BOTH -> level
+            Hands.RIGHT -> level.filter { it.hand == Hand.RIGHT }
+            Hands.LEFT -> level.filter { it.hand == Hand.LEFT }
+        }
+    }
+
+    private fun savedKey(): KeyDetector.Key? = keyPrefs.getString("p$projectId", null)?.split(":")?.let {
+        runCatching { KeyDetector.Key(it[0].toInt(), it[1] == "m", 1.0) }.getOrNull()
+    }
+
+    /** Practise one hand: only its notes are shown, played and exported. */
+    fun setHands(h: Hands) {
+        if (h == _state.value.hands) return
+        _state.update { it.copy(hands = h, selectedId = null, focusedNoteId = null) }
+        derive(history.current)
+        perform()
+    }
+
+    /**
+     * Makes a piano cover (the tune in the right hand, a left-hand [pattern] on the song's chords)
+     * as a new project, and hands its id to [onDone].
+     */
+    fun makePianoCover(pattern: com.pianoscribe.core.arrange.PianoCover.Pattern, onDone: (Long) -> Unit) {
+        val p = _state.value.project ?: return
+        if (!exportable()) return
+        viewModelScope.launch {
+            val s = _state.value
+            val cover = withContext(Dispatchers.Default) {
+                com.pianoscribe.core.arrange.PianoCover.make(history.current, s.grid, s.derived.key, pattern)
+            }
+            if (cover.isEmpty()) { msg("No notes to make a cover from"); return@launch }
+            val now = System.currentTimeMillis()
+            val repo = container.repository
+            val id = repo.create(p.copy(
+                id = 0, name = "${p.name} (piano cover)", createdAt = now, updatedAt = now, audioPath = "",
+                durationSec = maxOf(p.durationSec, cover.maxOf { it.end }), quantizeDivision = 0,
+                noteCount = cover.size, source = "Piano cover: ${pattern.label.lowercase()}",
+            ))
+            repo.save(repo.load(id)!!.entity, cover)
+            onDone(id)
+        }
+    }
+
+    /** Sets the key signature (spelling, score, exports); null goes back to the detected key. */
+    fun setKey(key: KeyDetector.Key?) {
+        if (key == null) keyPrefs.edit().remove("p$projectId").apply()
+        else keyPrefs.edit().putString("p$projectId", "${key.tonicPc}:${if (key.minor) "m" else "M"}").apply()
+        _state.update { it.copy(keyOverride = key) }
+        derive(history.current)
+        scheduleSave()
     }
 
     private fun derive(edited: List<Note>) {
@@ -231,7 +292,7 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
             val d = withContext(Dispatchers.Default) {
                 val notes = shownNotes(edited)
                 // The key comes from all the notes, also in the easy version.
-                val key = KeyDetector.detect(edited)
+                val key = _state.value.keyOverride ?: KeyDetector.detect(edited)
                 Derived(
                     notes = notes,
                     steps = Steps.build(notes),
@@ -324,7 +385,7 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
         val g = _state.value.grid
         val notes = history.current
         dirty = false
-        val updated = p.copy(bpm = g.bpm, beatsPerBar = g.beatsPerBar, beatUnit = g.beatUnit, gridOffset = g.offset, keyName = KeyDetector.detect(notes)?.name)
+        val updated = p.copy(bpm = g.bpm, beatsPerBar = g.beatsPerBar, beatUnit = g.beatUnit, gridOffset = g.offset, keyName = (_state.value.keyOverride ?: KeyDetector.detect(notes))?.name)
         container.repository.save(updated, notes)
         _state.update { it.copy(project = updated) }
     }
@@ -803,7 +864,9 @@ class ResultViewModel(app: Application, private val container: AppContainer, pri
     fun exportName(): String {
         val s = _state.value
         val name = s.project?.name ?: "PianoScribe"
-        return if (s.easy) "$name (${s.difficulty.label.lowercase()})" else name
+        val level = if (s.easy) " (${s.difficulty.label.lowercase()})" else ""
+        val hands = if (s.hands != Hands.BOTH) " (${s.hands.label.lowercase()})" else ""
+        return name + level + hands
     }
 
     private fun exportable(): Boolean {

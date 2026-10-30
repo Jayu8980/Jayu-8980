@@ -7,6 +7,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -20,6 +21,7 @@ import com.pianoscribe.app.audio.AudioDecoder
 import com.pianoscribe.app.data.ProjectEntity
 import com.pianoscribe.core.model.Hand
 import com.pianoscribe.core.model.Note
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
@@ -96,6 +98,43 @@ class UiSmokeTest {
             }
         } finally {
             runBlocking { container.repository.delete(id) }
+        }
+    }
+
+    @Test fun oneHandPracticeKeyAndPianoCover() {
+        val name = "Hands ${System.currentTimeMillis() % 100000}"
+        val id = seedProject(name)
+        var coverId: Long? = null
+        try {
+            ActivityScenario.launch(MainActivity::class.java).use {
+                waitForText(name)
+                compose.onNodeWithText(name).performClick()
+                waitForText("Piano Roll")
+                val all = TestFixtures.expected.size
+                compose.waitUntil(10_000) { shownNoteCount() == all }
+                // One hand at a time.
+                compose.onNodeWithText("Left hand").performClick()
+                compose.waitUntil(10_000) { shownNoteCount() == TestFixtures.expected.count { it.pitch < 60 } }
+                compose.onNodeWithText("Right hand").performClick()
+                compose.waitUntil(10_000) { shownNoteCount() == TestFixtures.expected.count { it.pitch >= 60 } }
+                compose.onNodeWithText("Both hands").performClick()
+                compose.waitUntil(10_000) { shownNoteCount() == all }
+                // Key signature: choose E♭ major, shown in the info strip.
+                compose.onNodeWithContentDescription("More").performClick()
+                compose.onNodeWithText("Key signature…").performClick()
+                compose.onNode(hasText("Eb major") and hasClickAction()).performScrollTo().performClick()
+                waitForText("Eb major", substring = true)
+                // Piano cover: a new project opens with the tune and a left-hand part.
+                compose.onNodeWithContentDescription("More").performClick()
+                compose.onNodeWithText("Piano cover…").performClick()
+                compose.onNodeWithText("Alberti bass").performClick()
+                waitForText("$name (piano cover)", substring = true)
+                coverId = runBlocking { container.repository.projects.first() }.first { it.name == "$name (piano cover)" }.id
+                val cover = runBlocking { container.repository.load(coverId!!)!!.notes }
+                assert(cover.any { it.hand == Hand.LEFT } && cover.any { it.hand == Hand.RIGHT }) { "cover has both hands" }
+            }
+        } finally {
+            runBlocking { container.repository.delete(id); coverId?.let { container.repository.delete(it) } }
         }
     }
 
