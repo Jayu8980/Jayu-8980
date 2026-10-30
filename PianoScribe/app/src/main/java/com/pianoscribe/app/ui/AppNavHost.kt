@@ -34,11 +34,6 @@ object Routes {
 @Composable
 fun AppNavHost(container: AppContainer) {
     val nav = rememberNavController()
-    androidx.compose.runtime.DisposableEffect(nav) {
-        val listener = androidx.navigation.NavController.OnDestinationChangedListener { _, d, _ -> android.util.Log.i("PianoScribe", "Screen: ${d.route}") }
-        nav.addOnDestinationChangedListener(listener)
-        onDispose { nav.removeOnDestinationChangedListener(listener) }
-    }
     NavHost(navController = nav, startDestination = Routes.HOME) {
         composable(Routes.HOME) {
             HomeScreen(

@@ -283,7 +283,7 @@ fun PrepareScreen(container: AppContainer, uri: String?, onBack: () -> Unit, onC
                     SourceInstrumentSelector(settings.sourceInstrument, { v -> container.settings.update { it.copy(sourceInstrument = v) } }, width)
                     AudioTypeSelector(settings.audioType, { t -> container.settings.update { it.copy(audioType = t) } }, width)
                     NotesSelector(settings.singleNotes, { v -> container.settings.update { it.copy(singleNotes = v) } }, width)
-                    Button(onClick = { vm.stopPreview(); val (a, b) = vm.range(); android.util.Log.i("PianoScribe", "Convert tapped: $a..$b"); onConvert(a, b) }, modifier = width.height(56.dp)) {
+                    Button(onClick = { vm.stopPreview(); val (a, b) = vm.range(); onConvert(a, b) }, modifier = width.height(56.dp)) {
                         Text(if (settings.sourceInstrument == SourceInstrument.PIANO) "Convert to piano notes" else "Convert ${settings.sourceInstrument.label.lowercase()} to notes", style = MaterialTheme.typography.titleMedium)
                     }
                     Text("Tip: accuracy is best for solo piano or a single instrument. For songs, full-song mode gives a much cleaner result, but it is still approximate.",
