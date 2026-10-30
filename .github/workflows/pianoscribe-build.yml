@@ -113,6 +113,66 @@ jobs:
           path: PianoScribe/transkun-out
           retention-days: 7
 
+  crepe-model:
+    # CREPE pitch tracker (torchcrepe, MIT) for voice and melody instruments: ONNX export of both
+    # sizes and torchcrepe's own pitch tracks of a test signal for the Kotlin port to match.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/cache@v4
+        id: cache
+        with:
+          path: PianoScribe/crepe-out
+          key: crepe-v1-${{ hashFiles('PianoScribe/scripts/crepe/**') }}
+      - uses: actions/setup-python@v5
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          python-version: "3.11"
+      - name: Export and check CREPE
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          pip install --quiet torch==2.5.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install --quiet --no-deps torchcrepe==0.0.24
+          pip install --quiet resampy tqdm librosa==0.10.2.post1 scipy onnx==1.17.0 onnxruntime==1.20.1 "numpy<2"
+          set -o pipefail
+          python scripts/crepe/export_crepe.py crepe-out 2>&1 | grep -E "CREPE|Error|error|Traceback|File " | tee crepe.log
+          ls -la crepe-out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: crepe-model
+          path: PianoScribe/crepe-out
+          retention-days: 7
+
+  crepe-eval:
+    # The Kotlin port of CREPE against torchcrepe, and note accuracy on melodies against Basic Pitch.
+    needs: [piano-model, crepe-model]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: piano-model
+          path: PianoScribe/piano-model-out
+      - uses: actions/download-artifact@v4
+        with:
+          name: crepe-model
+          path: PianoScribe/crepe-out
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: CREPE port check and accuracy
+        env:
+          CREPE_DIR: ${{ github.workspace }}/PianoScribe/crepe-out
+          BASIC_PITCH_ONNX: ${{ github.workspace }}/PianoScribe/piano-model-out/basic_pitch.onnx
+        run: |
+          chmod +x ./gradlew
+          set -o pipefail
+          ./gradlew --no-daemon :core:test --tests '*CrepeEval*' 2>&1 | grep -E "CREPE|FAIL|BUILD|Exception|expected" | tee crepe-eval.log
+
   transkun-eval:
     # The Kotlin port of Transkun against the official pipeline, and its accuracy as the app runs it.
     needs: [piano-model, transkun-model]
