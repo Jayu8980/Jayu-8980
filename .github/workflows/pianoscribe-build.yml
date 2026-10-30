@@ -75,8 +75,77 @@ jobs:
           path: PianoScribe/piano-model-out
           retention-days: 7
 
+  transkun-model:
+    # Transkun 2.0 (MIT), the app's piano model: accuracy on the evaluation set, ONNX export
+    # and a check of the decomposed pipeline the app uses against the official one.
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: PianoScribe
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/cache@v4
+        id: cache
+        with:
+          path: PianoScribe/transkun-out
+          key: transkun-v1-${{ hashFiles('PianoScribe/scripts/transkun/**', 'PianoScribe/eval/**') }}
+
+      - uses: actions/setup-python@v5
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          python-version: "3.11"
+
+      - name: Evaluate, export and check Transkun
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          pip install --quiet torch==2.5.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install --quiet --no-deps transkun==2.0.1
+          pip install --quiet moduleconf pretty_midi mir_eval soundfile scipy onnx==1.17.0 onnxruntime==1.20.1 "numpy<2"
+          set -o pipefail
+          python scripts/transkun/export_and_eval.py eval transkun-out 2>&1 | grep -E "^TK|Error|error|Traceback|File " | tee transkun.log
+          ls -la transkun-out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: transkun-model
+          path: PianoScribe/transkun-out
+          retention-days: 7
+
+  transkun-eval:
+    # The Kotlin port of Transkun against the official pipeline, and its accuracy as the app runs it.
+    needs: [piano-model, transkun-model]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: piano-model
+          path: PianoScribe/piano-model-out
+      - uses: actions/download-artifact@v4
+        with:
+          name: transkun-model
+          path: PianoScribe/transkun-out
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Transkun port check and accuracy
+        env:
+          TRANSKUN_DIR: ${{ github.workspace }}/PianoScribe/transkun-out
+          BASIC_PITCH_ONNX: ${{ github.workspace }}/PianoScribe/piano-model-out/basic_pitch.onnx
+          EVAL_DATA: ${{ github.workspace }}/PianoScribe/piano-model-out
+          EVAL_TRUTH: ${{ github.workspace }}/PianoScribe/eval
+        run: |
+          chmod +x ./gradlew
+          set -o pipefail
+          ./gradlew --no-daemon :core:test --tests '*TranskunEval*' -Dorg.gradle.jvmargs=-Xmx4g 2>&1 | grep -E "TK|FAIL|BUILD|Exception|expected" | tee tk-eval.log
+
   build:
-    needs: piano-model
+    needs: [piano-model, transkun-model]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -110,11 +179,16 @@ jobs:
           chmod +x ./gradlew
           ./gradlew --no-daemon :core:test --tests '*PianoModelEval*' 2>&1 | grep -E "EVAL|PARITY|RESULT|FALSEPOS|FAIL|BUILD" || true
 
-      - name: Bundle the piano model
+      - uses: actions/download-artifact@v4
+        with:
+          name: transkun-model
+          path: PianoScribe/transkun-out
+
+      - name: Bundle the piano model (Transkun 2.0)
         run: |
-          mkdir -p app/src/main/assets/models
-          cp piano-model-out/piano_fp32.onnx app/src/main/assets/models/piano_transcription.onnx
-          ls -la app/src/main/assets/models
+          mkdir -p app/src/main/assets/models/transkun
+          cp transkun-out/transkun_core.onnx transkun-out/transkun_score.onnx transkun-out/transkun_heads.onnx transkun-out/frontend.bin app/src/main/assets/models/transkun/
+          ls -la app/src/main/assets/models/transkun
 
       - name: Decode release keystore (if provided)
         env:
@@ -158,8 +232,9 @@ jobs:
       - name: Verify no INTERNET permission
         run: |
           AAPT="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/aapt"
-          if "$AAPT" dump permissions app/build/outputs/apk/release/*.apk | grep -q "android.permission.INTERNET"; then
-            echo "INTERNET permission found in the APK"; exit 1
+          # Fully offline: no internet or network-state permission may reach the APK.
+          if "$AAPT" dump permissions app/build/outputs/apk/release/*.apk | grep -qE "android.permission.(INTERNET|ACCESS_NETWORK_STATE|ACCESS_WIFI_STATE)"; then
+            echo "A network permission was found in the APK"; exit 1
           fi
           "$AAPT" dump permissions app/build/outputs/apk/release/*.apk
 
@@ -192,7 +267,7 @@ jobs:
   # playback, every export, compare/auto-fix), a UI smoke test, and a launch check of the
   # minified release APK.
   device-tests:
-    needs: [build, piano-model]
+    needs: [build, piano-model, transkun-model]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
@@ -231,11 +306,16 @@ jobs:
           name: piano-model
           path: PianoScribe/piano-model-out
 
-      - name: Bundle the piano model
+      - uses: actions/download-artifact@v4
+        with:
+          name: transkun-model
+          path: PianoScribe/transkun-out
+
+      - name: Bundle the piano model (Transkun 2.0)
         run: |
-          mkdir -p app/src/main/assets/models
-          cp piano-model-out/piano_fp32.onnx app/src/main/assets/models/piano_transcription.onnx
-          ls -la app/src/main/assets/models
+          mkdir -p app/src/main/assets/models/transkun
+          cp transkun-out/transkun_core.onnx transkun-out/transkun_score.onnx transkun-out/transkun_heads.onnx transkun-out/frontend.bin app/src/main/assets/models/transkun/
+          ls -la app/src/main/assets/models/transkun
 
       - name: Build the debug app and test APKs
         run: |
@@ -290,7 +370,8 @@ jobs:
                       print(f"FAILED {tc.get('classname')}.{tc.get('name')}")
                       print("\n".join((fail.text or "").splitlines()[:60]))
           PY
-          test -f logcat-tests.txt && grep -B2 -A40 "FATAL EXCEPTION\|performMeasureAndLayout" logcat-tests.txt | head -150 || true
+          test -f logcat-tests.txt && grep -B2 -A40 "FATAL EXCEPTION\|performMeasureAndLayout\|E PianoScribe" logcat-tests.txt | head -150 || true
+          test -f logcat-tests.txt && grep " PianoScribe: " logcat-tests.txt | head -80 || true
 
       - name: Upload test reports and logcat
         if: always()

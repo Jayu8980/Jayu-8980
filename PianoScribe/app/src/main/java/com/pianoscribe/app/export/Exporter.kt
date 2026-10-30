@@ -17,6 +17,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import androidx.core.content.FileProvider
 import com.pianoscribe.core.analysis.AnalysisRow
+import com.pianoscribe.core.analysis.ChordTrack
 import com.pianoscribe.core.analysis.AnalysisTable
 import com.pianoscribe.core.midi.MidiWriter
 import com.pianoscribe.core.midi.MusicXmlWriter
@@ -25,6 +26,10 @@ import com.pianoscribe.core.model.Note
 import com.pianoscribe.core.model.TimeGrid
 import com.pianoscribe.core.perform.Instrument
 import com.pianoscribe.core.perform.PlayedNote
+import com.pianoscribe.core.score.Engraver
+import com.pianoscribe.core.score.TabWriter
+import com.pianoscribe.core.score.Tablature
+import com.pianoscribe.app.ui.score.ScorePainter
 import com.pianoscribe.core.synth.OfflineRenderer
 import com.pianoscribe.core.synth.Sf2Preset
 import com.pianoscribe.core.theory.KeyDetector
@@ -38,7 +43,11 @@ import java.util.Locale
 
 enum class ExportFormat(val label: String, val ext: String, val mime: String) {
     MIDI("MIDI file (.mid)", "mid", "audio/midi"),
+    MIDI_CHORDS("MIDI + piano chords (.mid)", "mid", "audio/midi"),
     MIDI_PERFORMED("MIDI as performed: instrument + human feel (.mid)", "mid", "audio/midi"),
+    SCORE_PDF("Sheet music, printable (.pdf)", "pdf", "application/pdf"),
+    GUITAR_TAB("Guitar tab (.txt)", "txt", "text/plain"),
+    GUITAR_TAB_XML("Guitar tab for Guitar Pro / MuseScore (.musicxml)", "musicxml", "application/vnd.recordare.musicxml+xml"),
     WAV("Audio of the performance (.wav)", "wav", "audio/wav"),
     MUSICXML("MusicXML for MuseScore (.musicxml)", "musicxml", "application/vnd.recordare.musicxml+xml"),
     PNG("Piano roll image (.png)", "png", "image/png"),
@@ -70,8 +79,10 @@ class Exporter(private val context: Context) {
         val dir = File(context.cacheDir, "exports").apply { mkdirs() }
         val file = File(dir, fileName(input.title, format, input.instrument))
         val rows by lazy { AnalysisTable.rows(input.notes, input.grid, input.saPitchClass, input.key) }
+        val chords by lazy { chordLabels(input) }
         when (format) {
-            ExportFormat.MIDI -> file.writeBytes(MidiWriter.write(input.notes, input.grid, input.title))
+            ExportFormat.MIDI -> file.writeBytes(MidiWriter.write(input.notes, input.grid, input.title, chords = chords))
+            ExportFormat.MIDI_CHORDS -> file.writeBytes(MidiWriter.write(input.notes, input.grid, input.title, chords = chords, chordTrack = true))
             ExportFormat.MIDI_PERFORMED -> {
                 val played = input.performance.mapIndexed { i, p -> Note(i + 1L, p.pitch, p.start, p.duration, p.velocity, 1f, p.hand) }
                 file.writeBytes(MidiWriter.write(played, input.grid, "${input.title} (${input.instrument.label})", input.instrument.gmProgram))
@@ -79,7 +90,10 @@ class Exporter(private val context: Context) {
             ExportFormat.WAV -> BufferedOutputStream(FileOutputStream(file), 1 shl 16).use {
                 OfflineRenderer.render(input.performance, input.instrument, input.preset, WAV_RATE, it, input.expression)
             }
-            ExportFormat.MUSICXML -> file.writeText(MusicXmlWriter.write(input.notes, input.grid, input.title, input.key?.fifths ?: 0))
+            ExportFormat.MUSICXML -> file.writeText(MusicXmlWriter.write(input.notes, input.grid, input.title, input.key?.fifths ?: 0, input.key, chords))
+            ExportFormat.SCORE_PDF -> writeScorePdf(file, input)
+            ExportFormat.GUITAR_TAB -> file.writeText(TabWriter.ascii(Tablature.arrange(input.notes), input.grid, input.title))
+            ExportFormat.GUITAR_TAB_XML -> file.writeText(TabWriter.musicXml(Tablature.arrange(input.notes), input.grid, input.title))
             ExportFormat.PNG -> writePianoRollPng(input.notes, input.grid, file)
             ExportFormat.NOTES_TXT -> file.writeText(AnalysisTable.text(rows, input.title, input.grid, input.key?.name))
             ExportFormat.ANALYSIS_CSV -> file.writeText(AnalysisTable.csv(rows))
@@ -88,6 +102,8 @@ class Exporter(private val context: Context) {
         }
         file
     }
+
+    private fun chordLabels(input: Input) = ChordTrack.labels(input.notes, input.grid, input.key?.preferFlats ?: false)
 
     private fun contentUri(file: File): Uri = FileProvider.getUriForFile(context, context.packageName + ".files", file)
 
@@ -171,6 +187,9 @@ class Exporter(private val context: Context) {
             val suffix = when (format) {
                 ExportFormat.ANALYSIS_CSV, ExportFormat.ANALYSIS_PDF -> "-analysis"
                 ExportFormat.NOTES_PDF, ExportFormat.NOTES_TXT -> "-notes"
+                ExportFormat.SCORE_PDF -> "-score"
+                ExportFormat.MIDI_CHORDS -> "-with-chords"
+                ExportFormat.GUITAR_TAB, ExportFormat.GUITAR_TAB_XML -> "-guitar-tab"
                 ExportFormat.MIDI_PERFORMED -> "-$inst-performed"
                 ExportFormat.WAV -> "-$inst"
                 else -> ""
@@ -231,6 +250,52 @@ class Exporter(private val context: Context) {
         }
         file.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bmp.recycle()
+    }
+
+    /**
+     * The engraved piano score on A4 pages (the same engraving as the score view), systems moved
+     * whole to the next page when they don't fit, with page numbers.
+     */
+    private fun writeScorePdf(file: File, input: Input) {
+        val pageW = 595
+        val pageH = 842
+        val margin = 40f
+        val space = 5.2f // points per staff space: a 7 mm staff, the usual size for piano music
+        val left = margin + 2.5f * space // room for the brace
+        val widthSpaces = (pageW - left - margin) / space
+        val score = Engraver.engrave(input.notes, input.grid, input.key, widthSpaces, Engraver.Options(title = input.title, chords = chordLabels(input)))
+        val painter = ScorePainter(ScorePainter.music(context), Color.BLACK)
+        val footer = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 8f; color = Color.DKGRAY; textAlign = Paint.Align.CENTER }
+        val doc = PdfDocument()
+        val usable = (pageH - 2 * margin - 14f) / space
+        var pageNo = 0
+        var page: PdfDocument.Page? = null
+        var cursor = 0f // staff spaces used on this page
+        fun newPage() {
+            page?.let { doc.finishPage(it) }
+            pageNo++
+            page = doc.startPage(PdfDocument.PageInfo.Builder(pageW, pageH, pageNo).create()).also {
+                it.canvas.drawText("${input.title} · page $pageNo · PianoScribe", pageW / 2f, pageH - margin / 2, footer)
+            }
+            cursor = 0f
+        }
+        newPage()
+        page!!.canvas.apply { save(); translate(left, margin); painter.draw(this, score.header, space); restore() }
+        cursor = score.headerBottom
+        for (s in score.systems) {
+            val h = s.bottom - s.top
+            if (cursor + h > usable && cursor > 0f) newPage()
+            page!!.canvas.apply {
+                save()
+                translate(left, margin + (cursor - s.top) * space)
+                painter.draw(this, s.marks, space)
+                restore()
+            }
+            cursor += h + 2f
+        }
+        page?.let { doc.finishPage(it) }
+        FileOutputStream(file).use { doc.writeTo(it) }
+        doc.close()
     }
 
     private fun writePdf(file: File, input: Input, rows: List<AnalysisRow>, analysis: Boolean) {

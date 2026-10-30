@@ -8,7 +8,8 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.performClick
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.core.content.FileProvider
 import androidx.test.core.app.ActivityScenario
@@ -58,17 +59,62 @@ class ImportFlowTest {
     private fun waitForText(text: String, timeoutMs: Long, substring: Boolean = false) =
         compose.waitUntilAtLeastOneExists(hasText(text, substring = substring), timeoutMs)
 
+    private fun projectSince(since: Long): Boolean {
+        val repo = (TestFixtures.app.applicationContext as PianoScribeApp).container.repository
+        return runBlocking { repo.projects.first() }.any { it.createdAt >= since && it.audioPath.isNotEmpty() }
+    }
+
+    /**
+     * Waits for the conversion by watching the database (a project made since [since] whose audio
+     * is saved, the last step) instead of polling the Compose test rule for minutes: polling the
+     * rule while a conversion updates the screen ran into its multithreaded measure/draw checks
+     * on loaded emulators. The app itself never lays out or draws off the main thread.
+     */
+    private fun waitForProject(since: Long, timeoutMs: Long) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            if (projectSince(since)) return
+            Thread.sleep(1000)
+        }
+        throw AssertionError("conversion did not finish within ${timeoutMs / 1000} s; on screen: ${screenText()}; app log: ${appLog()}")
+    }
+
     private fun openAndConvert(uri: Uri, mime: String, openTimeoutMs: Long, convertTimeoutMs: Long) {
         val app = TestFixtures.app
         val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime)
             .setClass(app, MainActivity::class.java).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         ActivityScenario.launch<MainActivity>(intent).use {
             waitForText("Trim the start and end", openTimeoutMs, substring = true)
-            compose.onNode(hasText("Convert to piano notes") and hasClickAction()).performScrollTo().performClick()
-            waitForText("Piano Roll", convertTimeoutMs)
+            val since = System.currentTimeMillis()
+            // Press the button through its click action: an injected touch at its centre can land on
+            // whatever covers that spot once the long trim screen is scrolled (the release check taps for real).
+            compose.onNode(hasText("Convert to piano notes") and hasClickAction()).performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            // Compose tests run on a test clock: the converting screen (whose view model starts the
+            // conversion) is only composed while the test waits through Compose, not while it sleeps.
+            compose.waitUntil(60_000) { compose.onAllNodes(hasText("Converting to piano notes")).fetchSemanticsNodes().isNotEmpty() || projectSince(since) }
+            waitForProject(since, convertTimeoutMs)
+            waitForText("Piano Roll", 60_000)
         }
         android.util.Log.i("PianoScribeTest", "Imported and converted $uri")
     }
+
+    /** The app's own recent log lines (this process's), for failure messages. */
+    private fun appLog(): String = runCatching {
+        val p = ProcessBuilder("logcat", "-d", "-v", "brief", "-s", "PianoScribe:*", "AndroidRuntime:*").redirectErrorStream(true).start()
+        p.inputStream.bufferedReader().readLines().takeLast(30).joinToString(" / ")
+    }.getOrElse { "(unreadable: $it)" }
+
+    /** Every text on screen, read through accessibility (not the Compose test rule), for failure messages. */
+    private fun screenText(): String = runCatching {
+        val out = ArrayList<String>()
+        fun walk(n: android.view.accessibility.AccessibilityNodeInfo?) {
+            if (n == null) return
+            n.text?.toString()?.takeIf { it.isNotBlank() }?.let { out += it }
+            for (i in 0 until n.childCount) walk(n.getChild(i))
+        }
+        walk(InstrumentationRegistry.getInstrumentation().uiAutomation.rootInActiveWindow)
+        out.joinToString(" | ")
+    }.getOrElse { "(unreadable: $it)" }
 
     @After fun removeTestProjects() = runBlocking {
         val repo = (TestFixtures.app.applicationContext as PianoScribeApp).container.repository
@@ -79,6 +125,27 @@ class ImportFlowTest {
     @Test fun mp3At48k() = openAndConvert(sharedAudio("test_melody_48k.mp3"), "audio/mpeg", 60_000, 180_000)
     @Test fun m4a() = openAndConvert(sharedAudio("test_melody.m4a"), "audio/mp4", 60_000, 180_000)
     @Test fun wav() = openAndConvert(sharedAudio("test_melody.wav"), "audio/wav", 60_000, 180_000)
+
+    /** A MIDI file opens straight into a project with its notes (no listening needed). */
+    @Test fun midiFile() {
+        val app = TestFixtures.app
+        val notes = TestFixtures.expected.mapIndexed { i, e ->
+            com.pianoscribe.core.model.Note(i + 1L, e.pitch, e.start, e.duration, 90, 1f,
+                if (e.pitch >= 60) com.pianoscribe.core.model.Hand.RIGHT else com.pianoscribe.core.model.Hand.LEFT)
+        }
+        val f = File(File(app.cacheDir, "exports").apply { mkdirs() }, "test_melody_midi.mid")
+        f.writeBytes(com.pianoscribe.core.midi.MidiWriter.write(notes, com.pianoscribe.core.model.TimeGrid(bpm = 120.0), "test_melody MIDI"))
+        val uri = FileProvider.getUriForFile(app, app.packageName + ".files", f)
+        val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, "audio/midi")
+            .setClass(app, MainActivity::class.java).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        ActivityScenario.launch<MainActivity>(intent).use {
+            waitForText("Piano Roll", 60_000)
+        }
+        val repo = (app.applicationContext as PianoScribeApp).container.repository
+        val project = runBlocking { repo.projects.first() }.first { it.name == "test_melody MIDI" }
+        org.junit.Assert.assertEquals("MIDI file", project.source)
+        org.junit.Assert.assertEquals(notes.size, runBlocking { repo.load(project.id)!!.notes.size })
+    }
 
     /** A 3-minute song must open (decoding runs off the main thread) and convert. */
     @Test fun threeMinuteSong() = openAndConvert(sharedLongSong(), "audio/wav", 600_000, 900_000)

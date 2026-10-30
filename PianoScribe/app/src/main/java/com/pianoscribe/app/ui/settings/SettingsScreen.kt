@@ -81,8 +81,8 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, onLicenses: () -
                     Column(Modifier.weight(1f)) {
                         Text("High-accuracy piano model", style = MaterialTheme.typography.bodyLarge)
                         Text(
-                            if (com.pianoscribe.app.ml.PianoModelRunner.isAvailable(LocalContext.current))
-                                "For solo piano: adds a dedicated piano transcription model (about 96% note accuracy on studio recordings) and combines it with the general model. Conversion takes about 2-4x longer."
+                            if (com.pianoscribe.app.ml.TranskunRunner.isAvailable(LocalContext.current))
+                                "For solo piano: adds Transkun 2.0, a dedicated piano transcription model, and combines it with the general model (on the test recordings 91% note accuracy clean, 96% phone, 90% room). Conversion takes longer."
                             else "Not included in this build.",
                             style = MaterialTheme.typography.bodySmall,
                         )

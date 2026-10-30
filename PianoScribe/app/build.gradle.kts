@@ -46,6 +46,9 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // 64-bit ARM phones (e.g. Snapdragon 8+ Gen 1 on Android 16), plus x86_64 for the CI emulator's
+            // release check: no 32-bit native libraries, which only made the download bigger.
+            ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
             val release = signingConfigs.getByName("release")
             // Falls back to the debug key so `assembleRelease` always produces an installable APK.
             signingConfig = if (release.storeFile != null) release else signingConfigs.getByName("debug")

@@ -4,7 +4,7 @@
 
 - No `INTERNET` permission, no cloud APIs, no accounts. Every step runs on the device (CI checks the APK has no INTERNET permission).
 - Kotlin, Jetpack Compose, Material 3, MVVM + coroutines/Flow, single activity, Room.
-- minSdk 26 (Android 8.0), targetSdk 35, compileSdk 36. Package `com.pianoscribe.app`.
+- minSdk 26 (Android 8.0), targetSdk 35, compileSdk 36; tested on Android 14 and Android 16. The release APK has native code for 64-bit ARM phones (arm64-v8a, e.g. Snapdragon 8+ Gen 1) and x86_64. Package `com.pianoscribe.app`.
 
 > **Accuracy note:** results are best for **solo piano or a single instrument**. Full-band songs (drums, vocals,
 > bass, several instruments) give *approximate* results. **Full-song mode** (picked automatically, or chosen on the
@@ -15,12 +15,21 @@
 
 | Area | What you get |
 |---|---|
-| Input | Import MP3, WAV, M4A, AAC, OGG, FLAC with the system file picker (Storage Access Framework, no storage permission), or record from the microphone (live waveform, max 10 min). Trim start and end with a preview before converting. You can also "Share" or "Open with" audio into the app. |
+| Input | Import MP3, WAV, M4A, AAC, OGG, FLAC, video files (their sound) or MIDI files with the system file picker (Storage Access Framework, no storage permission), or record from the microphone (live waveform, max 10 min). Trim start and end with a preview before converting. You can also "Share" or "Open with" audio into the app. |
 | Transcription | MediaExtractor + MediaCodec decode → mono → 22 050 Hz (band-limited resampler) → Spotify **Basic Pitch** in overlapping 2 s windows on a background thread with progress and cancel → note extraction (onset, note and contour outputs) → pitch, start, duration, velocity, confidence and tuning in cents. |
 | Full songs | **Audio type: Auto / Solo piano / Full song.** Auto runs a quick harmonic/percussive separation on three excerpts and switches to full-song mode when drums are present. Full-song mode removes the drums before the model listens (median-filter HPSS), then drops overtone ghosts (octave / octave+fifth above a clearly louder note), faint background notes (below 55% of the loudest nearby note) and extra simultaneous notes (max 4 RH / 3 LH). If any audio gives too few notes, a more sensitive pass runs automatically. |
 | Audio studio | **Edit & clean audio** on the trim screen. **Check** measures background noise, 50/60 Hz mains hum, room echo (decay time), clipping and level, and suggests what to fix. **Clean up**: remove hum, rumble filter, noise reduction, echo reduction, normalise. **Separate**: remove drums / drums only; remove vocals / vocals only for stereo songs (stereo centre); melody only, bass only, accompaniment only or remove the melody (finds the notes, then keeps or removes that part's harmonics). **Edit** the selection: cut, keep only, silence, fade in/out, volume, normalise; change tempo (50–200%, same pitch) or pitch (±12 semitones, same length). Every step is undoable, "Compare with before" plays the previous version, and the result can be saved or shared as WAV. Converting also removes mains hum and rumble automatically when it finds them (Settings → "Remove hum before converting"). |
 | Settings | Onset threshold, note threshold, minimum note length (ms), pitch range limited to piano A0–C8 (MIDI 21–108), "piano only" quantisation to 1/8 or 1/16 with auto-detected tempo (editable BPM), RH/LH split point (default middle C). |
-| Views | Piano roll (scroll, pinch-zoom, keyboard on the left, colour by hand, playhead), Synthesia-style falling notes with an on-screen keyboard and finger numbers, simple grand-staff sheet music, note list with Western (C D E) or Indian Sargam (Sa Re Ga) names. |
+| Views | Piano roll (scroll, pinch-zoom, keyboard on the left, colour by hand, playhead), Synthesia-style falling notes with an on-screen keyboard and finger numbers, **engraved piano score** (see below), note list with Western (C D E) or Indian Sargam (Sa Re Ga) names. |
+| Piano score | The **Sheet** tab engraves a real piano score, like a printed one: a grand staff (right hand treble, left hand bass) with brace, clefs, key and time signatures, notes spelled for the key (G# in A minor, Bb in F, F natural in G major), accidentals that carry through the bar, stems, flags and beams grouped by beat, rests, dots, ties (also across lines), ledger lines, staccato and dynamics (pp…ff from how loudly the notes are played), bar numbers and a final barline, using the music font **Bravura**. Rhythms are written the way a person reads them: each beat on the simplest grid that fits (quarters, eighths, then 16ths), small gaps read as legato, short detached notes as staccato, values split to show the beat. Systems fill the screen width (zoom − / +), the playhead follows playback and scrolls, tap a note to select it (and fix it: −1 / +1 semitone, delete) or tap a bar to play from there. **Export → Sheet music, printable (.pdf)** prints the same engraving on A4 pages; MusicXML uses the same spelling. |
+| Guitar tab | The **Guitar Tab** tab shows the notes as tablature for a guitar in standard tuning: every chord fingered with one note per string within a four-fret reach (open strings free), and a Viterbi pass that keeps the hand in place where it can (an open E chord comes out as the open shape, 0 0 1 2 2 0). Notes out of range move by octaves; chords of more than six notes keep the bass and the top. Export as **plain-text tab** or as **MusicXML tablature** (TAB staff with string and fret for each note) for Guitar Pro and MuseScore. |
+| MIDI files | **Import** also opens **MIDI files** (.mid): their notes become a project straight away (exact timing from the file's tempo map, time signature, title; drums left out; a two-track piano file keeps its right and left hands), with the score, tab, playback and every export. **Video files** (MP4, WebM, …) open like audio: their sound track is used. |
+| Make a song | **⋮ → Make a song (chords, bass, drums)** turns the tune into a song: the melody (one note at a time, on the chosen instrument) with chords that fit it, a bass line and drums, in **Pop**, **Ballad**, **Lo-fi** (seventh chords, swung eighths, electric piano) or **Rock** (power chords on organ, driving eighths). Harmony follows the approach of MySong (Simon, Morris & Basu, CHI 2008): every bar gets one chord of the key, scored by how well the melody fits it (chord notes count by length and beat strength, other notes count against), and a Viterbi pass adds the usual progressions (I–IV–V–vi, ii–V, V–I) and starts and ends on the home chord; minor keys use the major V. Chords are voiced close around middle C with smooth voice leading; drums are synthesised on the phone (no samples). Listen in the app, save the mix as WAV, or save MIDI with separate Melody, Chords, Bass and General MIDI drum (channel 10) tracks. On "Ode to Joy" it chooses C G C G \| C G C C \| G C Dm G \| C G C C, the textbook harmony except one bar. |
+| Instrument in the recording | **Instrument in the recording** on the trim screen: Piano, Guitar, Bass guitar, Voice / singing, Violin, Cello, Flute, Clarinet, Saxophone, Trumpet, Harp or Organ / keyboard. The notes are written for that instrument: only its range, and at most as many notes at once as it can play. Voice, winds, bowed strings and bass get one note at a time: of notes starting together, the strongest (the note played, not its overtones), each held note ending where the next begins. Guitar keeps up to 6 notes (the bass and the highest), harp 8. The high-accuracy piano model runs only for Piano. Playback switches to the closest sound (voice and flute → flute, saxophone and trumpet → clarinet, bass → cello). |
+| Chord symbols | Chord names (C, Am, G7, F/A, Cmaj7 …), one per change on the beat, are written **above the score** on screen and in the score PDF, as MusicXML **`<harmony>`** chord symbols (root, kind and bass, which MuseScore and Finale show and play), and as **markers** in every MIDI file (a DAW shows them on its timeline). **MIDI + piano chords (.mid)** adds a fourth track, *Piano Chords*, with each chord as a block piano chord held until the next (root position around C3, a slash chord's bass below it). |
+| Single notes | **Notes: All notes / Single notes** on the trim screen. *Single notes* converts to the tune alone, one note at a time, as it is played (real pitch and timing): at each moment the top note, leaving out the accompaniment (a note starting under a tune note that is still ringing, or a chord well below the tune while it rests), faint overtones and notes the transcription is unsure of; each note ends where the next begins. Tempo and key still come from all the notes. On the device test recording Basic Pitch hears 28 notes for 14 played, and single notes keeps exactly the 8 tune notes. An audio-level melody tracker (Viterbi over the model's pitch salience, in the spirit of Melodia) was built and measured too, and was worse on every test condition (note F1 0.64 / 0.48 / 0.31 clean / phone / room, against 0.79 / 0.72 / 0.60 for this note-based choice), so it is not used. |
+| Difficulty | **Beginner / Intermediate / Advanced** above every view (like Songscription). *Beginner*: the tune alone, one note at a time, for the right hand: the top note of each moment without the accompaniment, faint overtones or uncertain notes, fast runs simplified to at most one note per eighth (keeping the stronger beats), moved by octaves into middle C to C6. *Intermediate*: the tune as played (only runs faster than 16ths thinned) and a simpler left hand: the bass of each chord and one more note, at most one chord per beat (a tune-only piece gets bass notes of chords that fit it). *Advanced*: every note. Piano roll, falling notes, score, analyser, practice, playback and exports ("… (beginner)") follow the choice; the full transcription is kept and edited in Advanced. On 6 evaluation pieces transcribed by Basic Pitch, 94% of Beginner's notes belong to the real tune. |
+| Player tools | **Falling notes**: notes **as played** or **as written** (snapped to the score's rhythm), bar lines with bar numbers, **chord names** where each chord begins (Cmaj7, G/B …), **note names on the lit keys**, finger numbers on the falling notes, fall speed −/+. The player bar has **transpose** (± semitone / octave, with the running total), a **metronome** (a click on every beat, higher on the first beat of the bar, in time at any speed), speed, transcribed / original / A-B audio and A-B loop. |
 | Editing | Tap to select, drag to move, drag the end to resize, long-press to delete, double-tap to add (edit mode), undo/redo, transpose ±12, tempo change (re-grid or stretch), quantise, hand split. |
 | Compare & auto-fix | **Compare** tab: the MIDI is turned back into sound and compared with your recording. Shows the share of notes the recording confirms (an estimate of how many are right), outlines the unconfirmed notes on a piano roll, lists notes that seem to be missing, and colours each second by how well it matches. **Auto-fix** removes notes the recording doesn't contain, adds ones it clearly does and joins split notes, keeping a change only if the MIDI sounds closer to the recording. Undoable; verified notes are never touched. |
 | Instruments & human feel | Play the (edited) notes on **Piano, Electric piano, Flute, Clarinet, Violin, Cello, Nylon guitar, Harp or Church organ** (instrument chip above the transport bar). Flute, clarinet, violin and cello play one note at a time, so they get the melody line, moved by octaves into their range; guitar plays at most 6 notes at once. The **Human feel** slider (0 = exactly as written) adds what a player does: phrase dynamics, beat accents, melody voiced above the chords, small correlated timing drift, chords rolled low to high (harp) or strummed (guitar), legato, breaths between wind phrases, slurs between close notes (the synth glides instead of re-attacking), delayed vibrato on long wind/string notes, and a slow-down over the last bars. The performance can be saved as MIDI (with the instrument's General MIDI program) or as a WAV audio file. |
@@ -146,38 +155,40 @@ Android Studio alternative: **Build → Generate Signed App Bundle / APK → APK
    general: no resynthesis sounds exactly like a real instrument in a real room, and notes hidden under others or
    under drums can't always be recovered.
 
-8. **High-accuracy piano model** (solo piano; Settings → "High-accuracy piano model", on by default): the
-   ByteDance high-resolution piano transcription model (Kong et al. 2021; 96.7% note F1 on the MAESTRO real-piano
-   test set in the paper) runs on the phone with ONNX Runtime, next to Basic Pitch. It takes 16 kHz audio in 10 s
-   segments overlapping by half and regresses, for every 10 ms frame and key, how close an onset or offset is, which
-   gives onset times finer than a frame. `core/.../transcribe/PianoModel.kt` is a port of the reference stitching and
-   `RegressionPostProcessor`; CI checks it gives exactly the same notes as the official Python package on the same
-   audio (18 of 18 recordings identical). The model is converted in CI from the published checkpoint
-   (`scripts/piano_model/export_and_reference.py`) and checked against PyTorch (max difference 2e-4). It is fp32
-   (99 MB): int8 quantisation was tried and wrecked the output without being faster. Up to 15 minutes of audio; it
-   takes about 0.25 s per second of audio on a desktop CPU, more on a phone.
+8. **High-accuracy piano model** (solo piano; Settings → "High-accuracy piano model", on by default):
+   **Transkun 2.0** (Yan & Duan, "Skipping the Frame-Level: Event-Based Piano Transcription With Neural
+   Semi-CRFs", NeurIPS 2021; MIT licence) runs on the phone with ONNX Runtime, next to Basic Pitch. Instead of
+   deciding frame by frame, it scores every possible note *interval* (onset to offset) per key with a transformer
+   and picks the best set of non-overlapping notes exactly (semi-CRF Viterbi decoding), then refines onset/offset
+   times below a frame and predicts velocity. Audio is resampled to 44.1 kHz and taken in 16 s segments every 8 s.
+   The network is exported in CI from the published weights (`scripts/transkun/export_and_eval.py`) as three ONNX
+   parts (51 MB + 3.4 MB + a tiny scorer); the front end (six analysis windows, FFT, mel filters), the decoding,
+   the refinement and the segment stitching are ported to Kotlin (`core/.../transcribe/Transkun.kt`). CI checks the
+   port gives exactly the same notes as the official Python package on the same audio (18 of 18 recordings
+   identical). On the phone the network's per-key output (64 MB per segment) stays in ONNX Runtime's native memory
+   and is read 10 keys at a time, so the app's heap holds only a few MB of it. Recordings up to 6 minutes (longer
+   ones use the general model alone); about 0.37 s per second of audio on a desktop CPU, more on a phone. It replaced the ByteDance high-resolution model (Kong et al. 2021) used before, which
+   scored lower on every test condition (table below).
 
-   **Combining the two.** They make different mistakes: the piano model's extra notes are overtones of notes really
-   played (an octave, twelfth or two octaves above), Basic Pitch's are repeated onsets inside held notes. So the
-   piano model leads and Basic Pitch is a second opinion: a piano-model note Basic Pitch also heard is kept, and an
-   unconfirmed one is dropped only when it sits at an overtone interval from a confirmed note starting at the same
-   moment (`PianoEnsemble.kt`). Basic Pitch's own extra notes are never added.
+   **Combining the two.** The piano model leads and Basic Pitch is a second opinion: a piano-model note Basic
+   Pitch also heard is kept, and an unconfirmed one is dropped only when it sits at an overtone interval (an
+   octave, twelfth or two octaves) from a confirmed note starting at the same moment (`PianoEnsemble.kt`). Basic
+   Pitch's own extra notes (mostly repeated onsets inside held notes) are never added.
 
    Measured in CI on 6 piano pieces with known notes (`eval/`, 15 s each, with fast repeated notes and chords),
    each as a clean, a room-reverb and a "phone" recording (reverb, boxy EQ, noise at 25 dB SNR). Note F1, right
    pitch with the onset within 50 ms (precision / recall in brackets):
 
-   | Recording | Basic Pitch | Piano model alone | **Combined (what the app does)** |
-   |---|---|---|---|
-   | Clean | 0.73 (0.59 / 0.98) | 0.78 (0.67 / 0.95) | **0.91** (0.90 / 0.93) |
-   | Phone | 0.74 (0.64 / 0.89) | 0.69 (0.55 / 0.94) | **0.88** (0.84 / 0.92) |
-   | Room reverb | 0.69 (0.60 / 0.82) | 0.67 (0.52 / 0.94) | **0.83** (0.79 / 0.88) |
+   | Recording | Basic Pitch | Transkun alone | **Transkun + Basic Pitch (the app)** | Before: ByteDance + Basic Pitch |
+   |---|---|---|---|---|
+   | Clean | 0.73 (0.59 / 0.98) | 0.90 (0.90 / 0.90) | **0.91** (0.95 / 0.88) | 0.91 (0.90 / 0.93) |
+   | Phone | 0.74 (0.64 / 0.89) | 0.93 (0.88 / 0.99) | **0.96** (0.96 / 0.97) | 0.88 (0.84 / 0.92) |
+   | Room reverb | 0.69 (0.60 / 0.82) | 0.83 (0.73 / 0.98) | **0.90** (0.88 / 0.93) | 0.83 (0.79 / 0.88) |
 
-   Read these with care. The test pieces are played by this project's synthetic SoundFont piano, whose bright tone
-   makes the piano model (trained on real grand pianos) hear overtones as notes, so it scores far lower here than
-   on real piano recordings; on a real piano expect it to be closer to its published accuracy, and the combination
-   to help less. No transcription is 100% accurate: notes hidden under louder ones, heavy pedal and reverberant rooms
-   still cause misses and extras.
+   Read these with care: the test pieces are played by this project's synthetic SoundFont piano, not a real one.
+   No transcription is 100% accurate: notes hidden under louder ones, heavy pedal and reverberant rooms still
+   cause misses and extras. For other instruments the general model (Basic Pitch) is used: the more accurate
+   multi-instrument models (MT3, YourMT3+, MuScriptor) are far too large to run on a phone, or not licensed for it.
 
 ### Audio clean-up and separation: what helps
 
@@ -219,8 +230,9 @@ Audio is processed in chunks and read from disk by range to avoid running out of
 | Asset | Source | License |
 |---|---|---|
 | `models/basic_pitch_nmp.tflite` | Spotify Basic Pitch, ICASSP 2022 model, `basic_pitch/saved_models/icassp_2022/nmp.tflite` from the `basic-pitch` 0.4.0 package on PyPI ([github.com/spotify/basic-pitch](https://github.com/spotify/basic-pitch)). SHA-256 `3db297d54af8e01c6e5618245c956b1d71b6a2b978cb2dedb527173186552676`. | Apache License 2.0, © 2022 Spotify AB (full text in `assets/licenses/`) |
-| `models/piano_transcription.onnx` (not in git; CI builds it) | ByteDance high-resolution piano transcription note model ([github.com/bytedance/piano_transcription](https://github.com/bytedance/piano_transcription), inference package `piano_transcription_inference` 0.0.6), checkpoint `CRNN_note_F1=0.9677_pedal_F1=0.9186.pth` from [Zenodo record 4034264](https://zenodo.org/record/4034264), converted to ONNX by `scripts/piano_model/export_and_reference.py`. | Code Apache License 2.0; weights Creative Commons Attribution 4.0 |
+| `models/transkun/` (not in git; CI builds it) | Transkun 2.0 piano transcription model by Yujia Yan ([github.com/Yujia-Yan/Skipping-The-Frame-Level](https://github.com/Yujia-Yan/Skipping-The-Frame-Level), PyPI `transkun` 2.0.1, pretrained weights `2.0.pt`), exported to ONNX by `scripts/transkun/export_and_eval.py`, with `frontend.bin` (its analysis windows and mel filters). | MIT License, Copyright (c) 2021 Yujia Yan |
 | Other instruments | No samples: synthesised on the phone by `core/.../synth/ModelVoices.kt` (wavetables with breath/bow noise and vibrato, Karplus-Strong plucked strings, FM electric piano, additive organ). With a General MIDI SoundFont loaded in Settings, its sample for that instrument is used instead. | Apache License 2.0 (part of this project) |
+| `fonts/bravura.otf` | Bravura 1.392, the SMuFL reference music font by Steinberg ([github.com/steinbergmedia/bravura](https://github.com/steinbergmedia/bravura), via the `@vexflow-fonts/bravura` 1.0.2 package). SHA-256 `dca2d90c88437a701b1c2e71fa54e76f9fa41d7deee935d74dc871ea66ecfdd2`. | SIL Open Font License 1.1 (full text in `assets/licenses/`) |
 | `soundfonts/pianoscribe_piano.sf2` | Generated by this project's own additive piano model (`core/.../synth/PianoSampleGenerator.kt`): 22 samples, one every 4 semitones, 24 kHz. Regenerate with `./gradlew :core:generateSoundFont`. | Apache License 2.0 (part of this project) |
 
 You can load any other General MIDI SoundFont (for example a Salamander or FluidR3 piano `.sf2`) in
@@ -233,7 +245,11 @@ You can load any other General MIDI SoundFont (for example a Salamander or Fluid
 | `RECORD_AUDIO` | Recording, and microphone practice mode. Asked only when you use them. |
 | `BLUETOOTH_SCAN` / `BLUETOOTH_CONNECT` (Android 12+), location (Android 8–11) | Only to find Bluetooth LE MIDI keyboards, asked when you tap "Scan Bluetooth". |
 
-No storage permission (the system file picker grants access per file) and **no internet permission**.
+No storage permission (the system file picker grants access per file) and **no internet permission**: the manifest
+strips `INTERNET`, `ACCESS_NETWORK_STATE` and `ACCESS_WIFI_STATE` even if a library asks for them, and CI fails the
+build if any of them reaches the APK. There is no network code, no song links (YouTube and the like), no
+analytics and no accounts: songs come only from files on the phone, the microphone, or "Open with" / "Share" of an
+audio, video or MIDI file.
 
 ## Tests
 
@@ -242,7 +258,7 @@ anti-aliasing, streaming = one-shot), note post-processing (window geometry, sti
 melodia trick, pitch range, inferred onsets), quantiser, tempo detection, chord naming and inversions, key detection,
 cents calculation and measurement, bar:beat conversion, harmonic/percussive separation (tones kept, drums removed,
 solo piano vs. piano + drums detection), song clean-up (overtone ghosts, quiet notes, polyphony limit), note values, intervals, Sargam, MusicXML well-formedness and
-measure layout, analyser steps/filters, CSV export, fingering, undo/redo and edit operations, SF2 write/read and
+measure layout, analyser steps/filters, chord names over time, notes as written, the intermediate level, song making (chords that fit the melody in major and minor, voice leading, bass on the roots, backbeat and swing, multi-track MIDI with drums on channel 10, the mixed WAV), MIDI import (tempo maps, hands, drums), guitar fretting (playable shapes, the open E chord, octave moves) and tab text/MusicXML, single notes and the easy version (tune choice, accompaniment left out, fast runs on the beat, range, no overlaps), CSV export, fingering, undo/redo and edit operations, SF2 write/read and
 playback, time-stretch and YIN, STFT resynthesis, filters, hum/noise/echo analysis and clean-up, stereo centre and
 note-based separation, and the audio edits (cut, crop, silence, fades, gain, normalise, tempo, pitch, WAV).
 On a device or emulator, `./gradlew connectedDebugAndroidTest` decodes a stereo test recording and runs the real
@@ -253,5 +269,5 @@ undo/redo and WAV export, and the main screens including the audio studio.
 
 - Polyphonic transcription of dense mixes is approximate; sustain-pedal heavy playing can merge or split notes.
 - Microphone practice mode hears one pitch at a time: for chords any chord note counts. Use a MIDI keyboard for full chord checking.
-- Sheet music is a basic rendering (one voice per staff, accidentals on every altered note). Export MusicXML to MuseScore for engraving.
+- The score writes one voice per staff (chords share a stem; a held note under moving ones is tied). Tuplets, pedal marks, slurs and grace notes are not written. Export MusicXML to MuseScore to refine it further.
 - Tempo is detected as one constant tempo per song.

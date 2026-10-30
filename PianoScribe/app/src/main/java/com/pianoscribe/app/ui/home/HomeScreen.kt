@@ -125,7 +125,7 @@ fun HomeScreen(
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         ElevatedButton(
-                            onClick = { picker.launch(arrayOf("audio/*", "application/ogg", "video/mp4")) },
+                            onClick = { picker.launch(arrayOf("audio/*", "application/ogg", "video/*", "audio/midi", "audio/x-midi", "application/x-midi")) },
                             modifier = Modifier.weight(1f).height(96.dp),
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {

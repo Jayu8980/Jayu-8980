@@ -12,6 +12,8 @@ object ChordNamer {
         /** 0 = root position, 1 = first inversion, 2 = second, 3 = third. -1 when the bass is not a chord tone. */
         val inversion: Int,
         val noteNames: List<String>,
+        /** Chord tones as semitones above the root (empty for intervals and clusters). */
+        val intervals: List<Int> = emptyList(),
     ) {
         val inversionName: String get() = when (inversion) {
             0 -> "root position"
@@ -97,7 +99,7 @@ object ChordNamer {
                         if (bassInterval in tones) degree(bassInterval, t) else -1
                     }
                     if (root != bassPc) name += "/" + Pitch.pitchClassName(bassPc, preferFlats)
-                    best = Chord(name, root, bassPc, t.quality, inversion, sorted.map { Pitch.name(it, preferFlats) })
+                    best = Chord(name, root, bassPc, t.quality, inversion, sorted.map { Pitch.name(it, preferFlats) }, t.intervals.toList())
                 }
             }
         }

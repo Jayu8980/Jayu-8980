@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -52,6 +53,7 @@ fun TransportBar(
     var instrumentMenu by remember { mutableStateOf(false) }
     var feelDrag by remember { mutableStateOf<Float?>(null) }
     var modeMenu by remember { mutableStateOf(false) }
+    var transposeMenu by remember { mutableStateOf(false) }
     var scrubbing by remember { mutableStateOf<Float?>(null) }
     val duration = s.derived.duration
     Surface(tonalElevation = 3.dp) {
@@ -92,7 +94,7 @@ fun TransportBar(
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 FilledIconButton(onClick = vm::togglePlay) { Icon(if (playing) Icons.Default.Pause else Icons.Default.PlayArrow, if (playing) "Pause" else "Play") }
                 IconButton(onClick = vm::stop) { Icon(Icons.Default.Stop, "Stop") }
-                Text(formatTime(position) + " / " + formatTime(duration), style = MaterialTheme.typography.labelMedium, modifier = Modifier.weight(1f))
+                Text(formatTime(position) + "\n" + formatTime(duration), style = MaterialTheme.typography.labelSmall, maxLines = 2, modifier = Modifier.weight(1f))
                 Box {
                     TextButton(onClick = { modeMenu = true }) {
                         Text(when (s.mode) { PlayMode.NOTES -> "Notes"; PlayMode.ORIGINAL -> "Original"; PlayMode.BOTH -> "A/B mix" })
@@ -108,6 +110,19 @@ fun TransportBar(
                     DropdownMenu(speedMenu, { speedMenu = false }) {
                         SPEEDS.forEach { sp -> DropdownMenuItem(text = { Text("${trim(sp)}x") }, onClick = { speedMenu = false; vm.setSpeed(sp) }) }
                     }
+                }
+                // Transpose: shows the total, changes the notes (undo restores them).
+                Box {
+                    TextButton(onClick = { transposeMenu = true }) { Text(if (s.transposed > 0) "+${s.transposed}" else "${s.transposed}") }
+                    DropdownMenu(transposeMenu, { transposeMenu = false }) {
+                        for ((label, semis) in listOf("Up a semitone" to 1, "Down a semitone" to -1, "Up an octave" to 12, "Down an octave" to -12)) {
+                            DropdownMenuItem(text = { Text(label) }, onClick = { transposeMenu = false; vm.transpose(semis) })
+                        }
+                    }
+                }
+                IconButton(onClick = { vm.setMetronome(!s.metronome) }) {
+                    Icon(Icons.Default.Timer, if (s.metronome) "Metronome on" else "Metronome off",
+                        tint = if (s.metronome) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
                 }
                 IconButton(onClick = vm::loopButton) {
                     val tint = when {

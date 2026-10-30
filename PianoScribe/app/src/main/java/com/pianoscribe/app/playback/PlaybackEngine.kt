@@ -6,6 +6,7 @@ import android.media.AudioTrack
 import com.pianoscribe.app.audio.PcmFile
 import com.pianoscribe.core.audio.TimeStretch
 import com.pianoscribe.core.model.Note
+import com.pianoscribe.core.model.TimeGrid
 import com.pianoscribe.core.perform.Instrument
 import com.pianoscribe.core.perform.Performer
 import com.pianoscribe.core.perform.PlayedNote
@@ -30,6 +31,7 @@ class PlaybackEngine(preset: Sf2Preset?, private val audioFile: File?, instrumen
     companion object {
         const val OUT_RATE = 44100
         private const val BLOCK = 1024
+        private const val CLICK_LEN = OUT_RATE / 25 // 40 ms
         private const val SRC_RATE = BasicPitch.SAMPLE_RATE
     }
 
@@ -50,6 +52,11 @@ class PlaybackEngine(preset: Sf2Preset?, private val audioFile: File?, instrumen
         set(v) { field = v.coerceIn(0.25, 2.0) }
     @Volatile var loop: ClosedFloatingPointRange<Double>? = null
     @Volatile var duration: Double = 0.0
+    /** Beats to click on while playing (null = metronome off). */
+    @Volatile var metronome: TimeGrid? = null
+    /** Samples into the current click (past [CLICK_LEN] = silent), and its pitch. */
+    private var clickPos = Int.MAX_VALUE
+    private var clickHz = 1000.0
 
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
@@ -169,6 +176,7 @@ class PlaybackEngine(preset: Sf2Preset?, private val audioFile: File?, instrumen
                     if (mode != PlayMode.ORIGINAL) sequencer.render(out, 0, BLOCK, sp)
                     else { scratch.fill(0f); sequencer.render(scratch, 0, BLOCK, sp) }
                     if (mode != PlayMode.NOTES) renderOriginal(out, sp, if (mode == PlayMode.BOTH) 0.8f else 1f)
+                    metronome?.let { clicks(out, songTime, sequencer.songTime, sp, it) }
                     songTime = sequencer.songTime
                     val l = loop
                     if (l != null && songTime >= l.endInclusive) {
@@ -204,6 +212,33 @@ class PlaybackEngine(preset: Sf2Preset?, private val audioFile: File?, instrumen
                 if (trackPlaying) { runCatching { track.pause() }; trackPlaying = false }
                 try { Thread.sleep(10) } catch (_: InterruptedException) { }
             }
+        }
+    }
+
+    /**
+     * Metronome: a short click at every beat between song times [t0] and [t1] of this block, at the
+     * exact sample (so it stays in time at any speed); the first beat of a bar is higher.
+     */
+    private fun clicks(out: FloatArray, t0: Double, t1: Double, sp: Double, grid: TimeGrid) {
+        fun ring(from: Int) {
+            var i = from
+            while (i < out.size && clickPos < CLICK_LEN) {
+                val t = clickPos.toDouble() / OUT_RATE
+                out[i] += (0.3 * kotlin.math.sin(2 * Math.PI * clickHz * t) * kotlin.math.exp(-t * 90)).toFloat()
+                clickPos++; i++
+            }
+        }
+        ring(0) // the end of a click from the previous block
+        val b0 = grid.timeToBeats(t0)
+        val b1 = grid.timeToBeats(t1)
+        var k = Math.floor(b0).toLong() + 1
+        if (b0 == Math.floor(b0) && t0 <= 1e-9) k = Math.floor(b0).toLong() // the very first beat
+        while (k <= b1) {
+            val at = (((grid.beatsToTime(k.toDouble()) - t0) / sp) * OUT_RATE).toInt().coerceIn(0, out.size - 1)
+            clickPos = 0
+            clickHz = if (Math.floorMod(k, grid.beatsPerBar.toLong()) == 0L) 1600.0 else 1000.0
+            ring(at)
+            k++
         }
     }
 

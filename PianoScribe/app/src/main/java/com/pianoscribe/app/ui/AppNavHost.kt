@@ -56,6 +56,7 @@ fun AppNavHost(container: AppContainer) {
                 onBack = { nav.popBackStack() },
                 onConvert = { s, e -> nav.navigate(Routes.convert(s, e)) },
                 onStudio = { nav.navigate(Routes.STUDIO) },
+                onOpenProject = { id -> nav.navigate(Routes.result(id)) { popUpTo(Routes.HOME) } },
             )
         }
         composable(Routes.STUDIO) { StudioScreen(container, onDone = { nav.popBackStack() }) }

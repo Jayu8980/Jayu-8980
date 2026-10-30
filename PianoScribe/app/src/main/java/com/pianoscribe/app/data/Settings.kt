@@ -4,6 +4,7 @@ import android.content.Context
 import com.pianoscribe.core.model.Note
 import com.pianoscribe.core.perform.Instrument
 import com.pianoscribe.core.transcribe.AudioType
+import com.pianoscribe.core.transcribe.SourceInstrument
 import com.pianoscribe.core.transcribe.TranscriptionSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,8 +39,12 @@ data class AppSettings(
     val humanFeel: Float = 0.6f,
     /** Remove mains hum and rumble before transcribing, when the analysis finds them. */
     val autoClean: Boolean = true,
-    /** Solo piano: also run the high-resolution piano model and let it lead. */
+    /** Solo piano: also run the piano model (Transkun) and let it lead. */
     val highAccuracyPiano: Boolean = true,
+    /** Convert to the tune alone, one note at a time, instead of every note. */
+    val singleNotes: Boolean = false,
+    /** What the recording is played on: the notes are written for it (range, notes at once). */
+    val sourceInstrument: SourceInstrument = SourceInstrument.PIANO,
 ) {
     fun transcription() = TranscriptionSettings(
         onsetThreshold = onsetThreshold,
@@ -89,6 +94,8 @@ class SettingsStore(context: Context) {
             humanFeel = prefs.getFloat("humanFeel", d.humanFeel),
             autoClean = prefs.getBoolean("autoClean", d.autoClean),
             highAccuracyPiano = prefs.getBoolean("highAccuracyPiano", d.highAccuracyPiano),
+            singleNotes = prefs.getBoolean("singleNotes", d.singleNotes),
+            sourceInstrument = runCatching { SourceInstrument.valueOf(prefs.getString("sourceInstrument", d.sourceInstrument.name)!!) }.getOrDefault(d.sourceInstrument),
         )
     }
 
@@ -113,6 +120,8 @@ class SettingsStore(context: Context) {
             .putFloat("humanFeel", s.humanFeel)
             .putBoolean("autoClean", s.autoClean)
             .putBoolean("highAccuracyPiano", s.highAccuracyPiano)
+            .putBoolean("singleNotes", s.singleNotes)
+            .putString("sourceInstrument", s.sourceInstrument.name)
             .apply()
     }
 }

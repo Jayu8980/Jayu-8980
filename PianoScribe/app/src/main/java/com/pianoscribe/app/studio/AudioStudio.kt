@@ -115,8 +115,9 @@ class AudioStudio(context: Context, original: Draft) {
                     Separator.centre(l, r, keepCentre = what == Separation.VOCALS_ONLY) { onProgress("Separating the stereo centre", it) }
                 }
                 else -> {
+                    // Separating a part needs every note, whatever the conversion setting.
                     val notes = TranscriptionEngine(appContext)
-                        .transcribe(versions[index].file, settings) { step, p -> onProgress("Finding the notes: $step", p * 0.8f) }
+                        .transcribe(versions[index].file, settings.copy(singleNotes = false)) { step, p -> onProgress("Finding the notes: $step", p * 0.8f) }
                         .notes
                     val parts = Separator.parts(notes)
                     val target = when (what) {
