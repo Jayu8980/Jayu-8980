@@ -112,7 +112,10 @@ class CrepeEval {
             val noisy = FloatArray(clean.size) { clean[it] + (noiseRnd.nextFloat() * 2 - 1) * (rms * 0.1 * sqrt(3.0)).toFloat() } // 20 dB SNR
             for ((cond, a22) in listOf("clean" to clean, "noisy" to noisy)) {
                 val key = "${inst.label.lowercase()} $cond"
-                add("$cond | Basic Pitch", helper.f1(src.shape(helper.basicPitch(bp, a22)), truth))
+                val bpNotes = src.shape(helper.basicPitch(bp, a22))
+                add("$cond | Basic Pitch", helper.f1(bpNotes, truth))
+                val bpErrs = bpNotes.mapNotNull { n -> truth.filter { it.pitch == n.pitch }.minByOrNull { abs(it.start - n.start) }?.let { n.start - it.start }?.takeIf { abs(it) < 0.15 } }.sorted()
+                println("CREPEEVAL $key seed $seed basic pitch: onset error median ${"%.0f".format(bpErrs.getOrElse(bpErrs.size / 2) { 0.0 } * 1000)} ms")
                 val a16 = StreamingResampler.resample(a22, rate, Crepe.SAMPLE_RATE)
                 val db = MonoNotes.rmsDb(a16, Crepe.frameCount(a16.size))
                 for ((size, s) in sizes) {
@@ -121,7 +124,9 @@ class CrepeEval {
                     val r = helper.f1(notes, truth)
                     add("$cond | CREPE $size", r)
                     add("$cond | CREPE $size (with offsets)", helper.f1(notes, truth, offsets = true))
-                    println("CREPEEVAL $key seed $seed $size: F1 ${"%.3f".format(r.third)} (${notes.size} vs ${truth.size} notes)")
+                    // Onset timing of notes with the right pitch within 150 ms: is the error systematic?
+                    val errs = notes.mapNotNull { n -> truth.filter { it.pitch == n.pitch }.minByOrNull { abs(it.start - n.start) }?.let { n.start - it.start }?.takeIf { abs(it) < 0.15 } }.sorted()
+                    println("CREPEEVAL $key seed $seed $size: F1 ${"%.3f".format(r.third)} (${notes.size} vs ${truth.size} notes), onset error median ${"%.0f".format(errs.getOrElse(errs.size / 2) { 0.0 } * 1000)} ms")
                 }
             }
         }

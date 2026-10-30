@@ -68,12 +68,24 @@ object MonoNotes {
             while (j < n && semis[j] == semis[i] && !reattack(j, i, semis[i], rmsDb, onset, options)) j++
             if (j - i >= minFrames) {
                 val pitch = semis[i]
+                // The pitch network is only sure once the attack has settled: start the note where the
+                // loudness rose, up to 100 ms earlier, unless it follows straight on from another note.
+                var startFrame = i
+                val prevEnd = out.lastOrNull()?.let { (it.end / Crepe.FRAME_SEC).roundToInt() } ?: -1
+                if (prevEnd < i - 1) {
+                    var bestRise = 3.0f; var at = -1
+                    for (k in maxOf(i - 10, prevEnd + 1, 1)..i) {
+                        val rise = rmsDb[k] - rmsDb[k - 1]
+                        if (rise > bestRise) { bestRise = rise; at = k }
+                    }
+                    if (at >= 0) startFrame = at
+                }
                 val conf = (i until j).map { track.periodicity[it] }.average().toFloat()
                 val peakDb = (i until j).maxOf { rmsDb[it] }
                 val vel = (127 + (peakDb - loudest) * 2.0).roundToInt().coerceIn(20, 127)
                 // Tuning: how far the sung or played pitch sits from the written note.
                 val cents = ((i until j).map { smooth[it] - pitch }.sorted()[(j - i) / 2] * 100).coerceIn(-50f, 50f)
-                out += Note(ids.next(), pitch, i * Crepe.FRAME_SEC, (j - i) * Crepe.FRAME_SEC, vel, conf, if (pitch >= Note.MIDDLE_C) Hand.RIGHT else Hand.LEFT, cents)
+                out += Note(ids.next(), pitch, startFrame * Crepe.FRAME_SEC, (j - startFrame) * Crepe.FRAME_SEC, vel, conf, if (pitch >= Note.MIDDLE_C) Hand.RIGHT else Hand.LEFT, cents)
             }
             i = j
         }
