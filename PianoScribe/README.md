@@ -4,7 +4,7 @@
 
 - No `INTERNET` permission, no cloud APIs, no accounts. Every step runs on the device (CI checks the APK has no INTERNET permission).
 - Kotlin, Jetpack Compose, Material 3, MVVM + coroutines/Flow, single activity, Room.
-- minSdk 26 (Android 8.0), targetSdk 35, compileSdk 36. Package `com.pianoscribe.app`.
+- minSdk 26 (Android 8.0), targetSdk 35, compileSdk 36; tested on Android 14 and Android 16. The release APK has native code for 64-bit ARM phones (arm64-v8a, e.g. Snapdragon 8+ Gen 1) and x86_64. Package `com.pianoscribe.app`.
 
 > **Accuracy note:** results are best for **solo piano or a single instrument**. Full-band songs (drums, vocals,
 > bass, several instruments) give *approximate* results. **Full-song mode** (picked automatically, or chosen on the
