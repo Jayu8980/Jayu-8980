@@ -1,6 +1,7 @@
 package com.autotube.ai.ui.navigation
 
 import android.content.Intent
+import android.net.Uri
 import com.autotube.ai.core.common.IntentKeys
 import com.autotube.ai.core.model.Project
 import com.autotube.ai.core.model.ProjectStatus
@@ -10,11 +11,22 @@ object Routes {
     const val HOME = "home"
     const val PROJECTS = "projects"
     const val SETTINGS = "settings"
+    const val STUDIO = "studio"
 
     const val ARG_PROJECT_ID = "projectId"
     const val PROGRESS = "progress/{$ARG_PROJECT_ID}"
     const val REVIEW = "review/{$ARG_PROJECT_ID}"
     const val ERROR = "error/{$ARG_PROJECT_ID}"
+
+    const val ARG_STUDIO_ID = "studioId"
+    const val STUDIO_EDITOR = "studio/edit/{$ARG_STUDIO_ID}"
+    const val ARG_IMPORT_PATH = "path"
+    const val ARG_IMPORT_NAME = "name"
+    const val STUDIO_IMPORT = "studio/import?$ARG_IMPORT_PATH={$ARG_IMPORT_PATH}&$ARG_IMPORT_NAME={$ARG_IMPORT_NAME}"
+
+    fun studioEditor(id: String) = "studio/edit/$id"
+    fun studioImport(path: String, name: String) =
+        "studio/import?$ARG_IMPORT_PATH=${Uri.encode(path)}&$ARG_IMPORT_NAME=${Uri.encode(name)}"
 
     fun progress(projectId: Long) = "progress/$projectId"
     fun review(projectId: Long) = "review/$projectId"

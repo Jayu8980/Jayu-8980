@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.ContentCut
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.VideoLibrary
 import androidx.compose.material3.Icon
@@ -34,9 +35,13 @@ import com.autotube.ai.ui.progress.ProgressScreen
 import com.autotube.ai.ui.projects.ProjectsScreen
 import com.autotube.ai.ui.review.ReviewScreen
 import com.autotube.ai.ui.settings.SettingsScreen
+import com.autotube.ai.ui.studio.StudioEditorScreen
+import com.autotube.ai.ui.studio.StudioHomeScreen
+import com.autotube.ai.ui.studio.StudioImportScreen
 
 private enum class TopLevel(val route: String, val label: String, val icon: ImageVector) {
     CREATE(Routes.HOME, "Create", Icons.Rounded.AutoAwesome),
+    STUDIO(Routes.STUDIO, "Studio", Icons.Rounded.ContentCut),
     PROJECTS(Routes.PROJECTS, "Projects", Icons.Rounded.VideoLibrary),
     SETTINGS(Routes.SETTINGS, "Settings", Icons.Rounded.Settings),
 }
@@ -117,6 +122,35 @@ fun AppNavHost(
             composable(Routes.SETTINGS) {
                 SettingsScreen()
             }
+            composable(Routes.STUDIO) {
+                StudioHomeScreen(onOpenEditor = { id -> navController.navigate(Routes.studioEditor(id)) })
+            }
+            composable(
+                route = Routes.STUDIO_EDITOR,
+                arguments = listOf(navArgument(Routes.ARG_STUDIO_ID) { type = NavType.StringType }),
+            ) {
+                StudioEditorScreen(
+                    onBack = { if (!navController.popBackStack()) navController.navigateTopLevel(Routes.STUDIO) },
+                )
+            }
+            composable(
+                route = Routes.STUDIO_IMPORT,
+                arguments = listOf(
+                    navArgument(Routes.ARG_IMPORT_PATH) { type = NavType.StringType; defaultValue = "" },
+                    navArgument(Routes.ARG_IMPORT_NAME) { type = NavType.StringType; defaultValue = "" },
+                ),
+            ) { entry ->
+                StudioImportScreen(
+                    path = entry.arguments?.getString(Routes.ARG_IMPORT_PATH).orEmpty(),
+                    name = entry.arguments?.getString(Routes.ARG_IMPORT_NAME).orEmpty(),
+                    onOpenEditor = { id ->
+                        navController.navigate(Routes.studioEditor(id)) {
+                            popUpTo(Routes.STUDIO_IMPORT) { inclusive = true }
+                        }
+                    },
+                    onBack = { navController.popBackStack() },
+                )
+            }
             composable(
                 route = Routes.PROGRESS,
                 arguments = listOf(navArgument(Routes.ARG_PROJECT_ID) { type = NavType.LongType }),
@@ -147,6 +181,7 @@ fun AppNavHost(
                         }
                     },
                     onOpenError = { id -> navController.navigate(Routes.error(id)) },
+                    onEditInStudio = { path, title -> navController.navigate(Routes.studioImport(path, title)) },
                 )
             }
             composable(

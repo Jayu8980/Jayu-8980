@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <files-path name="projects" path="projects/" />
+    <files-path name="studio" path="studio/" />
     <cache-path name="cache" path="." />
 </paths>
